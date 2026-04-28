@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #231261;
+  --color-brand-accent: #21CEA1;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 min-h-screen;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Custom Utilities if needed */
+.text-brand-primary { color: #231261; }
+.bg-brand-primary { background-color: #231261; }
+.border-brand-primary { border-color: #231261; }
+
+.text-brand-accent { color: #21CEA1; }
+.bg-brand-accent { background-color: #21CEA1; }
+.border-brand-accent { border-color: #21CEA1; }
+.hover\:bg-brand-accent:hover { background-color: #1ea382; } /* Darker shade for hover */

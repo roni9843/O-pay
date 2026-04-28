@@ -1,0 +1,22 @@
+[
+  {
+    "type": "notification",
+    "title": "লতিফ Uncle",
+    "text": "Shared a video in Story",
+    "deviceTimezone": "2025-11-11 14:35:56",
+    "timestamp": "2025-11-11 08:35:57",
+    "bdDateAndTimeZone": "11/11/2025, 14:35:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Chat heads active",
+    "text": "Start a conversation",
+    "deviceTimezone": "2025-11-11 22:47:46",
+    "timestamp": "2025-11-11 16:47:47",
+    "bdDateAndTimeZone": "11/11/2025, 22:47:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  }
+]

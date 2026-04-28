@@ -1,0 +1,32 @@
+[
+  {
+    "type": "notification",
+    "title": "Sample Title",
+    "text": "This is a sample notification text.",
+    "deviceTimezone": "2025-11-10 12:00:00",
+    "timestamp": "2025-11-10 06:48:37",
+    "bdDateAndTimeZone": "11/10/2025, 12:48:37",
+    "device_id": "device_12345",
+    "device_name": "Roni's Phone"
+  },
+  {
+    "type": "notification",
+    "title": "Sample Title",
+    "text": "This is a sample notification text.",
+    "deviceTimezone": "2025-11-10 12:00:00",
+    "timestamp": "2025-11-10 06:48:40",
+    "bdDateAndTimeZone": "11/10/2025, 12:48:40",
+    "device_id": "device_12345",
+    "device_name": "Roni's Phone"
+  },
+  {
+    "type": "notification",
+    "title": "Sample Title",
+    "text": "This is a sample notification text.",
+    "deviceTimezone": "2025-11-10 12:00:00",
+    "timestamp": "2025-11-10 07:02:30",
+    "bdDateAndTimeZone": "11/10/2025, 13:02:30",
+    "device_id": "device_12345",
+    "device_name": "Roni's Phone"
+  }
+]
