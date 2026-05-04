@@ -31,7 +31,20 @@ export default function Login() {
       const data = await api.login({ email, password });
       setToken(data.token);
       if (data.user) setUser(data.user);
-      nav(from, { replace: true });
+      
+      let redirectPath = from;
+      if (data.user?.role === "wallet_agent") {
+        try {
+          const devices = await api.getMyDevices(data.token);
+          if (!devices || devices.length === 0) {
+            redirectPath = "/dashboard/device";
+          }
+        } catch (e) {
+          console.error("Failed to check devices", e);
+        }
+      }
+      
+      nav(redirectPath, { replace: true });
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
@@ -118,6 +131,15 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-slate-400 text-sm">
+              Don't have an account?{" "}
+              <a href="/register" className="text-emerald-500 font-bold hover:underline underline-offset-4">
+                Wallet Agent Registration
+              </a>
+            </p>
+          </div>
 
         </div>
       </div>

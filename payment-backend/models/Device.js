@@ -12,8 +12,7 @@ const DeviceSchema = new mongoose.Schema(
       default: null 
     },
     deviceCode: { 
-      type: String, 
-      default: null,
+      type: String,
       unique: true,
       sparse: true
     },

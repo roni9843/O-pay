@@ -52,14 +52,21 @@ router.post('/purchase', auth, async (req, res) => {
       return res.status(400).json({ message: 'Domain is required' });
     }
 
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     // determine price based on months
     let price = 0;
     if (months === 1) price = plan.pricing.monthly;
     else if (months === 6) price = plan.pricing.sixMonths?.price ?? 0;
     else if (months === 12) price = plan.pricing.yearly?.price ?? 0;
 
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'wallet_agent' && plan.name === 'Wallet Agent' && months === 12) {
+      const existingSub = await UserSubscription.findOne({ user: user._id, plan: plan._id });
+      if (!existingSub) {
+        price = 0;
+      }
+    }
 
     if ((user.balance || 0) < price) return res.status(400).json({ message: 'Insufficient balance' });
 

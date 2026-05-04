@@ -714,14 +714,7 @@ router.delete(
         });
       }
 
-      if (device.state) {
-        return res.status(400).json({
-          success: false,
-          message: 'Cannot delete an active device'
-        });
-      }
-
-      await device.remove();
+      await Device.deleteOne({ _id: device._id });
 
       return res.json({
         success: true,

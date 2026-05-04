@@ -31,6 +31,22 @@ export async function register(payload) {
   });
 }
 
+export async function sendOtp(payload) {
+  return request("/api/auth/send-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyOtpAndRegister(payload) {
+  return request("/api/auth/verify-otp-and-register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function login(payload) {
   return request("/api/auth/login", {
     method: "POST",
@@ -287,6 +303,8 @@ export async function submitCreditTopupRequest(token, payload) {
 
 export default { 
   register, 
+  sendOtp,
+  verifyOtpAndRegister,
   login, 
   me, 
   getSubscriptionPlans,

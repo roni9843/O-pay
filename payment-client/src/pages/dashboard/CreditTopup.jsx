@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/api'; // Ensure this uses your updated api.js
-import { CreditCard, CheckCircle, Smartphone, Loader2, Zap } from 'lucide-react';
+import { CreditCard, CheckCircle, Smartphone, Loader2, Zap, ArrowUpRight } from 'lucide-react';
 
 export default function CreditTopup() {
   const token = useAuthStore((s) => s.token);
@@ -108,10 +108,10 @@ export default function CreditTopup() {
         {/* Header */}
         <div className="text-center">
            <h1 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">
-             Apply for <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">Credit Limit</span>
+             আপনার <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">প্যাকেজটি বেছে নিন</span>
            </h1>
            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-             Expand your business capability with our flexible credit plans. Instant approval for qualified agents.
+             খুব সহজেই ক্রেডিট লিমিট প্যাকেজ কিনে আপনার ব্যবসা শুরু করুন। পেমেন্ট করার সাথে সাথেই সার্ভিস চালু হয়ে যাবে।
            </p>
         </div>
 
@@ -126,14 +126,14 @@ export default function CreditTopup() {
         ) : (
            <>
              {/* Plans Grid */}
-             {plans.length === 0 ? (
-                <div className="text-center p-10 bg-white/50 rounded-3xl border border-gray-200">
-                   No credit plans available at the moment.
-                </div>
-             ) : (
+              {plans.length === 0 ? (
+                 <div className="text-center p-10 bg-white/50 rounded-3xl border border-gray-200 text-gray-600">
+                    এই মুহূর্তে কোনো প্যাকেজ পাওয়া যাচ্ছে না।
+                 </div>
+              ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                    {plans.map((plan, i) => (
-                     <div key={plan._id || i} className="relative group bg-white rounded-3xl p-8 border border-gray-100 shadow-xl hover:shadow-2xl hover:border-indigo-100 transition-all duration-300 flex flex-col">
+                     <div key={plan._id || i} className="relative group bg-white/90 backdrop-blur-lg rounded-3xl p-8 border border-gray-100 shadow-xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-2 transition-all duration-300 flex flex-col">
                         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 rounded-t-3xl" />
                         
                         <div className="flex justify-between items-start mb-6">
@@ -142,7 +142,7 @@ export default function CreditTopup() {
                            </div>
                            {i === 1 && ( 
                              <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-full">
-                                Most Popular
+                                জনপ্রিয় প্যাকেজ
                              </span>
                            )}
                         </div>
@@ -150,7 +150,7 @@ export default function CreditTopup() {
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
                         <div className="flex items-baseline gap-1 mb-6">
                            <span className="text-4xl font-black text-gray-900">৳{plan.creditAmount?.toLocaleString()}</span>
-                           <span className="text-gray-500 font-medium">Credit</span>
+                           <span className="text-gray-500 font-medium">ক্রেডিট</span>
                         </div>
 
                         <div className="space-y-4 mb-8 flex-1">
@@ -158,27 +158,27 @@ export default function CreditTopup() {
                               <div className="p-1 rounded-full bg-rose-100 text-rose-500">
                                  <CheckCircle size={14} />
                               </div>
-                              <span className="text-sm font-medium">
-                                Min Credit Reqd: <span className="font-bold text-gray-900">৳{plan.minimumCredit?.toLocaleString() || 0}</span>
-                              </span>
+                               <span className="text-sm font-medium">
+                                সর্বনিম্ন ব্যালেন্স প্রয়োজন: <span className="font-bold text-gray-900">৳{plan.minimumCredit?.toLocaleString() || 0}</span>
+                               </span>
                            </div>
 
                            <div className="flex items-center gap-3 text-gray-600">
                               <div className="p-1 rounded-full bg-emerald-100 text-emerald-600">
                                  <CheckCircle size={14} />
                               </div>
-                              <span className="text-sm font-medium">
-                                Commission: <span className="font-bold text-gray-900">
+                               <span className="text-sm font-medium">
+                                কমিশন: <span className="font-bold text-gray-900">
                                   {plan.commissionType === 'percentage' ? `${plan.commission}%` : `৳${plan.commission}`}
                                 </span>
-                              </span>
+                               </span>
                            </div>
 
                            <div className="flex items-center gap-3 text-gray-600">
                               <div className="p-1 rounded-full bg-blue-100 text-blue-600">
                                  <CheckCircle size={14} />
                               </div>
-                              <span className="text-sm font-medium">Instant Activation</span>
+                               <span className="text-sm font-medium">সাথে সাথেই চালু হবে</span>
                            </div>
                            
                            {plan.description && (
@@ -206,9 +206,12 @@ export default function CreditTopup() {
 
                         <button 
                           onClick={() => handleSelectPlan(plan)}
-                          className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold text-lg hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-200"
+                          className="relative w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-lg hover:from-indigo-500 hover:to-violet-500 transition-all shadow-lg overflow-hidden group"
                         >
-                          Buy
+                          <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                          <span className="relative z-10 flex items-center justify-center gap-2">
+                             প্যাকেজ কিনুন <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                          </span>
                         </button>
                      </div>
                    ))}
@@ -222,11 +225,27 @@ export default function CreditTopup() {
 
       {/* Payment Modal */}
       {showModal && selectedPlan && !successData && (
-         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all animate-in slide-in-from-bottom duration-300">
+         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md z-50 transition-opacity">
+            <style>{`
+              @keyframes slideUpFade {
+                from { opacity: 0; transform: translateY(30px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .animate-slideUpFade {
+                animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              }
+              @keyframes popIn {
+                from { opacity: 0; transform: translateY(10px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .animate-popIn {
+                animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              }
+            `}</style>
+            <div className="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.3)] w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-slideUpFade">
                <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
                   <div>
-                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Purchase Credit Plan</h2>
+                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900">প্যাকেজ পারচেস করুন</h2>
                      <p className="text-sm text-gray-500">{selectedPlan.name} - ৳{selectedPlan.creditAmount}</p>
                   </div>
                   <button onClick={() => setShowModal(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
@@ -237,11 +256,11 @@ export default function CreditTopup() {
                <div className="p-6 space-y-8">
                   {/* Step 1: Select Method */}
                   <div>
-                     <h3 className="font-bold text-gray-800 mb-4 text-lg">1. Select Payment Method</h3>
+                     <h3 className="font-bold text-gray-800 mb-4 text-lg">১. পেমেন্ট মেথড সিলেক্ট করুন</h3>
                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {methods.length === 0 && (
                            <div className="col-span-full text-center p-4 bg-gray-50 rounded-xl text-gray-500">
-                              No payment methods available. Please contact support.
+                              এখন কোনো পেমেন্ট মেথড চালু নেই। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।
                            </div>
                         )}
                         {methods.map(m => (
@@ -269,12 +288,12 @@ export default function CreditTopup() {
                   </div>
 
                   {selectedMethod && (
-                     <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     <form onSubmit={handleSubmit} className="space-y-6 animate-popIn mt-6">
                         {/* Instructions & Inputs ... (Same as before) */}
-                        <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100/50">
-                           <h4 className="font-bold mb-3 flex items-center gap-2 text-indigo-900">
+                        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-2xl border border-indigo-100 shadow-inner">
+                           <h4 className="font-bold mb-3 flex items-center gap-2 text-indigo-900 text-lg">
                              <div className="p-1 rounded bg-indigo-200 text-indigo-700"><Zap size={14} /></div>
-                             Payment Instructions
+                             কীভাবে পেমেন্ট করবেন?
                            </h4>
                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-medium">
                               {selectedMethod.details}
@@ -282,7 +301,7 @@ export default function CreditTopup() {
                         </div>
 
                         <div className="space-y-4">
-                           <h4 className="font-bold text-gray-800 text-lg">2. Submit Payment Details</h4>
+                           <h4 className="font-bold text-gray-800 text-lg">২. পেমেন্ট এর তথ্য দিন</h4>
                            <div className="grid gap-4">
                               {selectedMethod.fields.map((field, idx) => (
                                  <div key={idx} className="group">
@@ -319,7 +338,7 @@ export default function CreditTopup() {
                            disabled={submitting}
                            className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold text-lg hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
-                           {submitting ? <Loader2 className="animate-spin" /> : 'Submit Request'}
+                           {submitting ? <Loader2 className="animate-spin" /> : 'রিকোয়েস্ট সাবমিট করুন'}
                         </button>
                      </form>
                   )}
@@ -341,21 +360,21 @@ export default function CreditTopup() {
                     <CheckCircle className="w-10 h-10 text-emerald-600 animate-bounce" />
                  </div>
                  
-                 <h2 className="text-2xl font-black text-gray-900 mb-2">Request Submitted!</h2>
-                 <p className="text-gray-500 mb-8">Your top-up request has been successfully sent to the admin for approval.</p>
+                 <h2 className="text-2xl font-black text-gray-900 mb-2">রিকোয়েস্ট পাঠানো হয়েছে!</h2>
+                 <p className="text-gray-500 mb-8">আপনার প্যাকেজ কেনার রিকোয়েস্টটি সফলভাবে অ্যাডমিনের কাছে পাঠানো হয়েছে। খুব দ্রুতই তা অ্যাপ্রুভ হয়ে যাবে।</p>
 
                  {/* Receipt/Details Card */}
                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-left space-y-4 mb-8">
                     <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-                       <span className="text-gray-500 text-sm">Plan Name</span>
+                       <span className="text-gray-500 text-sm">প্যাকেজের নাম</span>
                        <span className="font-bold text-gray-900">{successData.plan.name}</span>
                     </div>
                     <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-                       <span className="text-gray-500 text-sm">Credit Amount</span>
+                       <span className="text-gray-500 text-sm">ক্রেডিট ব্যালেন্স</span>
                        <span className="font-bold text-indigo-600">৳{successData.plan.creditAmount?.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-                       <span className="text-gray-500 text-sm">Commission</span>
+                       <span className="text-gray-500 text-sm">কমিশন</span>
                        <span className="font-bold text-emerald-600">
                          {successData.plan.commissionType === 'percentage' 
                            ? `${successData.plan.commission}%` 
@@ -363,7 +382,7 @@ export default function CreditTopup() {
                        </span>
                     </div>
                     <div className="flex justify-between items-center">
-                       <span className="text-gray-500 text-sm">Payment Method</span>
+                       <span className="text-gray-500 text-sm">পেমেন্ট মেথড</span>
                        <span className="font-bold text-gray-900 flex items-center gap-2">
                          {successData.method.image && (
                            <img src={getImageUrl(successData.method.image)} alt="" className="w-4 h-4 object-contain" />
@@ -377,7 +396,7 @@ export default function CreditTopup() {
                    onClick={() => setSuccessData(null)}
                    className="w-full py-3.5 rounded-xl bg-indigo-600 text-white font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                  >
-                   Back to Dashboard
+                   ফিরে যান
                  </button>
               </div>
            </div>

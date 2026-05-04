@@ -23,6 +23,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import opayLogo from "../../assets/appstore.png";
+import CreditTopup from "./CreditTopup";
 
 function formatAmount(value) {
   if (value == null) return "0.00";
@@ -50,6 +51,7 @@ export default function Overview() {
   const [walletSubEnd, setWalletSubEnd] = React.useState(null);
   const [walletSubActive, setWalletSubActive] = React.useState(false);
   const [toggleModal, setToggleModal] = React.useState(null); // { id, currentStatus, provider, number }
+  const [pendingTopup, setPendingTopup] = React.useState(null);
 
 
   const handleToggleStatus = async () => {
@@ -97,11 +99,12 @@ export default function Overview() {
     async function load() {
       try {
         setLoading(true);
-        const [dashboardRes, methodsRes, pagesRes, subsRes] = await Promise.all([
+        const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes] = await Promise.all([
           api.getDashboardOverview(token),
           api.getMyPaymentMethods(token).catch(() => []),
           api.getPaymentMethodPages(token).catch(() => []),
-          api.getMySubscriptions(token).catch(() => [])
+          api.getMySubscriptions(token).catch(() => []),
+          api.getMyCreditTopupRequests(token).catch(() => [])
         ]);
 
         if (!cancelled) {
@@ -116,6 +119,11 @@ export default function Overview() {
             paymentMethods: methodsRes?.data || [],
             methodPages: pagesRes?.data || []
           });
+
+          // Check for pending topup
+          const requests = topupRes?.data || [];
+          const pending = requests.find(r => r.status === 'pending');
+          setPendingTopup(pending || null);
 
           // Subscription Warning Logic (Expired or < 10 days left)
           const now = new Date();
@@ -253,9 +261,40 @@ if (user?.role === "wallet_agent") {
 
   const isCardActive = walletSubActive && new Date(walletSubEnd) > new Date();
 
+  // Redirect to topup if credit is 0 AND NO pending request
+  if ((!user?.credit || user.credit <= 0) && !pendingTopup) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <div className="bg-gradient-to-r from-rose-600 to-rose-500 text-white text-center py-4 font-bold px-4 flex items-center justify-center gap-3 shadow-lg z-50">
+           <AlertCircle className="w-6 h-6 animate-pulse" />
+           <span className="text-lg">জরুরী পদক্ষেপ: আপনার এজেন্ট ড্যাশবোর্ড ব্যবহার করতে অনুগ্রহ করে একটি ক্রেডিট লিমিট প্যাকেজ কিনে নিন!</span>
+        </div>
+        <div className="flex-1">
+          <CreditTopup />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100 flex flex-col items-center px-4 sm:px-6 py-8 md:py-12">
       
+      {/* Pending Topup Alert */}
+      {pendingTopup && (
+        <div className="w-full max-w-md lg:max-w-lg mb-6 animate-in slide-in-from-top-4 duration-500">
+          <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-5 rounded-2xl shadow-xl border border-amber-300 relative overflow-hidden flex items-center gap-4">
+            <div className="absolute inset-0 bg-white/10 w-full h-full animate-pulse"></div>
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center relative z-10 shrink-0">
+              <Clock className="w-7 h-7 text-white animate-spin" style={{ animationDuration: '4s' }} />
+            </div>
+            <div className="relative z-10 text-white">
+              <h3 className="font-bold text-lg leading-tight mb-1">প্যাকেজ পেন্ডিং রয়েছে!</h3>
+              <p className="text-xs opacity-90 font-medium">আপনার প্যাকেজ রিকোয়েস্টটি অ্যাডমিন প্যানেলে রিভিউ হচ্ছে। খুব শীঘ্রই এটি চালু হবে।</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SubscriptionAlert />
 
       <div className="w-full max-w-md lg:max-w-lg space-y-8 md:space-y-10">

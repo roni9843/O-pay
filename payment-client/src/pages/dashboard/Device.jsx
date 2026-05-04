@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Trash2, Copy, RefreshCw, Timer, CheckCircle, XCircle, Smartphone, Laptop, Calendar, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Copy, RefreshCw, Timer, CheckCircle, XCircle, Smartphone, Laptop, Calendar, Clock, Gift, ArrowRight } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 
 const Device = () => {
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+  const nav = useNavigate();
 
   // === STATE ===
   const [devices, setDevices] = useState([]);
@@ -17,6 +20,9 @@ const Device = () => {
   const [createdDevice, setCreatedDevice] = useState(null);
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [countdowns, setCountdowns] = useState({});
+  const [allPlans, setAllPlans] = useState([]);
+  const [purchasingFree, setPurchasingFree] = useState(false);
+  const [showCongratulation, setShowCongratulation] = useState(false);
 
   const pollIntervalRef = useRef(null);
 
@@ -55,6 +61,8 @@ const Device = () => {
     const loadInitial = async () => {
       setLoading(true);
       try {
+        const plansRes = await api.getSubscriptionPlans().catch(() => []);
+        setAllPlans(Array.isArray(plansRes) ? plansRes : []);
         await Promise.all([fetchDevices(), fetchSubscriptions()]);
       } finally {
         setLoading(false);
@@ -63,6 +71,34 @@ const Device = () => {
 
     loadInitial();
   }, [token, fetchDevices, fetchSubscriptions]);
+
+  const handlePurchaseFreePlan = async () => {
+    const plan = allPlans.find(p => p.name === 'Wallet Agent');
+    if (!plan) return alert("Wallet Agent plan not found");
+    
+    setPurchasingFree(true);
+    try {
+      const res = await api.purchaseSubscription(token, {
+        planId: plan._id,
+        durationMonths: 12
+      });
+      await fetchSubscriptions();
+      setShowCongratulation(true);
+      
+      setTimeout(() => {
+        setShowCongratulation(false);
+        if (res?.subscription?._id) {
+          setSelectedSubscription(res.subscription._id);
+        }
+        setShowAddDialog(true);
+      }, 3000);
+      
+    } catch (err) {
+      alert(err.message || 'Failed to purchase plan');
+    } finally {
+      setPurchasingFree(false);
+    }
+  };
 
   // === SMART POLLING: Only when pending activation exists ===
   useEffect(() => {
@@ -214,6 +250,73 @@ const Device = () => {
     );
   }
 
+  // === WALLET AGENT FREE PLAN SCREEN ===
+  if (user?.role === 'wallet_agent' && subscriptions.length === 0) {
+    return (
+      <div className="min-h-screen p-4 md:p-6 flex items-center justify-center relative overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800"></div>
+        <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+        <div className="absolute top-40 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+        
+        {showCongratulation ? (
+          <div className="z-10 flex flex-col items-center animate-bounce scale-110 transition-transform duration-500">
+            <div className="text-7xl mb-6 drop-shadow-2xl">🎉</div>
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">
+              Congratulations!
+            </h1>
+            <p className="text-2xl text-white font-semibold drop-shadow-md">Purchase Done Successfully!</p>
+          </div>
+        ) : (
+          <div className="z-10 bg-white/10 backdrop-blur-3xl rounded-[3rem] p-10 border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] text-center max-w-lg relative mt-12">
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-[0_0_40px_rgba(250,204,21,0.6)]">
+              <Gift className="w-12 h-12 text-white animate-pulse" />
+            </div>
+            
+            <h1 className="text-4xl mt-10 font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">
+              Wallet Agent Package
+            </h1>
+            
+            <div className="flex justify-center items-end gap-3 mb-6">
+              <span className="text-2xl text-gray-400 line-through decoration-red-500 decoration-2">৳4,800/yr</span>
+              <span className="text-5xl font-black text-white">৳0</span>
+            </div>
+
+            <div className="bg-white/5 rounded-2xl p-6 mb-8 text-left border border-white/10 shadow-inner">
+              <h3 className="text-yellow-400 font-bold mb-4 text-center uppercase tracking-widest text-sm">Package Details</h3>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> Unlimited Devices</li>
+                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> Unlimited SIM Numbers</li>
+                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> All Payment Methods Supported</li>
+                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> 1 Year Validity (100% Free)</li>
+              </ul>
+            </div>
+            
+            <div className="flex flex-col items-center relative mt-8">
+              <div className="absolute -top-14 animate-bounce text-yellow-400">
+                <ArrowRight className="w-10 h-10 rotate-90 drop-shadow-lg" />
+              </div>
+              <button
+                onClick={handlePurchaseFreePlan}
+                disabled={purchasingFree}
+                className="w-full py-5 mt-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-orange-500 hover:to-yellow-500 text-white font-bold text-xl rounded-2xl shadow-[0_0_30px_rgba(234,179,8,0.4)] hover:shadow-[0_0_40px_rgba(234,179,8,0.7)] transform hover:scale-105 transition-all duration-300 flex justify-center items-center gap-3 disabled:opacity-70 disabled:scale-100"
+              >
+                {purchasingFree ? (
+                  <>
+                    <RefreshCw className="w-6 h-6 animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    <Gift className="w-6 h-6" /> Claim Package for ৳0
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // === MAIN RENDER ===
   return (
     <div className="min-h-screen p-4 md:p-6">
@@ -272,15 +375,13 @@ const Device = () => {
                       </span>
                     </div>
                   </div>
-                  {!d.state && (
-                    <button
-                      onClick={() => handleDelete(d._id)}
-                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-full transition-all"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDelete(d._id)}
+                    className="p-2 text-red-400 hover:bg-red-500/20 rounded-full transition-all shadow-sm"
+                    title="Delete Device"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Status */}
@@ -482,39 +583,104 @@ const Device = () => {
 
       {/* === ACTIVATION SUCCESS MODAL === */}
       {showActivationModal && createdDevice && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent">
-              Activation Code Ready!
-            </h2>
-            <p className="mb-4 text-gray-700">
-              Use this code on your device within the time limit.
-            </p>
-
-            <div className="p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl text-white shadow-lg mb-4">
-              <div className="flex items-center justify-between">
-                <code className="font-mono text-lg select-all">{createdDevice.activationId}</code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(createdDevice.activationId)}
-                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30"
-                >
-                  <Copy className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <style>{`
+            @keyframes scan {
+              0% { transform: translateY(0%); opacity: 0; }
+              10% { opacity: 1; }
+              90% { opacity: 1; }
+              100% { transform: translateY(150px); opacity: 0; }
+            }
+            .animate-scan {
+              animation: scan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            }
+            @keyframes slideUpFade {
+              from { opacity: 0; transform: translateY(20px) scale(0.95); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            .animate-slideUpFade {
+              animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}</style>
+          
+          <div className="bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl p-8 w-full max-w-md border border-white/40 animate-slideUpFade">
+            
+            {/* Header Icon - Radar Scanning */}
+            <div className="flex justify-center mb-8 mt-4">
+              <div className="relative flex items-center justify-center">
+                {/* Radar Waves */}
+                <div className="absolute w-32 h-32 bg-emerald-400 rounded-full opacity-20 animate-ping" style={{ animationDuration: '2s' }}></div>
+                <div className="absolute w-48 h-48 border border-teal-400 rounded-full opacity-30 animate-pulse" style={{ animationDuration: '1.5s' }}></div>
+                <div className="absolute w-64 h-64 border border-emerald-500 rounded-full opacity-10 animate-pulse" style={{ animationDuration: '3s' }}></div>
+                
+                {/* Center Device Icon */}
+                <div className="relative z-10 bg-gradient-to-br from-emerald-400 to-teal-500 w-20 h-20 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.5)] border-4 border-white">
+                  <Smartphone className="w-10 h-10 text-white" />
+                </div>
+                
+                {/* Scanning Orbit Dot */}
+                <div className="absolute w-32 h-32 animate-spin" style={{ animationDuration: '2.5s' }}>
+                  <div className="w-4 h-4 bg-teal-300 rounded-full shadow-[0_0_15px_#5eead4] absolute top-0 left-1/2 -translate-x-1/2"></div>
+                </div>
               </div>
-              <p className="text-sm mt-2 flex items-center gap-2">
-                <Timer className="w-4 h-4" />
-                Expires in: <span className="font-mono">{timeLeft(createdDevice)}</span>
+            </div>
+
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
+                Scanning Device...
+              </h2>
+              <p className="text-gray-500 font-medium text-sm leading-relaxed px-4">
+                Your device is automatically securely connecting to the server. Please wait a few moments... It will be active shortly!
               </p>
+            </div>
+
+            {/* Code Box */}
+            <div className="relative group mb-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-300"></div>
+              <div className="relative bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl overflow-hidden">
+                {/* Scanning line animation */}
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-400 shadow-[0_0_15px_#34d399] animate-scan pointer-events-none"></div>
+                
+                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3 text-center">
+                  Your Unique Code
+                </p>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <code className="w-full text-center font-mono text-3xl sm:text-4xl font-bold text-emerald-400 tracking-[0.2em] select-all bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
+                    {createdDevice.activationId}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdDevice.activationId);
+                    }}
+                    className="w-full sm:w-auto flex items-center justify-center p-4 bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl transition-all shadow-lg hover:shadow-emerald-500/50 hover:-translate-y-1 group"
+                    title="Copy Code"
+                  >
+                    <Copy className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                  </button>
+                </div>
+                
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 px-4 py-1.5 bg-rose-500/10 rounded-full border border-rose-500/20">
+                    <Timer className="w-4 h-4 text-rose-400 animate-pulse" />
+                    <span className="text-slate-300 font-medium">Expires in:</span>
+                    <span className="font-mono font-bold text-rose-400 text-lg">
+                      {timeLeft(createdDevice)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <button
               onClick={() => {
                 setShowActivationModal(false);
                 setCreatedDevice(null);
+                nav('/dashboard/credit-topup');
               }}
-              className="w-full py-3 rounded-xl bg-gray-200 hover:bg-gray-300 font-medium transition"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] flex justify-center items-center gap-2"
             >
-              Close
+              Next: Topup Credit <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>
