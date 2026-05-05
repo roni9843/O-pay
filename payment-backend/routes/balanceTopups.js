@@ -5,6 +5,7 @@ const multer = require('multer');
 const auth = require('../middleware/auth');
 const BalanceTopUp = require('../models/BalanceTopUp');
 const User = require('../models/User');
+const Setting = require('../models/Setting');
 
 const router = express.Router();
 
@@ -48,6 +49,36 @@ router.post('/', auth, upload.single('screenshot'), async (req, res) => {
       screenshotUrl: relPath,
       status: 'pending'
     });
+
+    // Send SMS Notification to Admins
+    try {
+      const setting = await Setting.findOne({ key: 'admin_notification_numbers' });
+      let adminNumbers = [];
+      if (setting && Array.isArray(setting.value)) adminNumbers = setting.value;
+      else if (setting && typeof setting.value === 'string') adminNumbers = setting.value.split(',').map(n => n.trim()).filter(n => n);
+
+      if (adminNumbers.length > 0) {
+        const user = await User.findById(req.user._id);
+        const userName = user ? user.name : 'A Merchant';
+
+        const msgText = `New Balance Topup Request!\nMerchant: ${userName}\nAmount: ${amount} BDT\nPlease check Admin Panel.`;
+        
+        for (const num of adminNumbers) {
+          const formattedPhone = num.startsWith("88") ? num : (num.startsWith("0") ? "88" + num : "880" + num);
+          await fetch("https://api.o-sms.com/api/service/send-single", {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ recipient: formattedPhone, message: msgText })
+          }).catch(e => console.error("Failed to send admin notification:", e.message));
+        }
+      }
+    } catch (notifyErr) {
+      console.error("Notification Error:", notifyErr.message);
+    }
+
     return res.json({ success: true, data: doc });
   } catch (err) {
     console.error(err);
@@ -112,8 +143,28 @@ router.post('/approve/:id', auth, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     user.balance = Number(user.balance || 0) + Number(doc.amount || 0);
     await user.save();
+    await user.save();
     doc.status = 'approved';
     await doc.save();
+
+    // Send SMS to Merchant
+    try {
+      if (user && user.phone) {
+        const msgText = `Congratulations ${user.name}!\nYour Balance Topup Request for ${doc.amount} BDT has been APPROVED.\nYour new balance is ${user.balance} BDT.\nThank you!`;
+        const formattedPhone = user.phone.startsWith("88") ? user.phone : (user.phone.startsWith("0") ? "88" + user.phone : "880" + user.phone);
+        await fetch("https://api.o-sms.com/api/service/send-single", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recipient: formattedPhone, message: msgText })
+        }).catch(e => console.error("Failed to send merchant notification:", e.message));
+      }
+    } catch (notifyErr) {
+      console.error("Merchant SMS Error:", notifyErr.message);
+    }
+
     return res.json({ success: true, message: 'Approved', user: { _id: user._id, balance: user.balance } });
   } catch (err) {
     console.error(err);

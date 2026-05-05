@@ -35,4 +35,39 @@ router.post('/binance-address', auth, async (req, res) => {
   }
 });
 
+// Admin: get notification numbers
+router.get('/notification-numbers', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const s = await Setting.findOne({ key: 'admin_notification_numbers' });
+    let numbers = [];
+    if (s && Array.isArray(s.value)) numbers = s.value;
+    else if (s && typeof s.value === 'string') numbers = s.value.split(',').map(n => n.trim()).filter(n => n);
+    return res.json({ success: true, numbers });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: set notification numbers
+router.post('/notification-numbers', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { numbers } = req.body || {};
+    if (!Array.isArray(numbers)) {
+      return res.status(400).json({ success: false, message: 'Invalid numbers format (must be array)' });
+    }
+    const s = await Setting.findOneAndUpdate(
+      { key: 'admin_notification_numbers' },
+      { $set: { value: numbers } },
+      { upsert: true, new: true }
+    );
+    return res.json({ success: true, numbers: s.value });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
 module.exports = router;

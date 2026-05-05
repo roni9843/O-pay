@@ -573,6 +573,21 @@ export async function updateMerchantWithdrawalConfig(token, payload) {
   })
 }
 
+// Notification Numbers
+export async function getAdminNotificationNumbers(token) {
+  return request('/api/settings/notification-numbers', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function setAdminNotificationNumbers(token, numbers) {
+  return request('/api/settings/notification-numbers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ numbers })
+  })
+}
+
 export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
@@ -588,7 +603,8 @@ export default {
   getCreditTopupRequests, updateCreditTopupRequestStatus, addMinimumCredit,
   getPaymentPartners, createPaymentPartner, deletePaymentPartner,
   getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs,
-  getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig
+  getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig,
+  getAdminNotificationNumbers, setAdminNotificationNumbers
 }
 
 

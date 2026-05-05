@@ -65,14 +65,35 @@ async function updateAgentMethodsStatus(userId) {
 router.get('/stats', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const [usersCount, devicesCount, verifiedPayments, pendingTopUps, pendingWithdrawals] = await Promise.all([
+    const [
+      usersCount, 
+      devicesCount, 
+      verifiedPayments, 
+      pendingBalanceTopUps, 
+      pendingWithdrawals,
+      pendingCreditTopUps,
+      pendingAgentApplications
+    ] = await Promise.all([
       User.countDocuments(),
       Device.countDocuments(),
       PaymentMessage.countDocuments({ verify: true }),
       require('../models/BalanceTopUp').countDocuments({ status: 'pending' }),
-      MerchantWithdrawal.countDocuments({ status: 'pending' })
+      MerchantWithdrawal.countDocuments({ status: 'pending' }),
+      require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
+      require('../models/AgentApplication').countDocuments({ status: 'pending' })
     ]);
-    return res.json({ success: true, data: { usersCount, devicesCount, verifiedPayments, pendingTopUps, pendingWithdrawals } });
+    return res.json({ 
+      success: true, 
+      data: { 
+        usersCount, 
+        devicesCount, 
+        verifiedPayments, 
+        pendingBalanceTopUps, 
+        pendingWithdrawals,
+        pendingCreditTopUps,
+        pendingAgentApplications
+      } 
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -1049,48 +1070,68 @@ function generateBusinessToken() {
 
 // List all payment link sessions globally
 router.get('/payment-sessions', auth, async (req, res) => {
+  const ApiAccessToken = require('../models/ApiAccessToken');
+
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { page = 1, limit = 50, search = '', startDate, endDate } = req.query;
+    const { page = 1, limit = 50, search = '', startDate, endDate, status } = req.query;
     
     const pageNum = Math.max(1, Number(page) || 1);
     const lim = Math.max(1, Math.min(100, Number(limit) || 50));
     const skip = (pageNum - 1) * lim;
 
+    let businessSessions = [];
+    let totalBusiness = 0;
+    let personalTokens = [];
+    let totalPersonal = 0;
+
     let query = {};
-    
-    // Add Date Filtering
     if (startDate || endDate) {
       query.createdAt = {};
-      if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
-      }
+      if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) {
-        // Set to the end of the selected day
         const endDay = new Date(endDate);
         endDay.setHours(23, 59, 59, 999);
         query.createdAt.$lte = endDay;
       }
     }
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       
       const OpayBusiness = require('../models/OpayBusiness');
       const PaymentMessage = require('../models/PaymentMessage');
+      const User = require('../models/User');
       
-      const [matchingBusinesses, matchingMessages] = await Promise.all([
+      const [matchingBusinesses, matchingMessages, matchingUsers] = await Promise.all([
         OpayBusiness.find({ 
           $or: [{ name: searchRegex }, { domain: searchRegex }, { email: searchRegex }, { apiToken: searchRegex }] 
         }).select('_id').lean(),
         PaymentMessage.find({ 
-          $or: [{ from: searchRegex }, { fullMessage: searchRegex }, { masking: searchRegex }, { deviceId: searchRegex }] 
+          $or: [
+            { trxID: searchRegex }, 
+            { from: searchRegex }, 
+            { fullMessage: searchRegex }, 
+            { masking: searchRegex }, 
+            { deviceId: searchRegex }
+          ] 
+        }).select('_id apiAccessToken').lean(),
+        User.find({
+          $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }]
         }).select('_id').lean()
       ]);
       
       const businessIds = matchingBusinesses.map(b => b._id);
       const messageIds = matchingMessages.map(m => m._id);
+      const personalTokenIdsFromMsgs = matchingMessages.map(m => m.apiAccessToken).filter(Boolean);
+      const userIds = matchingUsers.map(u => u._id);
 
-      query = {
+      // --- Business Session Query ---
+      const businessQuery = {
+        ...(startDate || endDate || (status && status !== 'all') ? query : {}),
         $or: [
           { code: searchRegex },
           { userIdentityAddress: searchRegex },
@@ -1108,31 +1149,70 @@ router.get('/payment-sessions', auth, async (req, res) => {
           { 'verificationFootprint.userAgent': searchRegex },
           { 'checkoutItems.username': searchRegex },
           { business: { $in: businessIds } },
-          { paymentMessage: { $in: messageIds } },
-          { $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$createdAt", ""] } }, regex: search, options: "i" } } },
-          { $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$updatedAt", ""] } }, regex: search, options: "i" } } },
-          { $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$expiresAt", ""] } }, regex: search, options: "i" } } },
-          { $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$firstOpenedAt", ""] } }, regex: search, options: "i" } } },
-          { $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$lastActivityAt", ""] } }, regex: search, options: "i" } } }
+          { paymentMessage: { $in: messageIds } }
         ]
       };
-      
-      // If search is a number, we can also search by amount
+
+      // --- Personal Token Query ---
+      const personalQuery = {
+        ...(startDate || endDate || (status && status !== 'all') ? query : {}),
+        $or: [
+          { token: searchRegex },
+          { userIdentifyAddress: searchRegex },
+          { owner: { $in: userIds } },
+          { _id: { $in: personalTokenIdsFromMsgs } },
+          { 'meta.callbackUrl': searchRegex },
+          { 'meta.orderId': searchRegex }
+        ]
+      };
+
+      // Numeric search for amount
       if (!isNaN(search)) {
-        query.$or.push({ amount: Number(search) });
+        const num = Number(search);
+        businessQuery.$or.push({ amount: num });
+        personalQuery.$or.push({ 'meta.amount': num });
       }
+
+      [businessSessions, totalBusiness, personalTokens, totalPersonal] = await Promise.all([
+        OpayBusinessPaymentSession.find(businessQuery)
+          .populate('business', 'name domain email')
+          .populate('paymentMessage')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(lim)
+          .lean(),
+        OpayBusinessPaymentSession.countDocuments(businessQuery),
+        ApiAccessToken.find(personalQuery)
+          .populate('owner', 'name email')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(lim)
+          .lean(),
+        ApiAccessToken.countDocuments(personalQuery),
+      ]);
+    } else {
+      [businessSessions, totalBusiness, personalTokens, totalPersonal] = await Promise.all([
+        OpayBusinessPaymentSession.find(query)
+          .populate('business', 'name domain email')
+          .populate('paymentMessage')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(lim)
+          .lean(),
+        OpayBusinessPaymentSession.countDocuments(query),
+        ApiAccessToken.find(query)
+          .populate('owner', 'name email')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(lim)
+          .lean(),
+        ApiAccessToken.countDocuments(query),
+      ]);
     }
 
-    const [items, total] = await Promise.all([
-      OpayBusinessPaymentSession.find(query)
-        .populate('business', 'name domain email')
-        .populate('paymentMessage')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(lim)
-        .lean(),
-      OpayBusinessPaymentSession.countDocuments(query),
-    ]);
+    const items = [...businessSessions];
+    const total = totalBusiness + totalPersonal;
+
 
     const Device = require('../models/Device');
     const PaymentMethod = require('../models/PaymentMethod');
@@ -1197,7 +1277,32 @@ router.get('/payment-sessions', auth, async (req, res) => {
       };
     });
 
-    return res.json({ success: true, data, page: pageNum, total });
+    // Process Personal Tokens
+    const processedPersonal = await Promise.all(personalTokens.map(async (t) => {
+       const linkedMsg = await PaymentMessage.findOne({ apiAccessToken: t._id }).lean();
+       const status = linkedMsg ? 'paid' : (new Date(t.expiresAt) < new Date() ? 'expired' : 'pending');
+       
+       return {
+         _id: t._id,
+         code: t.token,
+         amount: t.meta?.amount || 0,
+         status,
+         createdAt: t.createdAt,
+         updatedAt: t.updatedAt,
+         expiresAt: t.expiresAt,
+         userIdentityAddress: t.userIdentifyAddress,
+         business: { name: 'Personal (User)', email: t.owner?.email, domain: t.owner?.name },
+         paymentMessage: linkedMsg,
+         callbackUrl: t.meta?.callbackUrl,
+         isPersonal: true,
+         payment_page_url: `${baseUrl}/${t.methods?.join(',')}/${t.token}`,
+       };
+    }));
+
+    const finalData = [...data, ...processedPersonal].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, lim);
+
+
+    return res.json({ success: true, data: finalData, page: pageNum, total });
   } catch (err) {
     console.error('admin get global payment-sessions error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading payment sessions' });

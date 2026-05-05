@@ -11,6 +11,13 @@ export default function TopupRequests() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
 
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    return `${API_BASE}${path}`;
+  };
+
   useEffect(() => {
     loadRequests();
   }, []);
@@ -184,10 +191,10 @@ export default function TopupRequests() {
                        {selectedRequest.submissionData && Object.entries(selectedRequest.submissionData).map(([key, value]) => (
                           <div key={key} className="bg-white/5 p-4 rounded-xl border border-white/5 shadow-sm">
                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">{key}</div>
-                             {typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:image')) ? (
-                                <a href={value} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg">
+                             {typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:image') || value.startsWith('/uploads/')) ? (
+                                <a href={getImageUrl(value)} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg">
                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium">View Full Image</div>
-                                   <img src={value} alt="Proof" className="w-full h-auto rounded-lg max-h-48 object-cover" />
+                                   <img src={getImageUrl(value)} alt="Proof" className="w-full h-auto rounded-lg max-h-48 object-cover" />
                                 </a>
                              ) : (
                                 <div className="font-mono text-sm break-all text-white bg-black/30 p-2 rounded border border-white/5">{value}</div>

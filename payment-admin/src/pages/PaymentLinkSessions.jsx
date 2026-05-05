@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { getPaymentSessionsAdmin } from '../lib/api'
 import {
-  Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff
+  Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff, RefreshCw
 } from 'lucide-react'
 
 const getBrowserInfo = (ua) => {
@@ -66,10 +66,13 @@ export default function PaymentLinkSessions() {
   const [tempStartDate, setTempStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [tempEndDate, setTempEndDate] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [tempStatus, setTempStatus] = useState('all')
+  const [lastUpdated, setLastUpdated] = useState(new Date())
 
   useEffect(() => {
     fetchData()
-  }, [token, page, searchQuery, startDate, endDate])
+  }, [token, page, searchQuery, startDate, endDate, statusFilter])
 
   async function fetchData() {
     if (!token) return
@@ -78,11 +81,13 @@ export default function PaymentLinkSessions() {
       const qs = { page, limit: 50, search: searchQuery }
       if (startDate) qs.startDate = startDate
       if (endDate) qs.endDate = endDate
+      if (statusFilter !== 'all') qs.status = statusFilter
       
       const res = await getPaymentSessionsAdmin(token, qs)
       if (res.success) {
         setItems(res.data || [])
         setTotal(res.total || 0)
+        setLastUpdated(new Date())
       }
     } catch (err) {
       console.error(err)
@@ -107,6 +112,7 @@ export default function PaymentLinkSessions() {
     setSearchQuery(tempSearch)
     setStartDate(tempStartDate)
     setEndDate(tempEndDate)
+    setStatusFilter(tempStatus)
   }
 
   const clearFilters = () => {
@@ -116,6 +122,8 @@ export default function PaymentLinkSessions() {
     setStartDate('')
     setTempEndDate('')
     setEndDate('')
+    setTempStatus('all')
+    setStatusFilter('all')
     setPage(1)
   }
 
@@ -128,75 +136,107 @@ export default function PaymentLinkSessions() {
       >
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[100px]" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Network className="w-8 h-8 text-indigo-400" />
-              <span className="bg-gradient-to-r from-indigo-300 via-purple-200 to-white bg-clip-text text-transparent">
-                Payment Link Tracking
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-8 text-left">
+          <div className="space-y-2">
+            <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-500/20 rounded-2xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+                <Network className="w-8 h-8 text-indigo-400" />
+              </div>
+              <span className="bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent uppercase tracking-tight">
+                Link Tracking
               </span>
             </h2>
-            <p className="text-slate-400 mt-2 max-w-3xl text-sm leading-relaxed">
-              Trace exactly where a link was generated, who generated it via token, the exact agent/personal target number and its owner, and the final redirect destination when successful.
-            </p>
+            <div className="flex items-center gap-3 text-slate-400">
+              <p className="text-sm md:text-base leading-relaxed font-medium">
+                Real-time monitoring and advanced traceability for all payment links.
+              </p>
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-bold">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                Live: {lastUpdated.toLocaleTimeString()}
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-              <div className="relative group w-full sm:w-64">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-indigo-400/70 group-focus-within:text-indigo-300 transition-colors" />
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6 w-full xl:w-auto">
+            <form onSubmit={handleSearch} className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5">
+              <div className="space-y-1.5 lg:col-span-2">
+                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Search</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-indigo-400 group-focus-within:text-indigo-300 transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="ID, User, Trx, Amount..."
+                    value={tempSearch}
+                    onChange={(e) => setTempSearch(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 backdrop-blur-md transition-all placeholder:text-slate-600 hover:border-white/20"
+                  />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Status</label>
+                <select
+                  value={tempStatus}
+                  onChange={(e) => setTempStatus(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="all">All Status</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Start Date</label>
                 <input
-                  type="text"
-                  placeholder="Search any field..."
-                  value={tempSearch}
-                  onChange={(e) => setTempSearch(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 backdrop-blur-md transition-all placeholder:text-slate-500"
+                  type="date"
+                  value={tempStartDate}
+                  onChange={(e) => setTempStartDate(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto text-sm">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold mb-0.5 ml-1">Start Date</span>
-                  <input
-                    type="date"
-                    value={tempStartDate}
-                    onChange={(e) => setTempStartDate(e.target.value)}
-                    className="bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold mb-0.5 ml-1">End Date</span>
-                  <input
-                    type="date"
-                    value={tempEndDate}
-                    onChange={(e) => setTempEndDate(e.target.value)}
-                    className="bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500/50"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">End Date</label>
+                <input
+                  type="date"
+                  value={tempEndDate}
+                  onChange={(e) => setTempEndDate(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors"
+                />
               </div>
 
-              <div className="flex items-end h-full mt-4 sm:mt-0 pb-0.5 gap-2 w-full sm:w-auto">
-                 <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold transition-colors w-full sm:w-auto h-[42px] flex items-center justify-center">
-                   Filter
-                 </button>
-                 {(searchQuery || startDate || endDate) && (
-                   <button
-                     type="button"
-                     onClick={clearFilters}
-                     title="Clear Filters"
-                     className="bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 px-3 py-2.5 rounded-xl transition-colors h-[42px] flex items-center justify-center"
-                   >
-                     <Activity className="h-4 w-4 rotate-45" />
-                   </button>
-                 )}
+              <div className="flex gap-2 h-[42px] mt-auto">
+                <button 
+                  type="submit" 
+                  className="flex-1 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Zap className="w-4 h-4" />
+                  Filter Results
+                </button>
+                {(searchQuery || startDate || endDate || statusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="aspect-square bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-all border border-white/5 flex items-center justify-center group"
+                  >
+                    <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+                  </button>
+                )}
               </div>
             </form>
 
-            <div className="bg-black/30 border border-white/10 rounded-2xl p-4 text-center min-w-[120px] shadow-inner backdrop-blur-md">
-              <div className="text-3xl font-mono font-bold bg-gradient-to-br from-white to-indigo-400 bg-clip-text text-transparent">{total}</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-1 font-bold">Total Links</div>
+            <div className="hidden lg:block w-px h-12 bg-white/10 mx-2" />
+
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative bg-black/40 border border-white/10 rounded-2xl p-4 text-center min-w-[140px] backdrop-blur-xl">
+                <div className="text-3xl font-mono font-black text-white tracking-tighter">{total}</div>
+                <div className="text-[10px] text-indigo-400 uppercase tracking-widest mt-1 font-black">Tracking Links</div>
+              </div>
             </div>
           </div>
         </div>
@@ -262,26 +302,29 @@ export default function PaymentLinkSessions() {
 
             return (
               <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: items.indexOf(s) * 0.05 }}
                 key={s._id}
-                className={`bg-white/[0.02] border rounded-3xl overflow-hidden transition-all duration-500 ${isSuccess ? 'border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.03)]' : isExpired ? 'border-rose-500/20' : 'border-sky-500/30 hover:border-sky-500/50 shadow-[0_0_30px_rgba(14,165,233,0.03)]'}`}
+                className={`relative group bg-white/[0.03] border rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:shadow-2xl hover:bg-white/[0.05] ${isSuccess ? 'border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.05)]' : isExpired ? 'border-rose-500/20' : 'border-indigo-500/30 shadow-[0_0_40px_rgba(99,102,241,0.05)]'}`}
               >
-                {/* Top Status Bar */}
-                <div className={`px-6 py-2.5 flex items-center justify-between text-xs font-semibold tracking-wider uppercase border-b ${isSuccess ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : isExpired ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-sky-500/10 text-sky-400 border-sky-500/20'}`}>
-                  <div className="flex items-center gap-2">
-                    {isSuccess ? <CheckCircle2 className="w-4 h-4" /> : isExpired ? <Activity className="w-4 h-4" /> : <Clock className="w-4 h-4 animate-pulse" />}
-                    {isSuccess ? 'Payment Successful' : isExpired ? 'Session Expired / Cancelled' : 'Payment Pending'}
+                {/* Top Status Bar - Premium Design */}
+                <div className={`px-8 py-3.5 flex items-center justify-between text-[10px] font-black tracking-[0.2em] uppercase border-b ${isSuccess ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : isExpired ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${isSuccess ? 'bg-emerald-500/20' : isExpired ? 'bg-rose-500/20' : 'bg-indigo-500/20'}`}>
+                      {isSuccess ? <CheckCircle2 className="w-4 h-4" /> : isExpired ? <ShieldAlert className="w-4 h-4" /> : <Clock className="w-4 h-4 animate-pulse" />}
+                    </div>
+                    {isSuccess ? 'Payment Verified & Settled' : isExpired ? 'Session Expired / Cancelled' : 'Payment Link Active & Pending'}
                   </div>
                   {isSuccess && s.paymentMessage && (
-                    <div className="flex items-center gap-2">
-                      <span className="hidden sm:inline-block">Settled at:</span>
-                      {new Date(s.paymentMessage.createdAt).toLocaleString()}
+                    <div className="flex items-center gap-3 opacity-80">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline-block font-mono">{new Date(s.paymentMessage.createdAt).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="p-6">
+                <div className="p-8">
                   {!isSuccess && (
                     <div className={`mb-5 rounded-2xl border px-4 py-3 ${s.lastVerificationFailure ? 'border-rose-500/30 bg-rose-500/10' : 'border-sky-500/25 bg-sky-500/10'}`}>
                       <div className={`text-[10px] uppercase tracking-widest font-black mb-1 ${s.lastVerificationFailure ? 'text-rose-300' : 'text-sky-300'}`}>

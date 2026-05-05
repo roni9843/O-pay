@@ -3,6 +3,7 @@ const router = express.Router();
 const CreditTopupRequest = require('../models/CreditTopupRequest');
 const CreditPlan = require('../models/CreditPlan');
 const User = require('../models/User');
+const Setting = require('../models/Setting');
 const auth = require('../middleware/auth');
 
 // Middleware
@@ -27,6 +28,38 @@ router.post('/', auth, async (req, res) => {
     });
     
     await request.save();
+
+    // Send SMS Notification to Admins
+    try {
+      const setting = await Setting.findOne({ key: 'admin_notification_numbers' });
+      let adminNumbers = [];
+      if (setting && Array.isArray(setting.value)) adminNumbers = setting.value;
+      else if (setting && typeof setting.value === 'string') adminNumbers = setting.value.split(',').map(n => n.trim()).filter(n => n);
+
+      if (adminNumbers.length > 0) {
+        const user = await User.findById(req.user.id);
+        const plan = await CreditPlan.findById(planId);
+        const amount = plan ? plan.creditAmount : 'Unknown';
+        const userName = user ? user.name : 'A Wallet Agent';
+
+        const msgText = `New Credit Topup Request!\nAgent: ${userName}\nAmount: ${amount} BDT\nMethod: ${methodName}\nPlease check Admin Panel.`;
+        
+        for (const num of adminNumbers) {
+          const formattedPhone = num.startsWith("88") ? num : (num.startsWith("0") ? "88" + num : "880" + num);
+          await fetch("https://api.o-sms.com/api/service/send-single", {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ recipient: formattedPhone, message: msgText })
+          }).catch(e => console.error("Failed to send admin notification:", e.message));
+        }
+      }
+    } catch (notifyErr) {
+      console.error("Notification Error:", notifyErr.message);
+    }
+
     res.json({ success: true, message: 'Request submitted' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -113,6 +146,34 @@ router.patch('/:id/status', [auth, ensureAdmin], async (req, res) => {
     }
 
     await request.save();
+
+    // Send SMS to Wallet Agent
+    try {
+      const user = request.userId;
+      if (user && user.phone) {
+        let msgText = '';
+        if (status === 'approved') {
+          msgText = `Congratulations ${user.name}!\nYour Credit Topup Request has been APPROVED.\nYour new credit limit is ${user.credit} BDT.\nThank you!`;
+        } else if (status === 'rejected') {
+          msgText = `Hello ${user.name},\nYour Credit Topup Request has been DECLINED.\nReason: ${rejectionReason || 'Not specified'}.\nPlease contact support.`;
+        }
+        
+        if (msgText) {
+          const formattedPhone = user.phone.startsWith("88") ? user.phone : (user.phone.startsWith("0") ? "88" + user.phone : "880" + user.phone);
+          await fetch("https://api.o-sms.com/api/service/send-single", {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ recipient: formattedPhone, message: msgText })
+          }).catch(e => console.error("Failed to send agent notification:", e.message));
+        }
+      }
+    } catch (notifyErr) {
+      console.error("Agent SMS Error:", notifyErr.message);
+    }
+
     res.json({ success: true, message: `Request ${status}` });
 
   } catch (err) {
