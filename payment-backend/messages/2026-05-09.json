@@ -1,0 +1,3402 @@
+[
+  {
+    "type": "notification",
+    "title": "Unknown",
+    "text": "",
+    "deviceTimezone": "null",
+    "timestamp": "2026-05-09 17:42:53",
+    "bdDateAndTimeZone": "5/9/2026, 23:42:53",
+    "device_id": "unknown_device",
+    "device_name": "unknown_device"
+  },
+  {
+    "type": "notification",
+    "title": "Unknown",
+    "text": "",
+    "deviceTimezone": "null",
+    "timestamp": "2026-05-09 17:42:54",
+    "bdDateAndTimeZone": "5/9/2026, 23:42:54",
+    "device_id": "unknown_device",
+    "device_name": "unknown_device"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Hi",
+    "deviceTimezone": "2026-05-09 23:50:58",
+    "timestamp": "2026-05-09 17:50:59",
+    "bdDateAndTimeZone": "5/9/2026, 23:50:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "5.28GB junk files found",
+    "text": "Tap to clean junk files",
+    "deviceTimezone": "2026-05-10 00:04:39",
+    "timestamp": "2026-05-09 18:04:40",
+    "bdDateAndTimeZone": "5/10/2026, 00:04:40",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Waiting to be admitted",
+    "deviceTimezone": "2026-05-10 00:05:12",
+    "timestamp": "2026-05-09 18:05:14",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Waiting to be admitted",
+    "deviceTimezone": "2026-05-10 00:05:16",
+    "timestamp": "2026-05-09 18:05:17",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Waiting to be admitted",
+    "deviceTimezone": "2026-05-10 00:05:16",
+    "timestamp": "2026-05-09 18:05:17",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Tap to return to the call",
+    "deviceTimezone": "2026-05-10 00:05:18",
+    "timestamp": "2026-05-09 18:05:18",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Tap to return to the call",
+    "deviceTimezone": "2026-05-10 00:05:18",
+    "timestamp": "2026-05-09 18:05:19",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:19",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Tap to return to the call",
+    "deviceTimezone": "2026-05-10 00:05:39",
+    "timestamp": "2026-05-09 18:05:41",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:41",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "You're sharing your screen. Tap to return to the call.",
+    "deviceTimezone": "2026-05-10 00:05:39",
+    "timestamp": "2026-05-09 18:05:42",
+    "bdDateAndTimeZone": "5/10/2026, 00:05:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fast charging started",
+    "text": "65%\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 00:07:22",
+    "timestamp": "2026-05-09 18:07:26",
+    "bdDateAndTimeZone": "5/10/2026, 00:07:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging",
+    "text": "65%\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 00:07:28",
+    "timestamp": "2026-05-09 18:07:34",
+    "bdDateAndTimeZone": "5/10/2026, 00:07:34",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging",
+    "text": "66%\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 00:08:24",
+    "timestamp": "2026-05-09 18:08:24",
+    "bdDateAndTimeZone": "5/10/2026, 00:08:24",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "New follower",
+    "text": "Mayda Moshir Jamia (maydamoshir) started following you.",
+    "deviceTimezone": "2026-05-10 00:08:46",
+    "timestamp": "2026-05-09 18:08:49",
+    "bdDateAndTimeZone": "5/10/2026, 00:08:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging",
+    "text": "67%\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 00:13:02",
+    "timestamp": "2026-05-09 18:13:05",
+    "bdDateAndTimeZone": "5/10/2026, 00:13:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "You're sharing your screen. Tap to return to the call.",
+    "deviceTimezone": "2026-05-10 00:16:10",
+    "timestamp": "2026-05-09 18:16:13",
+    "bdDateAndTimeZone": "5/10/2026, 00:16:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Your video call",
+    "text": "Tap to return to the call",
+    "deviceTimezone": "2026-05-10 00:16:10",
+    "timestamp": "2026-05-09 18:16:13",
+    "bdDateAndTimeZone": "5/10/2026, 00:16:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "الله يرحمه صوته يخبل ",
+    "text": "الله يرحمه صوته يخبل ",
+    "deviceTimezone": "2026-05-10 00:22:17",
+    "timestamp": "2026-05-09 18:22:18",
+    "bdDateAndTimeZone": "5/10/2026, 00:22:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Hi",
+    "deviceTimezone": "2026-05-10 00:26:53",
+    "timestamp": "2026-05-09 18:26:54",
+    "bdDateAndTimeZone": "5/10/2026, 00:26:54",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Roni",
+    "deviceTimezone": "2026-05-10 00:29:03",
+    "timestamp": "2026-05-09 18:29:03",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Roni",
+    "deviceTimezone": "2026-05-10 00:29:03",
+    "timestamp": "2026-05-09 18:29:04",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Roni",
+    "deviceTimezone": "2026-05-10 00:29:03",
+    "timestamp": "2026-05-09 18:29:04",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Roni",
+    "deviceTimezone": "2026-05-10 00:29:03",
+    "timestamp": "2026-05-09 18:29:04",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Roni",
+    "deviceTimezone": "2026-05-10 00:29:03",
+    "timestamp": "2026-05-09 18:29:04",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Memory has exceeded 74%",
+    "text": "Boost to free up",
+    "deviceTimezone": "2026-05-10 00:28:09",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "sms",
+    "title": "bKash",
+    "text": "Don't miss out exciting features. Unlock exclusive offers & bonuses on your first app transaction. Get the app now: https://bka.sh/aoussd",
+    "deviceTimezone": "2026-05-10 00:28:40",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "bKash",
+    "text": "Don't miss out exciting features. Unlock exclusive offers & bonuses on your first app transaction. Get the app now: https://bka.sh/aoussd",
+    "deviceTimezone": "2026-05-10 00:28:42",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Memory has exceeded 74%",
+    "text": "Boost to free up",
+    "deviceTimezone": "2026-05-10 00:28:09",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "sms",
+    "title": "bKash",
+    "text": "Don't miss out exciting features. Unlock exclusive offers & bonuses on your first app transaction. Get the app now: https://bka.sh/aoussd",
+    "deviceTimezone": "2026-05-10 00:28:40",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "bKash",
+    "text": "Don't miss out exciting features. Unlock exclusive offers & bonuses on your first app transaction. Get the app now: https://bka.sh/aoussd",
+    "deviceTimezone": "2026-05-10 00:28:42",
+    "timestamp": "2026-05-09 18:29:47",
+    "bdDateAndTimeZone": "5/10/2026, 00:29:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Hi",
+    "deviceTimezone": "2026-05-10 00:32:27",
+    "timestamp": "2026-05-09 18:32:33",
+    "bdDateAndTimeZone": "5/10/2026, 00:32:33",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Hlwww",
+    "deviceTimezone": "2026-05-10 00:32:57",
+    "timestamp": "2026-05-09 18:32:57",
+    "bdDateAndTimeZone": "5/10/2026, 00:32:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "sms",
+    "title": "bKash",
+    "text": "Don't miss out exciting features. Unlock exclusive offers & bonuses on your first app transaction. Get the app now: https://bka.sh/aoussd",
+    "deviceTimezone": "2026-05-10 00:30:56",
+    "timestamp": "2026-05-09 18:33:41",
+    "bdDateAndTimeZone": "5/10/2026, 00:33:41",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "sms",
+    "title": "+8809617611338",
+    "text": "offline 2222",
+    "deviceTimezone": "2026-05-10 00:35:38",
+    "timestamp": "2026-05-09 18:35:39",
+    "bdDateAndTimeZone": "5/10/2026, 00:35:39",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "N/A",
+    "text": "Messages is doing work in the background",
+    "deviceTimezone": "2026-05-10 00:35:39",
+    "timestamp": "2026-05-09 18:35:39",
+    "bdDateAndTimeZone": "5/10/2026, 00:35:39",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "09617-611338",
+    "text": "offline 2222",
+    "deviceTimezone": "2026-05-10 00:35:39",
+    "timestamp": "2026-05-09 18:35:41",
+    "bdDateAndTimeZone": "5/10/2026, 00:35:41",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "sms",
+    "title": "+8809617611338",
+    "text": "Hello SMS",
+    "deviceTimezone": "2026-05-10 00:35:01",
+    "timestamp": "2026-05-09 18:36:29",
+    "bdDateAndTimeZone": "5/10/2026, 00:36:29",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "09617-611338",
+    "text": "Hello SMS",
+    "deviceTimezone": "2026-05-10 00:35:03",
+    "timestamp": "2026-05-09 18:36:29",
+    "bdDateAndTimeZone": "5/10/2026, 00:36:29",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:03:42",
+    "timestamp": "2026-05-09 19:03:42",
+    "bdDateAndTimeZone": "5/10/2026, 01:03:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:05:56",
+    "timestamp": "2026-05-09 19:05:57",
+    "bdDateAndTimeZone": "5/10/2026, 01:05:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:07:08",
+    "timestamp": "2026-05-09 19:07:09",
+    "bdDateAndTimeZone": "5/10/2026, 01:07:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:08:10",
+    "timestamp": "2026-05-09 19:08:11",
+    "bdDateAndTimeZone": "5/10/2026, 01:08:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fingerprint",
+    "text": "Fingerprint verification requested by Settings.",
+    "deviceTimezone": "2026-05-10 01:08:11",
+    "timestamp": "2026-05-09 19:08:12",
+    "bdDateAndTimeZone": "5/10/2026, 01:08:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:08:21",
+    "timestamp": "2026-05-09 19:08:21",
+    "bdDateAndTimeZone": "5/10/2026, 01:08:21",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:08:41",
+    "timestamp": "2026-05-09 19:08:43",
+    "bdDateAndTimeZone": "5/10/2026, 01:08:43",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:09:43",
+    "timestamp": "2026-05-09 19:09:44",
+    "bdDateAndTimeZone": "5/10/2026, 01:09:44",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:11:36",
+    "timestamp": "2026-05-09 19:11:37",
+    "bdDateAndTimeZone": "5/10/2026, 01:11:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:16:04",
+    "timestamp": "2026-05-09 19:16:04",
+    "bdDateAndTimeZone": "5/10/2026, 01:16:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:20:41",
+    "timestamp": "2026-05-09 19:20:42",
+    "bdDateAndTimeZone": "5/10/2026, 01:20:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:22:35",
+    "timestamp": "2026-05-09 19:22:36",
+    "bdDateAndTimeZone": "5/10/2026, 01:22:36",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:23:16",
+    "timestamp": "2026-05-09 19:23:17",
+    "bdDateAndTimeZone": "5/10/2026, 01:23:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:23:47",
+    "timestamp": "2026-05-09 19:23:49",
+    "bdDateAndTimeZone": "5/10/2026, 01:23:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:27:33",
+    "timestamp": "2026-05-09 19:27:34",
+    "bdDateAndTimeZone": "5/10/2026, 01:27:34",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:28:15",
+    "timestamp": "2026-05-09 19:28:16",
+    "bdDateAndTimeZone": "5/10/2026, 01:28:16",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:29:07",
+    "timestamp": "2026-05-09 19:29:07",
+    "bdDateAndTimeZone": "5/10/2026, 01:29:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:41:07",
+    "timestamp": "2026-05-09 19:41:07",
+    "bdDateAndTimeZone": "5/10/2026, 01:41:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 01:58:04",
+    "timestamp": "2026-05-09 19:58:05",
+    "bdDateAndTimeZone": "5/10/2026, 01:58:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:04:04",
+    "timestamp": "2026-05-09 20:04:05",
+    "bdDateAndTimeZone": "5/10/2026, 02:04:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:16:56",
+    "timestamp": "2026-05-09 20:16:57",
+    "bdDateAndTimeZone": "5/10/2026, 02:16:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:17:17",
+    "timestamp": "2026-05-09 20:17:18",
+    "bdDateAndTimeZone": "5/10/2026, 02:17:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:17:48",
+    "timestamp": "2026-05-09 20:17:48",
+    "bdDateAndTimeZone": "5/10/2026, 02:17:48",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:18:39",
+    "timestamp": "2026-05-09 20:18:40",
+    "bdDateAndTimeZone": "5/10/2026, 02:18:40",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:21:03",
+    "timestamp": "2026-05-09 20:21:04",
+    "bdDateAndTimeZone": "5/10/2026, 02:21:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:22:05",
+    "timestamp": "2026-05-09 20:22:06",
+    "bdDateAndTimeZone": "5/10/2026, 02:22:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:26:54",
+    "timestamp": "2026-05-09 20:26:55",
+    "bdDateAndTimeZone": "5/10/2026, 02:26:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "WhatsApp",
+    "text": "Checking for new messages",
+    "deviceTimezone": "2026-05-10 02:27:07",
+    "timestamp": "2026-05-09 20:27:08",
+    "bdDateAndTimeZone": "5/10/2026, 02:27:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "WhatsApp",
+    "text": "Checking for new messages",
+    "deviceTimezone": "2026-05-10 02:27:22",
+    "timestamp": "2026-05-09 20:27:24",
+    "bdDateAndTimeZone": "5/10/2026, 02:27:24",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:27:25",
+    "timestamp": "2026-05-09 20:27:27",
+    "bdDateAndTimeZone": "5/10/2026, 02:27:27",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fingerprint",
+    "text": "Fingerprint verification requested by Settings.",
+    "deviceTimezone": "2026-05-10 02:30:06",
+    "timestamp": "2026-05-09 20:30:07",
+    "bdDateAndTimeZone": "5/10/2026, 02:30:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:30:51",
+    "timestamp": "2026-05-09 20:30:52",
+    "bdDateAndTimeZone": "5/10/2026, 02:30:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:33:15",
+    "timestamp": "2026-05-09 20:33:28",
+    "bdDateAndTimeZone": "5/10/2026, 02:33:28",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:34:48",
+    "timestamp": "2026-05-09 20:34:49",
+    "bdDateAndTimeZone": "5/10/2026, 02:34:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:48:19",
+    "timestamp": "2026-05-09 20:48:20",
+    "bdDateAndTimeZone": "5/10/2026, 02:48:20",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Abbu (Ksa)",
+    "text": "Kemon acho Roni? 🤭",
+    "deviceTimezone": "2026-05-10 02:49:24",
+    "timestamp": "2026-05-09 20:49:25",
+    "bdDateAndTimeZone": "5/10/2026, 02:49:25",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 02:51:35",
+    "timestamp": "2026-05-09 20:51:35",
+    "bdDateAndTimeZone": "5/10/2026, 02:51:35",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:02:33",
+    "timestamp": "2026-05-09 21:02:33",
+    "bdDateAndTimeZone": "5/10/2026, 03:02:33",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup…",
+    "deviceTimezone": "2026-05-10 03:03:39",
+    "timestamp": "2026-05-09 21:03:39",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:39",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (1%)",
+    "deviceTimezone": "2026-05-10 03:03:46",
+    "timestamp": "2026-05-09 21:03:47",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (2%)",
+    "deviceTimezone": "2026-05-10 03:03:48",
+    "timestamp": "2026-05-09 21:03:49",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (5%)",
+    "deviceTimezone": "2026-05-10 03:03:49",
+    "timestamp": "2026-05-09 21:03:49",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (6%)",
+    "deviceTimezone": "2026-05-10 03:03:49",
+    "timestamp": "2026-05-09 21:03:49",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (9%)",
+    "deviceTimezone": "2026-05-10 03:03:49",
+    "timestamp": "2026-05-09 21:03:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (10%)",
+    "deviceTimezone": "2026-05-10 03:03:50",
+    "timestamp": "2026-05-09 21:03:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (11%)",
+    "deviceTimezone": "2026-05-10 03:03:50",
+    "timestamp": "2026-05-09 21:03:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (12%)",
+    "deviceTimezone": "2026-05-10 03:03:50",
+    "timestamp": "2026-05-09 21:03:51",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:51",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (13%)",
+    "deviceTimezone": "2026-05-10 03:03:51",
+    "timestamp": "2026-05-09 21:03:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (15%)",
+    "deviceTimezone": "2026-05-10 03:03:52",
+    "timestamp": "2026-05-09 21:03:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (16%)",
+    "deviceTimezone": "2026-05-10 03:03:52",
+    "timestamp": "2026-05-09 21:03:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (17%)",
+    "deviceTimezone": "2026-05-10 03:03:53",
+    "timestamp": "2026-05-09 21:03:54",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:54",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (18%)",
+    "deviceTimezone": "2026-05-10 03:03:54",
+    "timestamp": "2026-05-09 21:03:54",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:54",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (19%)",
+    "deviceTimezone": "2026-05-10 03:03:54",
+    "timestamp": "2026-05-09 21:03:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (21%)",
+    "deviceTimezone": "2026-05-10 03:03:56",
+    "timestamp": "2026-05-09 21:03:56",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:56",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (22%)",
+    "deviceTimezone": "2026-05-10 03:03:56",
+    "timestamp": "2026-05-09 21:03:56",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:56",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (24%)",
+    "deviceTimezone": "2026-05-10 03:03:56",
+    "timestamp": "2026-05-09 21:03:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (25%)",
+    "deviceTimezone": "2026-05-10 03:03:57",
+    "timestamp": "2026-05-09 21:03:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (26%)",
+    "deviceTimezone": "2026-05-10 03:03:59",
+    "timestamp": "2026-05-09 21:03:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (27%)",
+    "deviceTimezone": "2026-05-10 03:03:59",
+    "timestamp": "2026-05-09 21:03:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:03:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (28%)",
+    "deviceTimezone": "2026-05-10 03:03:59",
+    "timestamp": "2026-05-09 21:04:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (29%)",
+    "deviceTimezone": "2026-05-10 03:04:00",
+    "timestamp": "2026-05-09 21:04:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (30%)",
+    "deviceTimezone": "2026-05-10 03:04:01",
+    "timestamp": "2026-05-09 21:04:01",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:01",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (31%)",
+    "deviceTimezone": "2026-05-10 03:04:01",
+    "timestamp": "2026-05-09 21:04:01",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:01",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (33%)",
+    "deviceTimezone": "2026-05-10 03:04:01",
+    "timestamp": "2026-05-09 21:04:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (35%)",
+    "deviceTimezone": "2026-05-10 03:04:02",
+    "timestamp": "2026-05-09 21:04:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (37%)",
+    "deviceTimezone": "2026-05-10 03:04:02",
+    "timestamp": "2026-05-09 21:04:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (39%)",
+    "deviceTimezone": "2026-05-10 03:04:02",
+    "timestamp": "2026-05-09 21:04:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (41%)",
+    "deviceTimezone": "2026-05-10 03:04:03",
+    "timestamp": "2026-05-09 21:04:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (43%)",
+    "deviceTimezone": "2026-05-10 03:04:03",
+    "timestamp": "2026-05-09 21:04:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (44%)",
+    "deviceTimezone": "2026-05-10 03:04:03",
+    "timestamp": "2026-05-09 21:04:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (46%)",
+    "deviceTimezone": "2026-05-10 03:04:05",
+    "timestamp": "2026-05-09 21:04:05",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (47%)",
+    "deviceTimezone": "2026-05-10 03:04:05",
+    "timestamp": "2026-05-09 21:04:05",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (48%)",
+    "deviceTimezone": "2026-05-10 03:04:05",
+    "timestamp": "2026-05-09 21:04:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:04:05",
+    "timestamp": "2026-05-09 21:04:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (49%)",
+    "deviceTimezone": "2026-05-10 03:04:06",
+    "timestamp": "2026-05-09 21:04:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (50%)",
+    "deviceTimezone": "2026-05-10 03:04:06",
+    "timestamp": "2026-05-09 21:04:07",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (51%)",
+    "deviceTimezone": "2026-05-10 03:04:07",
+    "timestamp": "2026-05-09 21:04:08",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (52%)",
+    "deviceTimezone": "2026-05-10 03:04:08",
+    "timestamp": "2026-05-09 21:04:08",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (53%)",
+    "deviceTimezone": "2026-05-10 03:04:09",
+    "timestamp": "2026-05-09 21:04:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (54%)",
+    "deviceTimezone": "2026-05-10 03:04:09",
+    "timestamp": "2026-05-09 21:04:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (55%)",
+    "deviceTimezone": "2026-05-10 03:04:10",
+    "timestamp": "2026-05-09 21:04:11",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (56%)",
+    "deviceTimezone": "2026-05-10 03:04:10",
+    "timestamp": "2026-05-09 21:04:11",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (57%)",
+    "deviceTimezone": "2026-05-10 03:04:11",
+    "timestamp": "2026-05-09 21:04:11",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (58%)",
+    "deviceTimezone": "2026-05-10 03:04:11",
+    "timestamp": "2026-05-09 21:04:11",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (61%)",
+    "deviceTimezone": "2026-05-10 03:04:11",
+    "timestamp": "2026-05-09 21:04:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (63%)",
+    "deviceTimezone": "2026-05-10 03:04:12",
+    "timestamp": "2026-05-09 21:04:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (66%)",
+    "deviceTimezone": "2026-05-10 03:04:13",
+    "timestamp": "2026-05-09 21:04:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:04:36",
+    "timestamp": "2026-05-09 21:04:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Couldn't complete backup",
+    "text": "Tap for more info",
+    "deviceTimezone": "2026-05-10 03:04:46",
+    "timestamp": "2026-05-09 21:04:47",
+    "bdDateAndTimeZone": "5/10/2026, 03:04:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:05:17",
+    "timestamp": "2026-05-09 21:05:18",
+    "bdDateAndTimeZone": "5/10/2026, 03:05:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:10:05",
+    "timestamp": "2026-05-09 21:10:05",
+    "bdDateAndTimeZone": "5/10/2026, 03:10:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:10:05",
+    "timestamp": "2026-05-09 21:10:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:10:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:13:30",
+    "timestamp": "2026-05-09 21:13:31",
+    "bdDateAndTimeZone": "5/10/2026, 03:13:31",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:13:30",
+    "timestamp": "2026-05-09 21:13:31",
+    "bdDateAndTimeZone": "5/10/2026, 03:13:31",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup…",
+    "deviceTimezone": "2026-05-10 03:15:42",
+    "timestamp": "2026-05-09 21:15:42",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup…",
+    "deviceTimezone": "2026-05-10 03:15:42",
+    "timestamp": "2026-05-09 21:15:42",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (1%)",
+    "deviceTimezone": "2026-05-10 03:15:47",
+    "timestamp": "2026-05-09 21:15:47",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (1%)",
+    "deviceTimezone": "2026-05-10 03:15:47",
+    "timestamp": "2026-05-09 21:15:48",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:48",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (5%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (4%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (2%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (2%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (4%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (7%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (5%)",
+    "deviceTimezone": "2026-05-10 03:15:49",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (7%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (10%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:50",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:50",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (12%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:51",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:51",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (12%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:51",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:51",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (10%)",
+    "deviceTimezone": "2026-05-10 03:15:50",
+    "timestamp": "2026-05-09 21:15:51",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:51",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (13%)",
+    "deviceTimezone": "2026-05-10 03:15:51",
+    "timestamp": "2026-05-09 21:15:51",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:51",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (13%)",
+    "deviceTimezone": "2026-05-10 03:15:51",
+    "timestamp": "2026-05-09 21:15:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (15%)",
+    "deviceTimezone": "2026-05-10 03:15:52",
+    "timestamp": "2026-05-09 21:15:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (16%)",
+    "deviceTimezone": "2026-05-10 03:15:52",
+    "timestamp": "2026-05-09 21:15:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (15%)",
+    "deviceTimezone": "2026-05-10 03:15:52",
+    "timestamp": "2026-05-09 21:15:52",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:52",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (16%)",
+    "deviceTimezone": "2026-05-10 03:15:52",
+    "timestamp": "2026-05-09 21:15:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (17%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (17%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (18%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (18%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (19%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:54",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:54",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (19%)",
+    "deviceTimezone": "2026-05-10 03:15:53",
+    "timestamp": "2026-05-09 21:15:54",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:54",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (21%)",
+    "deviceTimezone": "2026-05-10 03:15:54",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (21%)",
+    "deviceTimezone": "2026-05-10 03:15:54",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (23%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (23%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (24%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (24%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (25%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (25%)",
+    "deviceTimezone": "2026-05-10 03:15:55",
+    "timestamp": "2026-05-09 21:15:56",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:56",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (26%)",
+    "deviceTimezone": "2026-05-10 03:15:56",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (26%)",
+    "deviceTimezone": "2026-05-10 03:15:56",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (27%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (28%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (28%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (29%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (29%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (27%)",
+    "deviceTimezone": "2026-05-10 03:15:57",
+    "timestamp": "2026-05-09 21:15:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (30%)",
+    "deviceTimezone": "2026-05-10 03:15:58",
+    "timestamp": "2026-05-09 21:15:58",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:58",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (30%)",
+    "deviceTimezone": "2026-05-10 03:15:58",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (32%)",
+    "deviceTimezone": "2026-05-10 03:15:58",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (32%)",
+    "deviceTimezone": "2026-05-10 03:15:58",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (33%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (33%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (35%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (35%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:15:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:15:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (37%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (37%)",
+    "deviceTimezone": "2026-05-10 03:15:59",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (39%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (39%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (41%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (41%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (43%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (43%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (45%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:01",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:01",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (45%)",
+    "deviceTimezone": "2026-05-10 03:16:00",
+    "timestamp": "2026-05-09 21:16:01",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:01",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (46%)",
+    "deviceTimezone": "2026-05-10 03:16:02",
+    "timestamp": "2026-05-09 21:16:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (46%)",
+    "deviceTimezone": "2026-05-10 03:16:02",
+    "timestamp": "2026-05-09 21:16:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (47%)",
+    "deviceTimezone": "2026-05-10 03:16:02",
+    "timestamp": "2026-05-09 21:16:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (47%)",
+    "deviceTimezone": "2026-05-10 03:16:02",
+    "timestamp": "2026-05-09 21:16:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:16:15",
+    "timestamp": "2026-05-09 21:16:15",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:15",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:16:15",
+    "timestamp": "2026-05-09 21:16:15",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:15",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fast charging started (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:25",
+    "timestamp": "2026-05-09 21:16:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fast charging started (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:25",
+    "timestamp": "2026-05-09 21:16:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:30",
+    "timestamp": "2026-05-09 21:16:30",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:30",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:30",
+    "timestamp": "2026-05-09 21:16:30",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:30",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:45",
+    "timestamp": "2026-05-09 21:16:45",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:45",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:16:45",
+    "timestamp": "2026-05-09 21:16:46",
+    "bdDateAndTimeZone": "5/10/2026, 03:16:46",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:05",
+    "timestamp": "2026-05-09 21:17:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:05",
+    "timestamp": "2026-05-09 21:17:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:26",
+    "timestamp": "2026-05-09 21:17:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:26",
+    "timestamp": "2026-05-09 21:17:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:36",
+    "timestamp": "2026-05-09 21:17:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (1 m until full)",
+    "text": "79% (1 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:17:36",
+    "timestamp": "2026-05-09 21:17:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:17:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "5.51MB residual APK is found",
+    "text": "Tap to clean and free up storage",
+    "deviceTimezone": "2026-05-10 03:18:12",
+    "timestamp": "2026-05-09 21:18:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:18:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "5.51MB residual APK is found",
+    "text": "Tap to clean and free up storage",
+    "deviceTimezone": "2026-05-10 03:18:23",
+    "timestamp": "2026-05-09 21:18:24",
+    "bdDateAndTimeZone": "5/10/2026, 03:18:24",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:19:49",
+    "timestamp": "2026-05-09 21:19:49",
+    "bdDateAndTimeZone": "5/10/2026, 03:19:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:20:09",
+    "timestamp": "2026-05-09 21:20:10",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:10",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup…",
+    "deviceTimezone": "2026-05-10 03:20:49",
+    "timestamp": "2026-05-09 21:20:49",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:49",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (1%)",
+    "deviceTimezone": "2026-05-10 03:20:55",
+    "timestamp": "2026-05-09 21:20:55",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:55",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (2%)",
+    "deviceTimezone": "2026-05-10 03:20:58",
+    "timestamp": "2026-05-09 21:20:58",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:58",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (5%)",
+    "deviceTimezone": "2026-05-10 03:20:58",
+    "timestamp": "2026-05-09 21:20:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (6%)",
+    "deviceTimezone": "2026-05-10 03:20:59",
+    "timestamp": "2026-05-09 21:20:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (9%)",
+    "deviceTimezone": "2026-05-10 03:20:59",
+    "timestamp": "2026-05-09 21:20:59",
+    "bdDateAndTimeZone": "5/10/2026, 03:20:59",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (11%)",
+    "deviceTimezone": "2026-05-10 03:20:59",
+    "timestamp": "2026-05-09 21:21:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (12%)",
+    "deviceTimezone": "2026-05-10 03:21:00",
+    "timestamp": "2026-05-09 21:21:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (13%)",
+    "deviceTimezone": "2026-05-10 03:21:01",
+    "timestamp": "2026-05-09 21:21:01",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:01",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (15%)",
+    "deviceTimezone": "2026-05-10 03:21:01",
+    "timestamp": "2026-05-09 21:21:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (16%)",
+    "deviceTimezone": "2026-05-10 03:21:02",
+    "timestamp": "2026-05-09 21:21:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (17%)",
+    "deviceTimezone": "2026-05-10 03:21:03",
+    "timestamp": "2026-05-09 21:21:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (18%)",
+    "deviceTimezone": "2026-05-10 03:21:04",
+    "timestamp": "2026-05-09 21:21:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (19%)",
+    "deviceTimezone": "2026-05-10 03:21:04",
+    "timestamp": "2026-05-09 21:21:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (21%)",
+    "deviceTimezone": "2026-05-10 03:21:06",
+    "timestamp": "2026-05-09 21:21:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (22%)",
+    "deviceTimezone": "2026-05-10 03:21:06",
+    "timestamp": "2026-05-09 21:21:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (23%)",
+    "deviceTimezone": "2026-05-10 03:21:06",
+    "timestamp": "2026-05-09 21:21:07",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (24%)",
+    "deviceTimezone": "2026-05-10 03:21:07",
+    "timestamp": "2026-05-09 21:21:07",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (25%)",
+    "deviceTimezone": "2026-05-10 03:21:07",
+    "timestamp": "2026-05-09 21:21:07",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:07",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (26%)",
+    "deviceTimezone": "2026-05-10 03:21:09",
+    "timestamp": "2026-05-09 21:21:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (27%)",
+    "deviceTimezone": "2026-05-10 03:21:09",
+    "timestamp": "2026-05-09 21:21:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (28%)",
+    "deviceTimezone": "2026-05-10 03:21:09",
+    "timestamp": "2026-05-09 21:21:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (30%)",
+    "deviceTimezone": "2026-05-10 03:21:11",
+    "timestamp": "2026-05-09 21:21:11",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:11",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (32%)",
+    "deviceTimezone": "2026-05-10 03:21:11",
+    "timestamp": "2026-05-09 21:21:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (34%)",
+    "deviceTimezone": "2026-05-10 03:21:12",
+    "timestamp": "2026-05-09 21:21:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (35%)",
+    "deviceTimezone": "2026-05-10 03:21:12",
+    "timestamp": "2026-05-09 21:21:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (37%)",
+    "deviceTimezone": "2026-05-10 03:21:12",
+    "timestamp": "2026-05-09 21:21:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (39%)",
+    "deviceTimezone": "2026-05-10 03:21:12",
+    "timestamp": "2026-05-09 21:21:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (41%)",
+    "deviceTimezone": "2026-05-10 03:21:13",
+    "timestamp": "2026-05-09 21:21:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (42%)",
+    "deviceTimezone": "2026-05-10 03:21:13",
+    "timestamp": "2026-05-09 21:21:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (43%)",
+    "deviceTimezone": "2026-05-10 03:21:13",
+    "timestamp": "2026-05-09 21:21:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (45%)",
+    "deviceTimezone": "2026-05-10 03:21:13",
+    "timestamp": "2026-05-09 21:21:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (47%)",
+    "deviceTimezone": "2026-05-10 03:21:16",
+    "timestamp": "2026-05-09 21:21:16",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:16",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (50%)",
+    "deviceTimezone": "2026-05-10 03:21:21",
+    "timestamp": "2026-05-09 21:21:22",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:22",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:21:22",
+    "timestamp": "2026-05-09 21:21:23",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:23",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (51%)",
+    "deviceTimezone": "2026-05-10 03:21:24",
+    "timestamp": "2026-05-09 21:21:24",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:24",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (52%)",
+    "deviceTimezone": "2026-05-10 03:21:25",
+    "timestamp": "2026-05-09 21:21:25",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:25",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (53%)",
+    "deviceTimezone": "2026-05-10 03:21:27",
+    "timestamp": "2026-05-09 21:21:27",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:27",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (54%)",
+    "deviceTimezone": "2026-05-10 03:21:27",
+    "timestamp": "2026-05-09 21:21:28",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:28",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging stopped to protect your battery",
+    "text": "Charging is limited to 80%.",
+    "deviceTimezone": "2026-05-10 03:21:42",
+    "timestamp": "2026-05-09 21:21:43",
+    "bdDateAndTimeZone": "5/10/2026, 03:21:43",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup…",
+    "deviceTimezone": "2026-05-10 03:25:53",
+    "timestamp": "2026-05-09 21:25:53",
+    "bdDateAndTimeZone": "5/10/2026, 03:25:53",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (1%)",
+    "deviceTimezone": "2026-05-10 03:26:00",
+    "timestamp": "2026-05-09 21:26:00",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:00",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (2%)",
+    "deviceTimezone": "2026-05-10 03:26:02",
+    "timestamp": "2026-05-09 21:26:02",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:02",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (5%)",
+    "deviceTimezone": "2026-05-10 03:26:03",
+    "timestamp": "2026-05-09 21:26:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (6%)",
+    "deviceTimezone": "2026-05-10 03:26:03",
+    "timestamp": "2026-05-09 21:26:03",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:03",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (9%)",
+    "deviceTimezone": "2026-05-10 03:26:03",
+    "timestamp": "2026-05-09 21:26:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (11%)",
+    "deviceTimezone": "2026-05-10 03:26:04",
+    "timestamp": "2026-05-09 21:26:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (12%)",
+    "deviceTimezone": "2026-05-10 03:26:04",
+    "timestamp": "2026-05-09 21:26:04",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:04",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (13%)",
+    "deviceTimezone": "2026-05-10 03:26:05",
+    "timestamp": "2026-05-09 21:26:05",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:05",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (15%)",
+    "deviceTimezone": "2026-05-10 03:26:05",
+    "timestamp": "2026-05-09 21:26:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (16%)",
+    "deviceTimezone": "2026-05-10 03:26:06",
+    "timestamp": "2026-05-09 21:26:06",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:06",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (17%)",
+    "deviceTimezone": "2026-05-10 03:26:07",
+    "timestamp": "2026-05-09 21:26:08",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (18%)",
+    "deviceTimezone": "2026-05-10 03:26:08",
+    "timestamp": "2026-05-09 21:26:08",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (19%)",
+    "deviceTimezone": "2026-05-10 03:26:08",
+    "timestamp": "2026-05-09 21:26:08",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:08",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (21%)",
+    "deviceTimezone": "2026-05-10 03:26:09",
+    "timestamp": "2026-05-09 21:26:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (22%)",
+    "deviceTimezone": "2026-05-10 03:26:09",
+    "timestamp": "2026-05-09 21:26:10",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:10",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (24%)",
+    "deviceTimezone": "2026-05-10 03:26:10",
+    "timestamp": "2026-05-09 21:26:10",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:10",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (25%)",
+    "deviceTimezone": "2026-05-10 03:26:10",
+    "timestamp": "2026-05-09 21:26:10",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:10",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (26%)",
+    "deviceTimezone": "2026-05-10 03:26:12",
+    "timestamp": "2026-05-09 21:26:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (27%)",
+    "deviceTimezone": "2026-05-10 03:26:12",
+    "timestamp": "2026-05-09 21:26:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (28%)",
+    "deviceTimezone": "2026-05-10 03:26:12",
+    "timestamp": "2026-05-09 21:26:12",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:12",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (29%)",
+    "deviceTimezone": "2026-05-10 03:26:12",
+    "timestamp": "2026-05-09 21:26:13",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:13",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (30%)",
+    "deviceTimezone": "2026-05-10 03:26:13",
+    "timestamp": "2026-05-09 21:26:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (32%)",
+    "deviceTimezone": "2026-05-10 03:26:13",
+    "timestamp": "2026-05-09 21:26:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (34%)",
+    "deviceTimezone": "2026-05-10 03:26:14",
+    "timestamp": "2026-05-09 21:26:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (35%)",
+    "deviceTimezone": "2026-05-10 03:26:14",
+    "timestamp": "2026-05-09 21:26:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (37%)",
+    "deviceTimezone": "2026-05-10 03:26:14",
+    "timestamp": "2026-05-09 21:26:14",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:14",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (38%)",
+    "deviceTimezone": "2026-05-10 03:26:14",
+    "timestamp": "2026-05-09 21:26:15",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:15",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (40%)",
+    "deviceTimezone": "2026-05-10 03:26:15",
+    "timestamp": "2026-05-09 21:26:15",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:15",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (46%)",
+    "deviceTimezone": "2026-05-10 03:26:16",
+    "timestamp": "2026-05-09 21:26:17",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (48%)",
+    "deviceTimezone": "2026-05-10 03:26:17",
+    "timestamp": "2026-05-09 21:26:17",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (47%)",
+    "deviceTimezone": "2026-05-10 03:26:17",
+    "timestamp": "2026-05-09 21:26:17",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (49%)",
+    "deviceTimezone": "2026-05-10 03:26:17",
+    "timestamp": "2026-05-09 21:26:18",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (50%)",
+    "deviceTimezone": "2026-05-10 03:26:18",
+    "timestamp": "2026-05-09 21:26:18",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:18",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (51%)",
+    "deviceTimezone": "2026-05-10 03:26:18",
+    "timestamp": "2026-05-09 21:26:19",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:19",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (52%)",
+    "deviceTimezone": "2026-05-10 03:26:19",
+    "timestamp": "2026-05-09 21:26:19",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:19",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (53%)",
+    "deviceTimezone": "2026-05-10 03:26:19",
+    "timestamp": "2026-05-09 21:26:20",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:20",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (54%)",
+    "deviceTimezone": "2026-05-10 03:26:20",
+    "timestamp": "2026-05-09 21:26:20",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:20",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (55%)",
+    "deviceTimezone": "2026-05-10 03:26:20",
+    "timestamp": "2026-05-09 21:26:21",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:21",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (56%)",
+    "deviceTimezone": "2026-05-10 03:26:21",
+    "timestamp": "2026-05-09 21:26:21",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:21",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (57%)",
+    "deviceTimezone": "2026-05-10 03:26:21",
+    "timestamp": "2026-05-09 21:26:21",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:21",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (61%)",
+    "deviceTimezone": "2026-05-10 03:26:22",
+    "timestamp": "2026-05-09 21:26:22",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:22",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (63%)",
+    "deviceTimezone": "2026-05-10 03:26:22",
+    "timestamp": "2026-05-09 21:26:23",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:23",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (65%)",
+    "deviceTimezone": "2026-05-10 03:26:22",
+    "timestamp": "2026-05-09 21:26:23",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:23",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (66%)",
+    "deviceTimezone": "2026-05-10 03:26:23",
+    "timestamp": "2026-05-09 21:26:23",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:23",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (67%)",
+    "deviceTimezone": "2026-05-10 03:26:24",
+    "timestamp": "2026-05-09 21:26:24",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:24",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (70%)",
+    "deviceTimezone": "2026-05-10 03:26:24",
+    "timestamp": "2026-05-09 21:26:25",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:25",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (75%)",
+    "deviceTimezone": "2026-05-10 03:26:25",
+    "timestamp": "2026-05-09 21:26:25",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:25",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (78%)",
+    "deviceTimezone": "2026-05-10 03:26:25",
+    "timestamp": "2026-05-09 21:26:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (80%)",
+    "deviceTimezone": "2026-05-10 03:26:26",
+    "timestamp": "2026-05-09 21:26:26",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:26",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (86%)",
+    "deviceTimezone": "2026-05-10 03:26:27",
+    "timestamp": "2026-05-09 21:26:27",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:27",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (92%)",
+    "deviceTimezone": "2026-05-10 03:26:27",
+    "timestamp": "2026-05-09 21:26:28",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:28",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (95%)",
+    "deviceTimezone": "2026-05-10 03:26:28",
+    "timestamp": "2026-05-09 21:26:28",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:28",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Preparing backup (100%)",
+    "deviceTimezone": "2026-05-10 03:26:28",
+    "timestamp": "2026-05-09 21:26:29",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:29",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 0 kB of 1.1 MB (0%)",
+    "deviceTimezone": "2026-05-10 03:26:37",
+    "timestamp": "2026-05-09 21:26:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 16 kB of 1.1 MB (1%)",
+    "deviceTimezone": "2026-05-10 03:26:37",
+    "timestamp": "2026-05-09 21:26:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 41 kB of 1.1 MB (3%)",
+    "deviceTimezone": "2026-05-10 03:26:38",
+    "timestamp": "2026-05-09 21:26:39",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:39",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 83 kB of 1.1 MB (7%)",
+    "deviceTimezone": "2026-05-10 03:26:40",
+    "timestamp": "2026-05-09 21:26:40",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:40",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 99 kB of 1.1 MB (8%)",
+    "deviceTimezone": "2026-05-10 03:26:40",
+    "timestamp": "2026-05-09 21:26:40",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:40",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 527 kB of 1.1 MB (47%)",
+    "deviceTimezone": "2026-05-10 03:26:41",
+    "timestamp": "2026-05-09 21:26:41",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:41",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 619 kB of 1.1 MB (55%)",
+    "deviceTimezone": "2026-05-10 03:26:41",
+    "timestamp": "2026-05-09 21:26:41",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:41",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 635 kB of 1.1 MB (56%)",
+    "deviceTimezone": "2026-05-10 03:26:41",
+    "timestamp": "2026-05-09 21:26:42",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 759 kB of 1.1 MB (68%)",
+    "deviceTimezone": "2026-05-10 03:26:42",
+    "timestamp": "2026-05-09 21:26:43",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:43",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 887 kB of 1.1 MB (79%)",
+    "deviceTimezone": "2026-05-10 03:26:43",
+    "timestamp": "2026-05-09 21:26:43",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:43",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 0.88 MB of 1.1 MB (80%)",
+    "deviceTimezone": "2026-05-10 03:26:43",
+    "timestamp": "2026-05-09 21:26:43",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:43",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 0.99 MB of 1.1 MB (91%)",
+    "deviceTimezone": "2026-05-10 03:26:44",
+    "timestamp": "2026-05-09 21:26:44",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:44",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Backup in progress",
+    "text": "Uploading: 1.1 MB of 1.1 MB (100%)",
+    "deviceTimezone": "2026-05-10 03:26:44",
+    "timestamp": "2026-05-09 21:26:44",
+    "bdDateAndTimeZone": "5/10/2026, 03:26:44",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "USB for file transfer",
+    "text": "Tap for other USB options.",
+    "deviceTimezone": "2026-05-10 03:30:36",
+    "timestamp": "2026-05-09 21:30:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fast charging started (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:30:37",
+    "timestamp": "2026-05-09 21:30:38",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:38",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:30:41",
+    "timestamp": "2026-05-09 21:30:42",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (4 m until full)",
+    "text": "77% (4 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:30:46",
+    "timestamp": "2026-05-09 21:30:47",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (4 m until full)",
+    "text": "78% (4 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:30:56",
+    "timestamp": "2026-05-09 21:30:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (4 m until full)",
+    "text": "77% (4 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:30:56",
+    "timestamp": "2026-05-09 21:30:57",
+    "bdDateAndTimeZone": "5/10/2026, 03:30:57",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (4 m until full)",
+    "text": "78% (4 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:31:17",
+    "timestamp": "2026-05-09 21:31:17",
+    "bdDateAndTimeZone": "5/10/2026, 03:31:17",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (4 m until full)",
+    "text": "78% (4 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:31:27",
+    "timestamp": "2026-05-09 21:31:28",
+    "bdDateAndTimeZone": "5/10/2026, 03:31:28",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:31:47",
+    "timestamp": "2026-05-09 21:31:48",
+    "bdDateAndTimeZone": "5/10/2026, 03:31:48",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:31:58",
+    "timestamp": "2026-05-09 21:31:58",
+    "bdDateAndTimeZone": "5/10/2026, 03:31:58",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:08",
+    "timestamp": "2026-05-09 21:32:09",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:09",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:29",
+    "timestamp": "2026-05-09 21:32:29",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:29",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Fast charging started (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:37",
+    "timestamp": "2026-05-09 21:32:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:36",
+    "timestamp": "2026-05-09 21:32:37",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:37",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:42",
+    "timestamp": "2026-05-09 21:32:42",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:42",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  },
+  {
+    "type": "notification",
+    "title": "Charging (3 m until full)",
+    "text": "78% (3 m until full)\nCharging will stop at 80% to protect your battery.",
+    "deviceTimezone": "2026-05-10 03:32:47",
+    "timestamp": "2026-05-09 21:32:47",
+    "bdDateAndTimeZone": "5/10/2026, 03:32:47",
+    "device_id": "c0f63ee3786c0b47",
+    "device_name": "samsung SM-G990E"
+  }
+]

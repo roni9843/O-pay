@@ -78,6 +78,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/admin/auth', require('./routes/adminAuth'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/admin-status', require('./routes/adminStatus'));
 app.use('/api/payment-partners', require('./routes/paymentPartners'));
 
 // serve uploaded files statically

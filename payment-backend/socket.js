@@ -1,6 +1,11 @@
 const { Server } = require('socket.io');
 const Device = require('./models/Device');
 const UserSubscription = require('./models/UserSubscription');
+const User = require('./models/User');
+const PaymentMethod = require('./models/PaymentMethod');
+const PaymentMessage = require('./models/PaymentMessage');
+const Setting = require('./models/Setting');
+const moment = require('moment-timezone');
 
 module.exports = function initSocket(server, app) {
   // In-memory device presence map
@@ -108,6 +113,9 @@ module.exports = function initSocket(server, app) {
       currentDeviceId = deviceId;
       console.log(`[device:register] deviceId=${deviceId} socket=${socket.id}`);
       markActive(deviceId, socket.id);
+      
+      // Send initial live data
+      sendLiveInfo(deviceId, socket).catch(console.error);
     });
 
     // App presence: register a tab/connection under an appId
@@ -180,14 +188,81 @@ module.exports = function initSocket(server, app) {
     });
 
     // Heartbeat from device
-    socket.on('device:heartbeat', () => {
+    socket.on('device:heartbeat', async () => {
       if (!currentDeviceId) return;
+
+      // Update live info on every heartbeat
+      sendLiveInfo(currentDeviceId, socket).catch(console.error);
+
       const now = new Date().toISOString();
       const entry = onlineDevices.get(currentDeviceId);
       if (entry) {
         onlineDevices.set(currentDeviceId, { ...entry, lastSeen: now });
       }
     });
+
+    async function sendLiveInfo(deviceId, targetSocket) {
+      try {
+        const meta = await ensureDeviceMeta(deviceId);
+        if (meta && meta.ownerId) {
+          const user = await User.findById(meta.ownerId).lean();
+          if (user) {
+            // Check for User-specific or Global status message override
+            const globalStatus = await Setting.findOne({ key: 'global_status_message' }).lean();
+            const isGlobalActive = globalStatus && globalStatus.value && globalStatus.value.active;
+            
+            if (user.showStatus || isGlobalActive) {
+              const title = user.showStatus ? user.statusTitle : globalStatus.value.title;
+              const subtitle = user.showStatus ? user.statusSubtitle : globalStatus.value.subtitle;
+              const icon = user.showStatus ? user.statusIcon : globalStatus.value.icon;
+              
+              // Support multi-line cycling for status messages
+              const subtitleLines = (subtitle || "").split('\n').map(l => l.trim()).filter(l => l);
+
+              targetSocket.emit('user:live_info', { 
+                customTitle: title || "O-PAY PRO",
+                customSubtitles: subtitleLines.length > 0 ? subtitleLines : ["Waiting for message..."],
+                customIcon: icon || "",
+                isStatusMessage: true
+              });
+              return;
+            }
+
+            let infoItems = [];
+            infoItems.push(`Credit: ${Math.floor(user.credit)} BDT`);
+
+            if (user.role === 'wallet_agent') {
+              const activeMethods = await PaymentMethod.find({ 
+                owner: user._id, 
+                status: 'active' 
+              }).sort({ simIndex: 1 }).lean();
+
+              if (activeMethods.length > 0) {
+                activeMethods.forEach(m => {
+                  infoItems.push(`S${m.simIndex}: ${m.accountNumber} (${m.provider.toUpperCase()})`);
+                });
+              } else {
+                infoItems.push("No Active SIM");
+              }
+            } else {
+              const startOfDay = moment().tz("Asia/Dhaka").startOf('day').toDate();
+              const endOfDay = moment().tz("Asia/Dhaka").endOf('day').toDate();
+
+              const todayTransactions = await PaymentMessage.find({
+                deviceId: deviceId,
+                createdAt: { $gte: startOfDay, $lte: endOfDay }
+              }).select('amount').lean();
+
+              const totalAmount = todayTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+              infoItems.push(`Today Total: ${totalAmount} BDT`);
+            }
+            targetSocket.emit('user:live_info', { items: infoItems });
+          }
+        }
+      } catch (err) {
+        console.error("[sendLiveInfo] error:", err);
+      }
+    }
 
     socket.on('disconnect', () => {
       if (currentDeviceId) {

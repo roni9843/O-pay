@@ -67,15 +67,21 @@ router.post(
 
       const { activationId, deviceCode, deviceName } = req.body;
 
+      console.log(`[DeviceAPI] Activate Request: ID ${activationId}, Code ${deviceCode}, Name ${deviceName}`);
+
       // find device by activationId and populate subscription -> plan
-      const device = await Device.findOne({ activationId }).populate({
+      const device = await Device.findOne({ activationId  }).populate({
         path: 'subscription',
         populate: { path: 'plan' }
       });
-      if (!device) return res.status(400).json({ success: false, message: 'Invalid activation id' });
+      if (!device) {
+        console.warn(`[DeviceAPI] Activate Failed: Activation ID ${activationId} not found in DB`);
+        return res.status(400).json({ success: false, message: 'Invalid activation id' });
+      }
 
       const now = new Date();
       if (!device.endActivationTime || new Date(device.endActivationTime) < now) {
+        console.warn(`[DeviceAPI] Activate Failed: ID ${activationId} has expired`);
         return res.status(400).json({ success: false, message: 'Activation id expired' });
       }
 
@@ -85,19 +91,23 @@ router.post(
         if (subEnd < now) return res.status(400).json({ success: false, message: 'Subscription expired' });
       }
 
-      // ensure deviceCode is unique
-      const exists = await Device.exists({ deviceCode });
-      if (exists) return res.status(400).json({ success: false, message: 'deviceCode already in use' });
+      // ensure deviceCode is unique (allow if it's the SAME device)
+      const existingWithCode = await Device.findOne({ deviceCode });
+      if (existingWithCode && String(existingWithCode._id) !== String(device._id)) {
+        console.warn(`[DeviceAPI] Activate Failed: DeviceCode ${deviceCode} is already used by device ${existingWithCode.deviceUserName}`);
+        return res.status(400).json({ success: false, message: 'deviceCode already in use by another account' });
+      }
 
       // activate device
       device.deviceCode = deviceCode;
       device.deviceName = deviceName;
       device.state = true;
       device.activationTime = now;
-      // clear endActivationTime so it's not re-usable
-      device.endActivationTime = null;
-
+      device.activationId = null; 
+      device.endActivationTime = null; 
+      
       await device.save();
+      console.log(`[DeviceAPI] Activate Success: ID ${activationId} activated for ${deviceName}`);
 
       return res.json({ success: true, data: { id: device._id, deviceCode: device.deviceCode, deviceName: device.deviceName, activatedAt: device.activationTime } });
     } catch (err) {
@@ -318,9 +328,11 @@ let writeLock = false; // 🔒 simple in-memory lock
  * POST /api/payment-messages
  * body: { fullMessage, masking, from, trxID, date, time, deviceName, deviceId }
  */
-router.post('/send-payment-message', async (req, res, next) => {
+router.post('/send-payment-message', async (req, res, next) => { // Batch enabled
 
-  console.log("this is send payment message ->", req.body);
+  const messages = Array.isArray(req.body) ? req.body : [req.body];
+  const processedResults = [];
+  console.log(`Processing ${messages.length} message(s)`);
 
   // Get Bangladesh local date (YYYY-MM-DD)
   const bdNow = new Date().toLocaleString("en-BD", { timeZone: "Asia/Dhaka", hour12: false });
@@ -355,9 +367,8 @@ router.post('/send-payment-message', async (req, res, next) => {
       hour12: false
     });
 
-    // New data
-    const body = req.body;
-    const newData = {
+    for (const body of messages) {
+      const newData = {
       type: body.type || "notification",
       title: body.title || "Unknown",
       text: body.text || "",
@@ -370,9 +381,9 @@ router.post('/send-payment-message', async (req, res, next) => {
 
     // Append newData into array
     existingData.push(newData);
+    processedResults.push(newData);
 
-    // Safe write to file
-    await fs.writeFile(filePath, JSON.stringify(existingData, null, 2), "utf-8");
+
 
     // ---- MongoDB logic ----
     const parsedData = parseTransactionText(newData.text);
@@ -395,11 +406,8 @@ router.post('/send-payment-message', async (req, res, next) => {
       gateway: oPayData.gateway,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "OTP payment data processed successfully",
-      data: newData,
-    });
+    console.log("✅ OTP processed for:", newData.title);
+    continue;
 
   }
 
@@ -440,13 +448,19 @@ router.post('/send-payment-message', async (req, res, next) => {
       }
     }
 
-    writeLock = false; // unlock
 
-    console.log("✅ Auto-payment entry saved to file:", newData);
+
+
+    } // end for loop
+
+    await fs.writeFile(filePath, JSON.stringify(existingData, null, 2), "utf-8");
+    writeLock = false;
+
     res.status(200).json({
       success: true,
-      message: "Auto payment data added successfully",
-      data: newData,
+      message: `${messages.length} message(s) processed`,
+      count: messages.length,
+      data: processedResults.length === 1 ? processedResults[0] : processedResults
     });
 
   } catch (err) {
@@ -495,6 +509,7 @@ router.post(
       }).populate('plan');
 
       if (!subscription) {
+        console.warn(`[DeviceAPI] Registration failed: Subscription ${subscriptionId} not found or expired for user ${req.user.id}`);
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired subscription',
@@ -521,6 +536,7 @@ router.post(
       if (numericMax !== null) {
         const deviceCount = await Device.countDocuments({ owner: req.user.id, subscription: subscriptionId });
         if (deviceCount >= numericMax) {
+          console.warn(`[DeviceAPI] Registration failed: Max devices (${numericMax}) reached for user ${req.user.id}`);
           return res.status(400).json({ success: false, message: 'Maximum device limit reached for this subscription' });
         }
       }
@@ -528,6 +544,7 @@ router.post(
       // Check if device name is unique for this user
       const existingDevice = await Device.findOne({ deviceUserName, owner: req.user.id });
       if (existingDevice) {
+        console.warn(`[DeviceAPI] Registration failed: Device name "${deviceUserName}" already exists for user ${req.user.id}`);
         return res.status(400).json({
           success: false,
           message: 'Device name must be unique'
@@ -550,16 +567,19 @@ router.post(
         deviceUserName,
         owner: req.user.id,
         subscription: subscriptionId,
-        activationId,
-        activationTime,
-        endActivationTime,
+        activationId: activationId,
+        activationTime: activationTime,
+        endActivationTime: endActivationTime,
         state: false,
+        deviceCode: null,
+        deviceName: null,
         subscriptionStartDate: subscription.startDate,
         subscriptionEndDate: subscription.endDate,
         duration: durationMonths
       });
 
       await device.save();
+      
       // populate subscription -> plan before returning so client has plan details
       await device.populate({ path: 'subscription', populate: { path: 'plan' } });
 

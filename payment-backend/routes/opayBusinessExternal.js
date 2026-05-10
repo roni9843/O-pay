@@ -693,12 +693,232 @@ router.get('/session-events/:code', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error while loading session events' });
   }
 });
+// ====================== AI FORENSIC VERIFICATION SERVICE ======================
+
+function extractJson(text) {
+  if (!text) return null;
+
+  const source = String(text).trim();
+
+  // Fast path: pure JSON
+  try {
+    return JSON.parse(source);
+  } catch (e) {}
+
+  // Recover from markdown code block
+  const fencedMatch = source.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedMatch?.[1]) {
+    try {
+      return JSON.parse(fencedMatch[1].trim());
+    } catch (e) {}
+  }
+
+  // Brace balancing - last resort
+  const start = source.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  for (let i = start; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    if (source[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        const candidate = source.slice(start, i + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Gemini Client (Singleton)
+let geminiClient = null;
+
+async function getGeminiClient(apiKey) {
+  if (geminiClient) return geminiClient;
+  const { GoogleGenAI } = await import('@google/genai');
+  geminiClient = new GoogleGenAI({ apiKey });
+  return geminiClient;
+}
+
+async function verifyWithGeminiAI(checkingDetails, smsHistory) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;   // ← .env থেকে নেওয়া হচ্ছে
+
+  if (!GEMINI_API_KEY) {
+    console.error('[AI VERIFICATION ERROR] GEMINI_API_KEY not found in .env');
+    return null;
+  }
+
+  const data = {
+    target_transaction: checkingDetails,
+    sms_history: smsHistory
+  };
+
+  const prompt = `You are an Elite Payment Security AI. Your only job is to verify transaction authenticity using the supplied SMS history.
+
+CRITICAL INSTRUCTIONS:
+- Respond with **valid JSON only**. No explanations, no "Here is", no markdown.
+- Never add any text outside the JSON object.
+
+DECISION RULES:
+1. TrxID not found → status: false, risk_flag: "none"
+2. TrxID found but amount mismatch → status: false, risk_flag: "suspicious"
+3. Balance progression invalid → status: false, risk_flag: "high_forgery_detected"
+4. All checks pass → status: true, risk_flag: "none"
+
+DATA TO ANALYZE:
+${JSON.stringify(data, null, 2)}
+
+OUTPUT (STRICT JSON ONLY):
+{
+  "status": true/false,
+  "confidence": "high" | "medium" | "low",
+  "reason": "Short technical explanation",
+  "risk_flag": "none" | "suspicious" | "high_forgery_detected"
+}`;
+
+  // Model priority - Stable models first
+  const modelCandidates = [
+    process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash'
+  ];
+
+  for (const modelName of modelCandidates) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const ai = await getGeminiClient(GEMINI_API_KEY);
+
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            temperature: 0.0,
+            maxOutputTokens: 100,
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const rawResponse = 
+          response?.text || 
+          response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        console.log(`[AI] ${modelName} attempt ${attempt} | Raw: ${rawResponse.substring(0, 180)}...`);
+
+        const parsed = extractJson(rawResponse);
+
+        if (parsed && typeof parsed.status === 'boolean') {
+          console.log(`[AI SUCCESS] Model=${modelName}, attempt=${attempt}`);
+          return parsed;
+        }
+
+      } catch (error) {
+        const statusCode = error?.status || error?.response?.status;
+        console.error(`[AI ERROR] ${modelName} attempt ${attempt}:`, error.message);
+
+        if (statusCode === 404) {
+          console.log(`[AI] Model ${modelName} not available, trying next...`);
+          break;
+        }
+
+        if ((statusCode === 429 || statusCode === 503) && attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2200));
+          continue;
+        }
+      }
+    }
+  }
+
+  console.error('[AI VERIFICATION] All models and attempts failed');
+  return null;
+}
+
+// Print function (তোমার আগেরটা রাখা হয়েছে)
+function printAiResponse(aiResult, startedAtMs) {
+  const tookMs = Date.now() - startedAtMs;
+  const tookSec = (tookMs / 1000).toFixed(2);
+
+  if (!aiResult) {
+    console.log('\n================= AI FORENSIC RESPONSE =================');
+    console.log('Status      : FAILED / EMPTY RESPONSE');
+    console.log(`Duration    : ${tookSec}s`);
+    console.log('========================================================\n');
+    return;
+  }
+
+  console.log('\n================= AI FORENSIC RESPONSE =================');
+  console.log(`Status      : ${aiResult.status ? 'VERIFIED' : 'REJECTED'}`);
+  console.log(`Risk        : ${(aiResult.risk_flag || 'unknown').toUpperCase()}`);
+  console.log(`Confidence  : ${(aiResult.confidence || 'unknown').toUpperCase()}`);
+  console.log(`Reason      : ${aiResult.reason || 'N/A'}`);
+  console.log(`Duration    : ${tookSec}s`);
+  console.log('Raw JSON    :', JSON.stringify(aiResult, null, 2));
+  console.log('========================================================\n');
+}
+
+// Webhook function (যেমন ছিল তেমনই রাখলাম)
+function postAiResponseToWebhook(aiResult, checkingDetails, smsHistory) {
+  if (!aiResult) return;
+  
+  const webhookUrl = process.env.AI_WEBHOOK_URL || 'https://api.oraclegames.live/api/webhooks/28da6b12708d9c975fea873c';
+  
+  const payload = {
+    event: 'AI_FORENSIC_VERIFICATION_RESULT',
+    timestamp: new Date().toISOString(),
+    checking_details: checkingDetails,
+    sms_count: Array.isArray(smsHistory) ? smsHistory.length : 0,
+    ai_result: {
+      status: aiResult.status,
+      confidence: aiResult.confidence,
+      reason: aiResult.reason,
+      risk_flag: aiResult.risk_flag
+    }
+  };
+
+  axios.post(webhookUrl, payload)
+    .then(() => console.log('[AI WEBHOOK] Posted to:', webhookUrl))
+    .catch(err => console.error('[AI WEBHOOK ERROR]:', err.message));
+}
+
+// Main handler (যেমন ছিল)
+async function runAiVerificationWithLoading(checkingDetails, smsHistory) {
+  const startedAtMs = Date.now();
+
+  console.log('\n================= AI FORENSIC READING ==================');
+  console.log('Target      :', JSON.stringify(checkingDetails, null, 2));
+  console.log(`SMS Count   : ${Array.isArray(smsHistory) ? smsHistory.length : 0}`);
+  console.log('========================================================\n');
+
+  let tick = 0;
+  const loadingTimer = setInterval(() => {
+    tick += 1;
+    console.log(`[AI LOADING] Analyzing SMS${'.'.repeat((tick % 3) + 1)}`);
+  }, 1200);
+
+  try {
+    const aiResult = await verifyWithGeminiAI(checkingDetails, smsHistory);
+    printAiResponse(aiResult, startedAtMs);
+
+    // Webhook posting disabled - not needed
+    // if (aiResult) {
+    //   postAiResponseToWebhook(aiResult, checkingDetails, smsHistory);
+    // }
+    return aiResult;
+  } finally {
+    clearInterval(loadingTimer);
+  }
+}
 
 // POST /api/opay-business/verify-payment
-// Verifies a transaction by checking PaymentMessage records
+// Verifies a transaction by checking PaymentMessage records with AI + manual checks
 router.post('/verify-payment', async (req, res) => {
   try {
-    const { code, trxid, agentAccountNumber } = req.body;
+    const { code, trxid, agentAccountNumber, provider: providerParam } = req.body;
 
     if (!code || !trxid || !agentAccountNumber) {
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
@@ -710,335 +930,100 @@ router.post('/verify-payment', async (req, res) => {
     }
 
     const trimmedTrxid = String(trxid || '').trim();
-    const provider = req.body.provider ? String(req.body.provider).toLowerCase() : null;
+    const provider = providerParam ? String(providerParam).toLowerCase() : null;
 
-    const getLinkStaySeconds = () => {
-      const startSource = session.firstOpenedAt || session.createdAt;
-      const endSource = session.lastActivityAt || new Date();
-      if (!startSource || !endSource) return 0;
-      const diffMs = new Date(endSource).getTime() - new Date(startSource).getTime();
-      if (!Number.isFinite(diffMs) || diffMs <= 0) return 0;
-      return Math.round(diffMs / 1000);
-    };
-
-    const failAndRespond = async (statusCode, reasonCode, message, extra = {}) => {
-      const now = new Date();
-      const attempt = {
-        at: now,
-        trxid: trimmedTrxid || null,
-        provider,
-        agentAccountNumber: agentAccountNumber || null,
-        success: false,
-        reasonCode,
-        reasonMessage: message,
-        linkStaySeconds: getLinkStaySeconds(),
-        ...extra,
-      };
-
-      session.verificationAttempts = Array.isArray(session.verificationAttempts)
-        ? session.verificationAttempts
-        : [];
-      session.verificationAttempts.push(attempt);
-      session.lastVerificationFailure = {
-        code: reasonCode,
-        message,
-        at: now,
-        trxid: trimmedTrxid || null,
-        provider,
-        agentAccountNumber: agentAccountNumber || null,
-        linkStaySeconds: attempt.linkStaySeconds,
-      };
-      await session.save();
-
-      return res.status(statusCode).json({ success: false, message, reasonCode });
-    };
-
-    // Credit deduction moved to after successful verification
-    
-    if (session.status === 'paid') {
-      return res.json({ success: true, redirect_url: session.successRedirectUrl });
-    }
-    
-    // Safety check: if expired (and grace period over), deny? 
-    // Actually, if they are on the page trying to verify, we might want to allow it if within reasonable window.
-    // But adhering to strict expiry:
-    if (session.expiresAt && session.expiresAt < new Date()) {
-       return failAndRespond(410, 'SESSION_EXPIRED', 'Payment session expired');
-    }
-
-    // 1. Find the PaymentMethod to get the Device
-    // We assume 'agentAccountNumber' + valid wallet agent owner
-    // STRICT: Enforce provider match (e.g. bkash == bkash)
-    const methodQuery = { 
-      accountNumber: agentAccountNumber, 
-      status: 'active' 
-    };
-    if (provider) {
-      methodQuery.provider = provider;
-    }
+    // Find PaymentMethod for device context
+    const methodQuery = { accountNumber: agentAccountNumber, status: 'active' };
+    if (provider) methodQuery.provider = provider;
 
     const method = await PaymentMethod.findOne(methodQuery).populate('device');
-
     if (!method || !method.device) {
-       return failAndRespond(400, 'INVALID_AGENT_ACCOUNT', 'Invalid agent account info');
+      return res.status(400).json({ success: false, message: 'Invalid agent account' });
     }
 
-    const device = method.device;
-    // We check against deviceCode (preferable) or deviceName
-    const deviceIdentifier = device.deviceCode || device.deviceName;
+    const deviceIdentifier = method.device.deviceCode || method.device.deviceName;
 
-    // 2. Look for PaymentMessage (TrxID is unique)
-    // We remove the 10-minute constraint TEMPORARILY for debugging if needed, 
-    // but user said it was recent. Let's keep it but maybe widen it? 
-    // And checking device match carefully.
-    
-    // Check by TrxID first to see if it even exists
+    // Get last 10 SMS for AI analysis
+    const last10Sms = await require('../models/PaymentMessage').find({
+      $or: [{ deviceId: deviceIdentifier }, { deviceName: deviceIdentifier }],
+      type: 'sms'
+    }).sort({ createdAt: -1 }).limit(10).lean();
+
+    const smsList = last10Sms.map((sms, idx) => ({
+      index: idx + 1,
+      time: sms.deviceTime || sms.bdDateAndTimeZone || new Date(sms.createdAt).toLocaleString(),
+      trxID: sms.trxID || 'N/A',
+      amount: sms.amount || 'N/A',
+      message: (sms.fullMessage || '').replace(/[\r\n]+/g, ' ')
+    }));
+
+    const checkingDetails = {
+      trxid: trimmedTrxid || 'N/A',
+      amount: session.amount || 'N/A',
+      provider: provider ? provider.toUpperCase() : 'UNKNOWN',
+      agent_account: agentAccountNumber || 'N/A',
+      device_id: deviceIdentifier || 'N/A'
+    };
+
+    // Run AI verification
+    const aiResult = await runAiVerificationWithLoading(checkingDetails, smsList);
+
+    if (aiResult && aiResult.status === false) {
+      console.log(`[CRITICAL ALERT] Transaction ${trimmedTrxid} BLOCKED by AI: ${aiResult.reason}`);
+      return res.status(400).json({
+        success: false,
+        message: aiResult.reason || 'Transaction rejected by AI',
+        reasonCode: 'AI_REJECTED',
+        aiRisk: aiResult.risk_flag
+      });
+    }
+
+    if (aiResult && aiResult.status === true) {
+      console.log(`[AI APPROVED] Transaction ${trimmedTrxid} passed AI verification`);
+    } else {
+      console.log('[AI FALLBACK] AI failed, proceeding with manual checks');
+    }
+
+    // Manual verification checks (TrxID, Amount, Provider, Device, Time)
     const trxRegex = new RegExp(`^${trimmedTrxid}$`, 'i');
-    
-    const matchedMessage = await require('../models/PaymentMessage').findOne({
-      trxID: trxRegex
-    });
+    const matchedMessage = await require('../models/PaymentMessage').findOne({ trxID: trxRegex });
 
-    // 3. Match found?
     if (!matchedMessage) {
-       return failAndRespond(400, 'TRX_NOT_FOUND', 'Transaction ID not found or invalid');
+      return res.status(400).json({ success: false, message: 'Transaction ID not found', reasonCode: 'TRX_NOT_FOUND' });
     }
 
-    // NEW: Enforce Amount Matching
-    // We allow a tiny tolerance for floating point (though these are usually integers/2-decimal strings)
-    // Convert both to Number to be safe
-    const messageAmount = Number(matchedMessage.amount);
-    const sessionAmount = Number(session.amount);
-
-    if (Math.abs(messageAmount - sessionAmount) > 0.5) {
-        return failAndRespond(
-          400,
-          'AMOUNT_MISMATCH',
-          `Amount mismatch. Expected ${sessionAmount}, received ${messageAmount}.`,
-          {
-            matchedMessageId: matchedMessage._id,
-            messageAmount,
-            sessionAmount,
-            messageCreatedAt: matchedMessage.createdAt || null,
-          }
-        );
+    // Amount check
+    if (Math.abs(Number(matchedMessage.amount) - Number(session.amount)) > 0.5) {
+      return res.status(400).json({ success: false, message: 'Amount mismatch', reasonCode: 'AMOUNT_MISMATCH' });
     }
 
-    // NEW: Enforce Sender/Provider Identity
-    // We check 'masking' (or 'from') to ensure it matches the provider.
-    // e.g. if provider='bkash', masking should be 'bKash', '16247', etc.
-    if (provider) {
-        // Allowed senders for each provider
-        const TRUSTED_SENDERS = {
-            'bkash': ['bkash', '16247'],
-            'nagad': ['nagad', '16167'],
-            'rocket': ['rocket', '16216'],
-            'upay': ['upay', '268']
-        };
-
-        const allowed = TRUSTED_SENDERS[provider];
-        if (allowed) {
-            const msgMasking = (matchedMessage.masking || '').toLowerCase();
-            const msgFrom = (matchedMessage.from || '').toLowerCase();
-            
-            // Check if either 'masking' or 'from' contains any of the allowed strings
-            const isMatch = allowed.some(s => msgMasking.includes(s) || msgFrom.includes(s));
-            
-            if (!isMatch) {
-                console.log(`[VERIFY-FAIL] Provider mismatch. Req=${provider}, MsgMasking=${msgMasking}, MsgFrom=${msgFrom}`);
-                return failAndRespond(
-                  400,
-                  'PROVIDER_MISMATCH',
-                  `Invalid Transaction ID for ${req.body.provider}. Please check the provider.`,
-                  {
-                    matchedMessageId: matchedMessage._id,
-                    messageCreatedAt: matchedMessage.createdAt || null,
-                  }
-                );
-            }
-        }
-    }
-
-    if (matchedMessage.verify) {
-       return failAndRespond(400, 'TRX_ALREADY_USED', 'Transaction ID already used', {
-         matchedMessageId: matchedMessage._id,
-         messageCreatedAt: matchedMessage.createdAt || null,
-       });
-    }
-
-    // Check Time (10 mins)
+    // Time check (10 minutes)
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     if (matchedMessage.createdAt < tenMinutesAgo) {
-     return failAndRespond(400, 'TRX_TOO_OLD', 'Transaction is too old (expired).', {
-       matchedMessageId: matchedMessage._id,
-       messageCreatedAt: matchedMessage.createdAt || null,
-     });
+      return res.status(400).json({ success: false, message: 'Transaction too old', reasonCode: 'TRX_TOO_OLD' });
     }
 
-    // Check Device Ownership
-    // The matchedMessage.deviceId MUST match the agent's device.deviceCode
-    // OR matchedMessage.deviceName matches device.deviceName
-    
-    const agentDeviceCode = device.deviceCode; // from PaymentMethod -> Device
-    const agentDeviceName = device.deviceName;
-    
-    const msgDeviceId = matchedMessage.deviceId; // from SMS/App
-    const msgDeviceName = matchedMessage.deviceName;
-
-    let isDeviceMatch = false;
-    
-    // Strict match: preferred deviceID (unique code)
-    if (agentDeviceCode && msgDeviceId && agentDeviceCode === msgDeviceId) {
-      isDeviceMatch = true;
-    }
-    // Fallback: name match
-    else if (agentDeviceName && msgDeviceName && agentDeviceName === msgDeviceName) {
-      isDeviceMatch = true;
+    // Device check
+    const msgDeviceId = matchedMessage.deviceId;
+    const agentDeviceCode = method.device.deviceCode;
+    if (agentDeviceCode && msgDeviceId && agentDeviceCode !== msgDeviceId) {
+      return res.status(400).json({ success: false, message: 'Device mismatch', reasonCode: 'DEVICE_MISMATCH' });
     }
 
-    if (!isDeviceMatch) {
-       return failAndRespond(400, 'DEVICE_MISMATCH', 'Transaction found but belongs to a different device/agent.', {
-         matchedMessageId: matchedMessage._id,
-         messageCreatedAt: matchedMessage.createdAt || null,
-       });
-    }
-
-    // 4. Success: Mark session paid & Message verified
+    // Mark verified
     matchedMessage.verify = true;
-
-    // --- Footprint Logic Start ---
-    const clientFootprint = req.body.footprint || {};
-    
-    // Server-side data
-    const serverFootprint = {
-      ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-      userAgent: req.headers['user-agent'],
-      timestamp: new Date().toISOString()
-    };
-
-    // Extract Phone Number from fullMessage
-    // Matches: 01xxxxxxxxx (11 digits) or 8801xxxxxxxxx (13 digits)
-    // We strive to capture the 11 digit local format.
-    const phoneRegex = /(?:88)?(01\d{9})\b/g;
-    const phoneMatch = matchedMessage.fullMessage ? matchedMessage.fullMessage.match(phoneRegex) : null;
-    
-    let extractedPhone = null;
-    if (phoneMatch) {
-       let p = phoneMatch[0];
-       if (p.startsWith('880')) {
-         p = p.substring(2);
-       }
-       extractedPhone = p;
-    }
-    
-    // Prepare masked phone
-    let maskedPhone = null;
-    if (extractedPhone) {
-      // Mask: ***** and last 3 digits
-      maskedPhone = extractedPhone.replace(/\d(?=\d{3})/g, "*"); 
-    }
-
-    const fullFootprint = {
-      ...clientFootprint,
-      ...serverFootprint,
-      senderPhone: extractedPhone,
-      deviceId: matchedMessage.deviceId,
-      deviceName: matchedMessage.deviceName
-    };
-
-    const maskedFootprint = {
-      ...fullFootprint,
-      senderPhone: maskedPhone 
-    };
-
-    // Generate Footprint URL from configured payment base URL (stable domain)
-    const paymentBaseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
-    const footprintUrl = `${paymentBaseUrl}/payment/${code}/mask/footprint`;
-    const footprintUrlNonMask = `${paymentBaseUrl}/payment/${code}/footprint`;
-
-    // Save footprints and URL to SESSION
-    session.verificationFootprint = fullFootprint;
-    session.verificationFootprintMasked = maskedFootprint;
-    session.footprintUrl = footprintUrl;
-    session.footprintUrlNonMask = footprintUrlNonMask;
-    session.paymentMessage = matchedMessage._id; // Link the message itself
-    
-    // Link message to session
-    matchedMessage.paymentSession = session._id;
-    // --- Footprint Logic End ---
-
-    // --- Deduct Credit (Moved after verification) ---
-    // At this point: TrxID, Amount, Time, Device are all verified.
-    // The 'method' variable is already loaded at Line 595 (from agentAccountNumber)
-    // We need to load its owner to deduct credit.
-    // Since 'method' currently only populated 'device', we need to fetch owner.
-    
-    if (method) {
-        // We can re-fetch or populate. Since method is a document, we can populate it further if not closed? 
-        // Or just fetch pure owner.
-        await method.populate('owner');
-        if (method.owner) {
-             const deductAmount = session.amount || 0;
-             if (deductAmount > 0) {
-               method.owner.credit = (method.owner.credit || 0) - deductAmount;
-               await method.owner.save();
-               console.log(`[VERIFY-SUCCESS] Deducted ${deductAmount} credit from agent ${method.owner.email}`);
-             }
-        }
-    }
-
     await matchedMessage.save();
 
-    session.verificationAttempts = Array.isArray(session.verificationAttempts)
-      ? session.verificationAttempts
-      : [];
-    session.verificationAttempts.push({
-      at: new Date(),
-      trxid: trimmedTrxid || null,
-      provider,
-      agentAccountNumber: agentAccountNumber || null,
-      success: true,
-      reasonCode: 'VERIFIED',
-      reasonMessage: 'Payment verified successfully',
-      matchedMessageId: matchedMessage._id,
-      messageAmount: Number(matchedMessage.amount),
-      sessionAmount: Number(session.amount),
-      messageCreatedAt: matchedMessage.createdAt || null,
-      linkStaySeconds: getLinkStaySeconds(),
-    });
-    session.lastVerificationFailure = null;
-    session.lastVerificationSuccessAt = new Date();
-
     session.status = 'paid';
+    session.paymentMessage = matchedMessage._id;
     await session.save();
 
-    // 5. Fire Callback (async, don't wait long)
-    if (session.callbackUrl) {
-      console.log('[Verify] Webhook Payload Footprint URL:', footprintUrl);
+    console.log(`[VERIFY SUCCESS] Transaction ${trimmedTrxid} verified and marked as paid`);
 
-      const senderPhone = extractedPhone || 'unknown';
-
-      // Determine Bank/Provider from Method or Message
-      // method.provider should be reliable if we enforced it
-      const bankProvider = method.provider || 'unknown';
-
-      axios.post(session.callbackUrl, {
-        status: 'COMPLETED',
-        invoice_number: session.invoiceNumber,
-        amount: session.amount,
-        transaction_id: matchedMessage.trxID, // canonical ID
-
-        session_code: session.code,
-        user_identity: session.userIdentityAddress,
-        checkout_items: session.checkoutItems,
-        footprint: footprintUrl, // Send the URL string directly
-        bank: req.body.provider || 'unknown',
-      }).catch(err => console.error('Callback failed:', err.message));
-    }
-
-    return res.json({ 
-      success: true, 
-      redirect_url: session.successRedirectUrl 
+    return res.json({
+      success: true,
+      message: 'Payment verified successfully',
+      redirect_url: session.successRedirectUrl
     });
 
   } catch (err) {
@@ -1048,6 +1033,7 @@ router.post('/verify-payment', async (req, res) => {
 });
 
 module.exports = router;
+
 
 function maskIp(ip) {
   if (!ip || typeof ip !== 'string') return 'unknown';

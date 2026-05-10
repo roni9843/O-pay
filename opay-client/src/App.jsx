@@ -60,7 +60,7 @@ export default function App() {
       await navigator.clipboard.writeText(account)
       setCopied(true)
       setTimeout(() => setCopied(false), 1200)
-    } catch {}
+    } catch { }
   }
 
   const verifyOnce = React.useCallback(async () => {
@@ -141,8 +141,8 @@ export default function App() {
       })
     }, 1000)
     timeoutId = setTimeout(() => {
-      try { window.location.assign(redirectInfo.url) } catch (_) {}
-      setTimeout(() => { try { window.open('', '_self'); window.close() } catch (_) {} }, 200)
+      try { window.location.assign(redirectInfo.url) } catch (_) { }
+      setTimeout(() => { try { window.open('', '_self'); window.close() } catch (_) { } }, 200)
     }, redirectInfo.secondsLeft * 1000)
     return () => {
       if (intervalId) clearInterval(intervalId)
@@ -308,20 +308,20 @@ export default function App() {
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
-            <img 
-              className=" w-10" 
-              src={`https://api.oraclepay.org${dynamic.pageContent?.image ? dynamic.pageContent.image : logo}`} 
-              alt={`${provider} logo`} 
+            <img
+              className=" w-10"
+              src={`https://api.oraclepay.org${dynamic.pageContent?.image ? dynamic.pageContent.image : logo}`}
+              alt={`${provider} logo`}
             />
             <div className="text-right">
               <div className="text-[12px] text-slate-500">{dynamic.providerDisplay || niceProvider}</div>
               <div className="text-sm font-semibold text-slate-900">{dynamic.accountNumber}</div>
               <div className="text-[12px] text-slate-500">
-  {dynamic.gateway 
-    ? (dynamic.gateway.toUpperCase() === "MERCHANT" ? "AGENT" : dynamic.gateway.toUpperCase())
-    : "PERSONAL"
-  }
-</div>
+                {dynamic.gateway
+                  ? (dynamic.gateway.toUpperCase() === "MERCHANT" ? "AGENT" : dynamic.gateway.toUpperCase())
+                  : "PERSONAL"
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -468,12 +468,12 @@ export default function App() {
               <div className="text-slate-700">
                 <div className="mb-3">আপনাকে রিডাইরেক্ট করা হচ্ছে… <span className="font-semibold">{redirectInfo.secondsLeft}s</span></div>
                 <button
-                  onClick={() => { try { window.location.assign(redirectInfo.url) } catch (_) {} }}
+                  onClick={() => { try { window.location.assign(redirectInfo.url) } catch (_) { } }}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
                 >
                   এখনই যান
                 </button>
-                <div className="mt-2 text-xs text-slate-500 break-all">যদি না হয়, এখানে ক্লিক করুন: <a className="underline" onClick={(e)=>{e.preventDefault(); try { window.location.assign(redirectInfo.url) } catch (_) {} }} href={redirectInfo.url}>{redirectInfo.url}</a></div>
+                <div className="mt-2 text-xs text-slate-500 break-all">যদি না হয়, এখানে ক্লিক করুন: <a className="underline" onClick={(e) => { e.preventDefault(); try { window.location.assign(redirectInfo.url) } catch (_) { } }} href={redirectInfo.url}>{redirectInfo.url}</a></div>
               </div>
             ) : (
               <div className="text-slate-700">ধন্যবাদ! আপনার পেমেন্ট নিশ্চিত হয়েছে।</div>
@@ -494,7 +494,7 @@ export default function App() {
             <div className="text-2xl font-bold text-rose-700 mb-2">সেশন শেষ</div>
             <div className="text-slate-700 mb-4">এই লিংকের সময়সীমা শেষ হয়ে গেছে। অনুগ্রহ করে নতুন লিংক সংগ্রহ করুন।</div>
             <button
-              onClick={() => { try { window.location.href = '/' } catch (_) {} }}
+              onClick={() => { try { window.location.href = '/' } catch (_) { } }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
             >
               হোমে যান

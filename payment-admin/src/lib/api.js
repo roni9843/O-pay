@@ -588,6 +588,43 @@ export async function setAdminNotificationNumbers(token, numbers) {
   })
 }
 
+// Status Message Management
+export async function getGlobalStatus(token) {
+  return request('/api/admin-status/global', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function setGlobalStatus(token, payload) {
+  return request('/api/admin-status/global', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function setUserStatus(token, payload) {
+  return request('/api/admin-status/user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function listUsersWithStatus(token) {
+  return request('/api/admin-status/users-with-status', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function sendAlarm(token, payload) {
+  return request('/api/admin-status/alarm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
 export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
@@ -604,7 +641,8 @@ export default {
   getPaymentPartners, createPaymentPartner, deletePaymentPartner,
   getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs,
   getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig,
-  getAdminNotificationNumbers, setAdminNotificationNumbers
+  getAdminNotificationNumbers, setAdminNotificationNumbers,
+  getGlobalStatus, setGlobalStatus, setUserStatus, listUsersWithStatus
 }
 
 

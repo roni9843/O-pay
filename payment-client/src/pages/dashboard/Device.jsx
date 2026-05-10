@@ -672,6 +672,8 @@ const Device = () => {
               </div>
             </div>
 
+
+
             <button
               onClick={() => {
                 setShowActivationModal(false);

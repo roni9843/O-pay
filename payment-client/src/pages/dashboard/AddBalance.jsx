@@ -1,17 +1,17 @@
 import React from "react";
 import { useAuthStore } from "../../store/authStore";
 import api from "../../lib/api";
-import { 
-  Wallet, 
-  CheckCircle, 
-  XCircle, 
-  Loader2, 
-  Sun, 
-  Moon, 
-  Image as ImageIcon, 
-  Copy, 
-  ArrowRight, 
-  ShieldCheck, 
+import {
+  Wallet,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Sun,
+  Moon,
+  Image as ImageIcon,
+  Copy,
+  ArrowRight,
+  ShieldCheck,
   Info,
   ExternalLink
 } from "lucide-react";
@@ -71,12 +71,12 @@ export default function AddBalance() {
   };
 
   React.useEffect(() => {
-    async function fetchAddress(){
+    async function fetchAddress() {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.oraclepay.org'}/api/settings/binance-address`);
         const data = await res.json();
         if (res.ok) setBinanceAddress(data.address || '');
-      } catch (_) {}
+      } catch (_) { }
     }
     fetchAddress();
   }, []);
@@ -112,9 +112,8 @@ export default function AddBalance() {
         </div>
         <button
           onClick={() => setDarkMode(!darkMode)}
-          className={`p-3 rounded-2xl transition-all shadow-xl shadow-black/5 ${
-            darkMode ? "bg-white/5 text-yellow-400 border border-white/10 hover:bg-white/10" : "bg-white text-indigo-600 border border-slate-200 hover:bg-slate-50"
-          }`}
+          className={`p-3 rounded-2xl transition-all shadow-xl shadow-black/5 ${darkMode ? "bg-white/5 text-yellow-400 border border-white/10 hover:bg-white/10" : "bg-white text-indigo-600 border border-slate-200 hover:bg-slate-50"
+            }`}
         >
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
@@ -122,13 +121,12 @@ export default function AddBalance() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* Left Column: Balance Info & Instructions (Lg: 5 Col) */}
           <div className="lg:col-span-5 space-y-6">
             {/* Current Balance Card */}
-            <div className={`p-8 rounded-[2.5rem] border overflow-hidden relative shadow-2xl ${
-              darkMode ? "bg-slate-900 border-white/5" : "bg-white border-slate-200"
-            }`}>
+            <div className={`p-8 rounded-[2.5rem] border overflow-hidden relative shadow-2xl ${darkMode ? "bg-slate-900 border-white/5" : "bg-white border-slate-200"
+              }`}>
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
               <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
                 Available Balance
@@ -152,9 +150,8 @@ export default function AddBalance() {
             </div>
 
             {/* How it works */}
-            <div className={`p-8 rounded-[2.5rem] border ${
-              darkMode ? "bg-white/5 border-white/5" : "bg-indigo-50/50 border-indigo-100"
-            }`}>
+            <div className={`p-8 rounded-[2.5rem] border ${darkMode ? "bg-white/5 border-white/5" : "bg-indigo-50/50 border-indigo-100"
+              }`}>
               <h3 className={`text-sm font-black uppercase tracking-widest mb-6 ${darkMode ? "text-slate-200" : "text-slate-900"}`}>
                 Recharge Process
               </h3>
@@ -185,10 +182,9 @@ export default function AddBalance() {
 
           {/* Right Column: Topup Form (Lg: 7 Col) */}
           <div className="lg:col-span-7">
-            <div className={`p-8 md:p-10 rounded-[2.5rem] border shadow-2xl relative overflow-hidden ${
-              darkMode ? "bg-slate-900 border-white/5" : "bg-white border-slate-200"
-            }`}>
-              
+            <div className={`p-8 md:p-10 rounded-[2.5rem] border shadow-2xl relative overflow-hidden ${darkMode ? "bg-slate-900 border-white/5" : "bg-white border-slate-200"
+              }`}>
+
               <div className="space-y-8">
                 {/* Step 1: Destination */}
                 <div className="space-y-4">
@@ -196,9 +192,8 @@ export default function AddBalance() {
                     <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[10px] font-black flex items-center justify-center">1</span>
                     <h3 className={`text-sm font-black uppercase tracking-widest ${darkMode ? "text-slate-200" : "text-slate-900"}`}>Reciever Identity</h3>
                   </div>
-                  <div className={`group relative p-4 rounded-3xl border transition-all ${
-                    darkMode ? "bg-black/40 border-white/5 hover:border-violet-500/30" : "bg-slate-50 border-slate-200 hover:border-violet-400/30"
-                  }`}>
+                  <div className={`group relative p-4 rounded-3xl border transition-all ${darkMode ? "bg-black/40 border-white/5 hover:border-violet-500/30" : "bg-slate-50 border-slate-200 hover:border-violet-400/30"
+                    }`}>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Binance BEP20 Wallet</label>
                     <div className="flex items-center justify-between">
                       <span className={`text-sm font-mono font-bold break-all pr-4 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
@@ -206,9 +201,8 @@ export default function AddBalance() {
                       </span>
                       <button
                         onClick={copyToClipboard}
-                        className={`p-3 rounded-xl transition-all ${
-                          copied ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : darkMode ? "bg-white/5 text-slate-400 hover:text-white" : "bg-white text-slate-500 hover:text-indigo-600 border border-slate-200"
-                        }`}
+                        className={`p-3 rounded-xl transition-all ${copied ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : darkMode ? "bg-white/5 text-slate-400 hover:text-white" : "bg-white text-slate-500 hover:text-indigo-600 border border-slate-200"
+                          }`}
                       >
                         {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                       </button>
@@ -222,18 +216,17 @@ export default function AddBalance() {
                     <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[10px] font-black flex items-center justify-center">2</span>
                     <h3 className={`text-sm font-black uppercase tracking-widest ${darkMode ? "text-slate-200" : "text-slate-900"}`}>Transaction Volume</h3>
                   </div>
-                  
+
                   {/* Quick Select Grid */}
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {quick.map((q) => (
                       <button
                         key={q}
                         onClick={() => setAmount(q)}
-                        className={`py-3 rounded-2xl font-black text-xs transition-all border ${
-                          Number(amount) === q
-                            ? "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/20"
-                            : darkMode ? "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                        }`}
+                        className={`py-3 rounded-2xl font-black text-xs transition-all border ${Number(amount) === q
+                          ? "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/20"
+                          : darkMode ? "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                          }`}
                       >
                         ৳{q}
                       </button>
@@ -247,11 +240,10 @@ export default function AddBalance() {
                       type="number"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className={`w-full pl-12 pr-6 py-5 rounded-3xl border-2 text-xl font-black transition-all ${
-                        darkMode 
-                          ? "bg-black/50 border-white/5 text-white focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10" 
-                          : "bg-slate-50 border-slate-100 text-slate-900 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
-                      }`}
+                      className={`w-full pl-12 pr-6 py-5 rounded-3xl border-2 text-xl font-black transition-all ${darkMode
+                        ? "bg-black/50 border-white/5 text-white focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        : "bg-slate-50 border-slate-100 text-slate-900 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        }`}
                       placeholder="Enter amount"
                     />
                   </div>
@@ -263,14 +255,13 @@ export default function AddBalance() {
                     <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[10px] font-black flex items-center justify-center">3</span>
                     <h3 className={`text-sm font-black uppercase tracking-widest ${darkMode ? "text-slate-200" : "text-slate-900"}`}>Confirmation Receipt</h3>
                   </div>
-                  
-                  <div className={`relative border-2 border-dashed rounded-3xl p-8 text-center transition-all ${
-                    file ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-500" : darkMode ? "border-white/10 bg-white/5 hover:border-violet-500/30" : "border-slate-200 bg-slate-50 hover:border-violet-400/30"
-                  }`}>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
+
+                  <div className={`relative border-2 border-dashed rounded-3xl p-8 text-center transition-all ${file ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-500" : darkMode ? "border-white/10 bg-white/5 hover:border-violet-500/30" : "border-slate-200 bg-slate-50 hover:border-violet-400/30"
+                    }`}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
                       id="screenshot-input"
                       onChange={(e) => {
                         const f = e.target.files?.[0] || null;
@@ -300,11 +291,10 @@ export default function AddBalance() {
                   <button
                     onClick={submit}
                     disabled={loading}
-                    className={`w-full py-5 rounded-3xl font-black text-sm uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl ${
-                      loading
-                        ? "bg-slate-700 text-slate-500 cursor-not-allowed"
-                        : "bg-gradient-to-r from-violet-600 to-indigo-700 text-white hover:scale-[1.02] active:scale-[0.98] shadow-violet-500/20"
-                    }`}
+                    className={`w-full py-5 rounded-3xl font-black text-sm uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl ${loading
+                      ? "bg-slate-700 text-slate-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-violet-600 to-indigo-700 text-white hover:scale-[1.02] active:scale-[0.98] shadow-violet-500/20"
+                      }`}
                   >
                     {loading ? (
                       <><Loader2 className="w-5 h-5 animate-spin" /> Verifying...</>
@@ -316,9 +306,8 @@ export default function AddBalance() {
 
                 {/* Notifications */}
                 {(success || error) && (
-                  <div className={`p-4 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in slide-in-from-bottom-4 duration-300 ${
-                    success ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                  }`}>
+                  <div className={`p-4 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in slide-in-from-bottom-4 duration-300 ${success ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                    }`}>
                     {success ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                     <span className="text-xs font-black uppercase tracking-tight">{success || error}</span>
                   </div>
@@ -334,9 +323,9 @@ export default function AddBalance() {
         <div className="flex flex-col items-center gap-2">
           <p className="text-[10px] font-black uppercase tracking-widest">Oracle Pay Gateway • Secure Billing</p>
           <div className="flex gap-4">
-             <a href="#" className="text-xs hover:text-violet-500 transition-colors">Privacy Policy</a>
-             <span className="text-slate-800 opacity-20">•</span>
-             <a href="#" className="text-xs hover:text-violet-500 transition-colors">Support Center</a>
+            <a href="#" className="text-xs hover:text-violet-500 transition-colors">Privacy Policy</a>
+            <span className="text-slate-800 opacity-20">•</span>
+            <a href="#" className="text-xs hover:text-violet-500 transition-colors">Support Center</a>
           </div>
         </div>
       </footer>

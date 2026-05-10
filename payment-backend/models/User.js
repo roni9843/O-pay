@@ -16,6 +16,10 @@ const UserSchema = new mongoose.Schema(
     minimumCredit: { type: Number, default: 0 },
     backgroundColor: { type: String, default: null },
     supportNumber: { type: String, default: null },
+    statusTitle: { type: String, default: null },
+    statusSubtitle: { type: String, default: "" },
+    statusIcon: { type: String, default: "" },
+    showStatus: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

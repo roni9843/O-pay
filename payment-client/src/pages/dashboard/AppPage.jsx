@@ -147,7 +147,7 @@ export default function AppPage() {
           <li>Add the following snippet to the site you want to track (e.g. http://localhost:3000):</li>
         </ol>
         <pre className="mt-3 text-xs overflow-auto p-3 bg-black text-green-200 rounded">
-{`<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+          {`<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
 <script>
   const socket = io("${SOCKET_URL}", { transports: ["websocket"] });
   socket.on("connect", () => {

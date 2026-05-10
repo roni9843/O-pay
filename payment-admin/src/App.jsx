@@ -19,6 +19,7 @@ import AgentApplicationDetail from './pages/AgentApplicationDetail'
 import TopupMethods from './pages/TopupMethods'
 import TopupRequests from './pages/TopupRequests'
 import AddPaymentMethod from './pages/AddPaymentMethod' // Imported
+import AdminStatus from './pages/AdminStatus'
 
 import OpayBusiness from './pages/OpayBusiness'
 import OpayBusinessDetail from './pages/OpayBusinessDetail'
@@ -27,10 +28,13 @@ import MerchantWithdraws from './pages/MerchantWithdraws'
 import PaymentLinkSessions from './pages/PaymentLinkSessions'
 import PrivateRoute from './components/PrivateRoute'
 import AdminLayout from './layouts/AdminLayout'
+import { Toaster } from 'react-hot-toast'
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Toaster position="top-right" reverseOrder={false} />
+      <Routes>
       <Route path="/login" element={<Login />} />
 
       <Route element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
@@ -61,10 +65,12 @@ export default function App() {
 
         <Route path="/binance-address" element={<BinanceAddress />} />
         <Route path="/devices" element={<Devices />} />
+        <Route path="/admin-status" element={<AdminStatus />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </>
   )
 }

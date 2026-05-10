@@ -103,8 +103,9 @@ export default function Devices(){
             <thead>
               <tr className="border-b border-white/5 bg-black/20">
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Device Info</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Code</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Device Name</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Hardware ID</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Stats</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Action</th>
               </tr>
@@ -112,7 +113,7 @@ export default function Devices(){
             <tbody className="divide-y divide-white/5">
               {loading ? (
                 <tr>
-                   <td className="px-6 py-12 text-center text-slate-400" colSpan={5}>
+                   <td className="px-6 py-12 text-center text-slate-400" colSpan={6}>
                       <div className="flex flex-col items-center justify-center gap-3">
                          <div className="w-8 h-8 rounded-full border-2 border-emerald-500/30 border-t-emerald-400 animate-spin" />
                          Scanning devices...
@@ -121,7 +122,7 @@ export default function Devices(){
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                   <td className="px-6 py-12 text-center text-slate-500" colSpan={5}>
+                   <td className="px-6 py-12 text-center text-slate-500" colSpan={6}>
                       No devices found matching your search.
                    </td>
                 </tr>
@@ -143,26 +144,36 @@ export default function Devices(){
                        <div className="space-y-1">
                           <div className="flex items-center gap-1.5 text-slate-200">
                              <Smartphone className="w-3.5 h-3.5 text-slate-400" />
-                             {d.deviceName || 'Generic Device'}
+                             {d.deviceUserName || 'Generic Name'}
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                             <User className="w-3 h-3" />
-                             {d.deviceUserName || 'No user'}
+                          <div className="text-[11px] text-slate-500">
+                             {d.deviceName || 'No physical name'}
                           </div>
                        </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                       <span className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10 font-mono text-xs text-emerald-300">
-                          {d.deviceCode || '---'}
+                       <span className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10 font-mono text-[10px] text-emerald-300">
+                          {d.deviceCode || 'WAITING_FOR_ID'}
                        </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                       {d.state ? (
+                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                            <Zap className="w-3 h-3" /> ACTIVE
+                         </span>
+                       ) : (
+                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold border border-amber-500/20">
+                            <Shield className="w-3 h-3" /> PENDING
+                         </span>
+                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                        <div className="flex flex-col gap-1">
                           <span className="text-xs text-slate-300 flex items-center gap-1.5">
                              <Shield className="w-3 h-3 text-emerald-400" />
-                             {d.verifiedPayments ?? 0} Verified
+                             {d.verifiedPayments ?? 0}
                           </span>
-                          <span className="text-[11px] text-slate-500 font-mono pl-4">
+                          <span className="text-[11px] text-slate-500 font-mono">
                              ৳{d.verifiedAmount ?? 0}
                           </span>
                        </div>

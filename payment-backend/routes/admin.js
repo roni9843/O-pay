@@ -171,7 +171,13 @@ router.get('/devices', auth, async (req, res) => {
     const { page = 1, limit = 50 } = req.query;
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
     const lim = Math.max(1, Math.min(200, Number(limit)));
+    
+    console.log(`[AdminAPI] Fetching devices - Page: ${page}, Limit: ${limit}`);
+
     const devices = await Device.find().sort({ createdAt: -1 }).skip(skip).limit(lim).populate('owner', 'name email').lean();
+    
+    console.log(`[AdminAPI] Found ${devices.length} devices`);
+
     const deviceKeys = [];
     devices.forEach(d => {
       deviceKeys.push(String(d._id));
@@ -179,15 +185,28 @@ router.get('/devices', auth, async (req, res) => {
       if (d.deviceUserName) deviceKeys.push(d.deviceUserName);
       if (d.deviceName) deviceKeys.push(d.deviceName);
     });
-    const statsAgg = await PaymentMessage.aggregate([
-      { $match: { verify: true, deviceId: { $in: deviceKeys } } },
-      { $group: { _id: '$deviceId', total: { $sum: 1 }, amount: { $sum: '$amount' } } }
-    ]);
-    const statsMap = new Map(statsAgg.map(s => [s._id, s]));
+
+    let statsMap = new Map();
+    try {
+      if (deviceKeys.length > 0) {
+        const statsAgg = await PaymentMessage.aggregate([
+          { $match: { verify: true, deviceId: { $in: deviceKeys } } },
+          { $group: { _id: '$deviceId', total: { $sum: 1 }, amount: { $sum: '$amount' } } }
+        ]);
+        statsMap = new Map(statsAgg.map(s => [s._id, s]));
+      }
+    } catch (aggErr) {
+      console.error('[AdminAPI] Stats aggregation failed:', aggErr.message);
+    }
+
     const data = devices.map(d => {
       const keys = [String(d._id), d.deviceCode, d.deviceUserName, d.deviceName].filter(Boolean);
       let total = 0, amount = 0;
-      keys.forEach(k => { const s = statsMap.get(k); if (s) { total += s.total; amount += s.amount; } });
+      keys.forEach(k => { 
+        const s = statsMap.get(k); 
+        if (s) { total += s.total; amount += s.amount; } 
+      });
+
       return {
         _id: d._id,
         deviceUserName: d.deviceUserName,
@@ -195,15 +214,17 @@ router.get('/devices', auth, async (req, res) => {
         deviceCode: d.deviceCode,
         owner: d.owner,
         subscriptionEndDate: d.subscriptionEndDate,
+        state: d.state,
         verifiedPayments: total,
         verifiedAmount: amount,
         createdAt: d.createdAt,
       };
     });
+
     const totalDevices = await Device.countDocuments();
     return res.json({ success: true, data, page: Number(page), total: totalDevices });
   } catch (err) {
-    console.error(err);
+    console.error('[AdminAPI] Error in /devices:', err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 });

@@ -41,6 +41,7 @@ const navItems = [
   { to: '/credit-topup-methods', label: 'Topup Methods', icon: SettingsIcon, accent: 'from-blue-500 to-indigo-500' },
   { to: '/credit-topup-requests', label: 'Topup Requests', icon: Wallet, accent: 'from-emerald-500 to-green-500', badgeKey: 'pendingCreditTopUps' },
   { to: '/add-payment-method', label: 'Add Payment Method', icon: CreditCard, accent: 'from-violet-500 to-indigo-500' },
+  { to: '/admin-status', label: 'Status Message', icon: MessageSquareText, accent: 'from-fuchsia-500 to-pink-500' },
 
   { to: '/settings', label: 'Settings', icon: SettingsIcon, accent: 'from-slate-500 to-slate-400' },
 ]

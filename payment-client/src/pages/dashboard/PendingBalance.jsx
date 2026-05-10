@@ -68,7 +68,7 @@ export default function PendingBalance() {
         {/* Pending Requests Card */}
         <div className="relative overflow-hidden rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-600/20 via-transparent to-orange-600/20 opacity-70" />
-          
+
           <div className="relative p-8">
             <div className="flex items-center gap-4 mb-8">
               <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-xl">

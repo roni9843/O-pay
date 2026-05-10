@@ -259,11 +259,11 @@ export default function ApiDocs() {
                     </div>
                 </div>
                 <div className="aspect-video bg-slate-900 relative">
-                    <video 
+                    <video
                         className="w-full h-full"
-                        controls 
-                        autoPlay 
-                        muted 
+                        controls
+                        autoPlay
+                        muted
                         loop
                         playsInline
                         src="https://api.oraclepay.org/uploads/OPAY_API_BUSINESS_DOCS_VIDEO.mp4"
@@ -272,10 +272,10 @@ export default function ApiDocs() {
             </div>
 
             {/* Official Guide (from MD) */}
-            <Section 
-                sectionKey="guide" 
-                title="📖 Full Integration Guide" 
-                expanded={expandSection.guide} 
+            <Section
+                sectionKey="guide"
+                title="📖 Full Integration Guide"
+                expanded={expandSection.guide}
                 onToggle={toggleSection}
             >
                 {loadingMd ? (
@@ -442,7 +442,7 @@ export default function ApiDocs() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
                         <div>
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Webhook JSON Example</p>
-                            <CodeBlock 
+                            <CodeBlock
                                 lang="JSON"
                                 code={`{
   "status": "COMPLETED",
@@ -457,7 +457,7 @@ export default function ApiDocs() {
                         </div>
                         <div>
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Example Webhook Handling (Node.js)</p>
-                            <CodeBlock 
+                            <CodeBlock
                                 lang="JavaScript"
                                 code={`app.post('/api/payment/callback', (req, res) => {
   const data = req.body; // রিকোয়েস্ট বডি পার্স করুন
@@ -537,7 +537,7 @@ export default function ApiDocs() {
                                     <Terminal className="w-4 h-4 text-slate-400" />
                                     <span className="text-xs font-black uppercase tracking-widest text-slate-400">Outgoing Request Data</span>
                                 </div>
-                                <CodeBlock 
+                                <CodeBlock
                                     lang="JSON (Request Payload)"
                                     code={JSON.stringify({
                                         payment_amount: Number(testAmount),
@@ -591,7 +591,7 @@ export default function ApiDocs() {
                                             <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">HTTP 200 OK</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-emerald-700/50 uppercase tracking-widest ml-1">Payment Checkout URL</p>
                                         <a
@@ -604,7 +604,7 @@ export default function ApiDocs() {
                                             <ExternalLink className="w-4 h-4 flex-shrink-0 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all text-emerald-600" />
                                         </a>
                                     </div>
-                                    
+
                                     <CodeBlock
                                         code={JSON.stringify(testResult, null, 2)}
                                         lang="Full API Response"
@@ -628,7 +628,7 @@ export default function ApiDocs() {
                                     <p className="text-xs text-violet-700 font-medium leading-relaxed">
                                         যখন কাস্টমার পেমেন্ট সম্পন্ন করবে, আমাদের সার্ভার নিচের মত একটি <span className="font-black">POST</span> রিকোয়েস্ট তোমার <span className="font-black underline italic">callback_url</span>-এ পাঠাবে:
                                     </p>
-                                    <CodeBlock 
+                                    <CodeBlock
                                         lang="Simulated Success Webhook"
                                         code={JSON.stringify({
                                             status: "COMPLETED",
