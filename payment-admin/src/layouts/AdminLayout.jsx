@@ -20,6 +20,7 @@ import {
   Landmark,
   Menu,
   X,
+  Zap,
 } from 'lucide-react'
 
 const navItems = [
@@ -31,6 +32,7 @@ const navItems = [
   { to: '/merchant-withdraws', label: 'Merchant Withdraws', icon: Landmark, accent: 'from-orange-500 to-amber-500', badgeKey: 'pendingWithdrawals' },
   { to: '/payment-link-sessions', label: 'Payment Links', icon: LinkIcon, accent: 'from-sky-500 to-blue-500' },
   { to: '/device-online', label: 'Device Online', icon: Smartphone, accent: 'from-amber-500 to-orange-500' },
+  { to: '/active-devices', label: 'Active Devices', icon: Zap, accent: 'from-violet-500 to-fuchsia-500' },
   { to: '/devices', label: 'Devices', icon: Smartphone, accent: 'from-fuchsia-500 to-purple-500' },
   { to: '/payment-messages', label: 'Payment Messages', icon: MessageSquareText, accent: 'from-blue-600 to-cyan-400' },
   { to: '/payments', label: 'Payments', icon: CreditCard, accent: 'from-emerald-500 to-lime-500' },

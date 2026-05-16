@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Copy, RefreshCw, Timer, CheckCircle, XCircle, Smartphone, Laptop, Calendar, Clock, Gift, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, Copy, RefreshCw, Timer, CheckCircle, XCircle, Smartphone, Laptop, Calendar, Clock, Gift, ArrowRight, Zap, Shield, Sparkles, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -20,9 +20,15 @@ const Device = () => {
   const [createdDevice, setCreatedDevice] = useState(null);
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [countdowns, setCountdowns] = useState({});
-  const [allPlans, setAllPlans] = useState([]);
   const [purchasingFree, setPurchasingFree] = useState(false);
   const [showCongratulation, setShowCongratulation] = useState(false);
+  const [creditPlans, setCreditPlans] = useState([
+    { _id: '1', name: 'Starter', price: 500, credits: 5, description: 'Business entry package with essential monitoring.' },
+    { _id: '2', name: 'Professional', price: 1000, credits: 15, description: 'Most popular choice for growing businesses.' },
+    { _id: '3', name: 'Enterprise', price: 2500, credits: 40, description: 'Full power for large scale operations.' }
+  ]);
+  const [allPlans, setAllPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
 
   const pollIntervalRef = useRef(null);
 
@@ -44,8 +50,8 @@ const Device = () => {
     try {
       const res = await api.getMySubscriptions(token);
 
-    
-      
+
+
 
       const subs = Array.isArray(res) ? res : [];
       setSubscriptions(subs);
@@ -63,6 +69,13 @@ const Device = () => {
       try {
         const plansRes = await api.getSubscriptionPlans().catch(() => []);
         setAllPlans(Array.isArray(plansRes) ? plansRes : []);
+
+        // Fetch Credit Plans for restricted UI
+        setLoadingPlans(true);
+        const cPlans = await api.get('/api/credit-plans', token).catch(() => []);
+        setCreditPlans(Array.isArray(cPlans) ? cPlans : (cPlans.data || []));
+        setLoadingPlans(false);
+
         await Promise.all([fetchDevices(), fetchSubscriptions()]);
       } finally {
         setLoading(false);
@@ -75,7 +88,7 @@ const Device = () => {
   const handlePurchaseFreePlan = async () => {
     const plan = allPlans.find(p => p.name === 'Wallet Agent');
     if (!plan) return alert("Wallet Agent plan not found");
-    
+
     setPurchasingFree(true);
     try {
       const res = await api.purchaseSubscription(token, {
@@ -84,7 +97,7 @@ const Device = () => {
       });
       await fetchSubscriptions();
       setShowCongratulation(true);
-      
+
       setTimeout(() => {
         setShowCongratulation(false);
         if (res?.subscription?._id) {
@@ -92,7 +105,7 @@ const Device = () => {
         }
         setShowAddDialog(true);
       }, 3000);
-      
+
     } catch (err) {
       alert(err.message || 'Failed to purchase plan');
     } finally {
@@ -167,13 +180,13 @@ const Device = () => {
       setNewDeviceName('');
       setSelectedSubscription('');
       setCreatedDevice(res?.data ?? res);
-      
+
       setShowActivationModal(true);
 
 
-       if (window.Android) {
-      window.Android.receiveActivationId(res?.data?.activationId || res?.activationId || '');
-          }
+      if (window.Android) {
+        window.Android.receiveActivationId(res?.data?.activationId || res?.activationId || '');
+      }
 
 
 
@@ -250,69 +263,43 @@ const Device = () => {
     );
   }
 
-  // === WALLET AGENT FREE PLAN SCREEN ===
-  if (user?.role === 'wallet_agent' && subscriptions.length === 0) {
+  // === WALLET AGENT RESTRICTION SCREEN (Package Purchase Required) ===
+  if (user?.role === 'wallet_agent' && subscriptions.length === 0 && !user?.credit) {
     return (
-      <div className="min-h-screen p-4 md:p-6 flex items-center justify-center relative overflow-hidden bg-slate-900">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800"></div>
-        <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-40 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-        
-        {showCongratulation ? (
-          <div className="z-10 flex flex-col items-center animate-bounce scale-110 transition-transform duration-500">
-            <div className="text-7xl mb-6 drop-shadow-2xl">🎉</div>
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">
-              Congratulations!
+      <div className="min-h-screen bg-slate-50 p-4 md:p-10">
+        <div className="max-w-7xl mx-auto space-y-12">
+          {/* Header */}
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-bold uppercase tracking-wider animate-bounce">
+              <Shield className="w-4 h-4" /> Subscription Required
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
+              আপনার <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">প্যাকেজটি বেছে নিন</span>
             </h1>
-            <p className="text-2xl text-white font-semibold drop-shadow-md">Purchase Done Successfully!</p>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              ডিভাইস কানেক্ট করার আগে একটি ক্রেডিট প্যাকেজ কেনা প্রয়োজন। আপনার ব্যবসা শুরু করতে নিচের যেকোনো একটি প্যাকেজ বেছে নিন।
+            </p>
+            <button
+              onClick={() => nav('/dashboard/credit-topup')}
+              className="mt-6 px-10 py-4 bg-gray-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all shadow-xl flex items-center gap-2 mx-auto group"
+            >
+              পেমেন্ট পেজে যান <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
           </div>
-        ) : (
-          <div className="z-10 bg-white/10 backdrop-blur-3xl rounded-[3rem] p-10 border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] text-center max-w-lg relative mt-12">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 p-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-[0_0_40px_rgba(250,204,21,0.6)]">
-              <Gift className="w-12 h-12 text-white animate-pulse" />
-            </div>
-            
-            <h1 className="text-4xl mt-10 font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">
-              Wallet Agent Package
-            </h1>
-            
-            <div className="flex justify-center items-end gap-3 mb-6">
-              <span className="text-2xl text-gray-400 line-through decoration-red-500 decoration-2">৳4,800/yr</span>
-              <span className="text-5xl font-black text-white">৳0</span>
-            </div>
 
-            <div className="bg-white/5 rounded-2xl p-6 mb-8 text-left border border-white/10 shadow-inner">
-              <h3 className="text-yellow-400 font-bold mb-4 text-center uppercase tracking-widest text-sm">Package Details</h3>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> Unlimited Devices</li>
-                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> Unlimited SIM Numbers</li>
-                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> All Payment Methods Supported</li>
-                <li className="flex items-center gap-3 text-white/90"><CheckCircle className="w-5 h-5 text-emerald-400"/> 1 Year Validity (100% Free)</li>
-              </ul>
-            </div>
-            
-            <div className="flex flex-col items-center relative mt-8">
-              <div className="absolute -top-14 animate-bounce text-yellow-400">
-                <ArrowRight className="w-10 h-10 rotate-90 drop-shadow-lg" />
-              </div>
-              <button
-                onClick={handlePurchaseFreePlan}
-                disabled={purchasingFree}
-                className="w-full py-5 mt-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-orange-500 hover:to-yellow-500 text-white font-bold text-xl rounded-2xl shadow-[0_0_30px_rgba(234,179,8,0.4)] hover:shadow-[0_0_40px_rgba(234,179,8,0.7)] transform hover:scale-105 transition-all duration-300 flex justify-center items-center gap-3 disabled:opacity-70 disabled:scale-100"
-              >
-                {purchasingFree ? (
-                  <>
-                    <RefreshCw className="w-6 h-6 animate-spin" /> Processing...
-                  </>
-                ) : (
-                  <>
-                    <Gift className="w-6 h-6" /> Claim Package for ৳0
-                  </>
-                )}
-              </button>
+
+
+          {/* Footer Note */}
+          <div className="text-center py-10 bg-indigo-600 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
+            <div className="relative z-10 px-6">
+              <h3 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+                <Sparkles className="w-6 h-6 text-amber-300" /> বিশেষ অফার চলছে!
+              </h3>
+              <p className="text-indigo-100 font-medium">যেকোনো প্যাকেজ কিনলেই পাচ্ছেন ১ বছরের এক্সট্রা ফ্রি সার্ভিস। অফারটি সীমিত সময়ের জন্য।</p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -335,12 +322,11 @@ const Device = () => {
           </div>
           <button
             onClick={() => setShowAddDialog(true)}
-            disabled={!subscriptions.some(canAdd)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${
-              !subscriptions.some(canAdd)
-                ? 'bg-gray-400 cursor-not-allowed text-gray-200'
-                : 'bg-gradient-to-r from-violet-600 to-pink-600 text-white hover:shadow-xl'
-            }`}
+            disabled={!subscriptions.some(canAdd) && !user?.credit}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg ${(!subscriptions.some(canAdd) && !user?.credit)
+              ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+              : 'bg-gradient-to-r from-violet-600 to-pink-600 text-white hover:shadow-xl'
+              }`}
           >
             <Plus className="w-5 h-5" />
             Add Device
@@ -467,119 +453,119 @@ const Device = () => {
       </div>
 
       {/* === ADD DEVICE MODAL === */}
-    {/* === ADD DEVICE MODAL === */}
-{showAddDialog && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-50 p-4 animate-fadeIn">
-    <div className="bg-white/95 backdrop-blur-3xl rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-white/30 transform transition-all scale-100 hover:scale-[1.01]">
-      
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
-          Add New Device
-        </h2>
-        <button
-          onClick={() => {
-            setShowAddDialog(false);
-            setError('');
-            setNewDeviceName('');
-            setSelectedSubscription('');
-          }}
-          className="p-2 rounded-full hover:bg-gray-100 transition-all"
-        >
-          <XCircle className="w-6 h-6 text-gray-500" />
-        </button>
-      </div>
+      {/* === ADD DEVICE MODAL === */}
+      {showAddDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white/95 backdrop-blur-3xl rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-white/30 transform transition-all scale-100 hover:scale-[1.01]">
 
-      <form onSubmit={handleAddDevice} className="space-y-6">
-
-        {/* Device Name */}
-        <div className="relative group">
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-            <Smartphone className="w-4 h-4 text-violet-600" />
-            Device Name
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={newDeviceName}
-              onChange={(e) => setNewDeviceName(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 text-gray-900 font-medium"
-              required
-              placeholder="e.g. My iPhone 15"
-            />
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none"></div>
-          </div>
-        </div>
-
-        {/* Subscription Plan */}
-        <div className="relative group">
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
-            Choose Plan
-          </label>
-          <div className="relative">
-            <select
-              value={selectedSubscription}
-              onChange={(e) => setSelectedSubscription(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm text-gray-900 font-medium appearance-none cursor-pointer pr-12"
-              required
-            >
-              <option value="">Select a subscription plan</option>
-              {subscriptions.map((sub) => {
-                const used = devices.filter(d => String(d.subscription?._id) === String(sub._id)).length;
-                const max = sub?.plan?.maxDevices ?? sub?.plan?.features?.devices ?? 'Unlimited';
-                const isDisabled = !canAdd(sub);
-                return (
-                  <option key={sub._id} value={sub._id} disabled={isDisabled}>
-                    {sub.plan?.name} ({used}/{max} used)
-                  </option>
-                );
-              })}
-            </select>
-            {/* Custom Arrow */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
+                Add New Device
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddDialog(false);
+                  setError('');
+                  setNewDeviceName('');
+                  setSelectedSubscription('');
+                }}
+                className="p-2 rounded-full hover:bg-gray-100 transition-all"
+              >
+                <XCircle className="w-6 h-6 text-gray-500" />
+              </button>
             </div>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none"></div>
+
+            <form onSubmit={handleAddDevice} className="space-y-6">
+
+              {/* Device Name */}
+              <div className="relative group">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                  <Smartphone className="w-4 h-4 text-violet-600" />
+                  Device Name
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newDeviceName}
+                    onChange={(e) => setNewDeviceName(e.target.value)}
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 text-gray-900 font-medium"
+                    required
+                    placeholder="e.g. My iPhone 15"
+                  />
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none"></div>
+                </div>
+              </div>
+
+              {/* Subscription Plan */}
+              <div className="relative group">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  Choose Plan
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedSubscription}
+                    onChange={(e) => setSelectedSubscription(e.target.value)}
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm text-gray-900 font-medium appearance-none cursor-pointer pr-12"
+                    required
+                  >
+                    <option value="">Select a subscription plan</option>
+                    {subscriptions.map((sub) => {
+                      const used = devices.filter(d => String(d.subscription?._id) === String(sub._id)).length;
+                      const max = sub?.plan?.maxDevices ?? sub?.plan?.features?.devices ?? 'Unlimited';
+                      const isDisabled = !canAdd(sub);
+                      return (
+                        <option key={sub._id} value={sub._id} disabled={isDisabled}>
+                          {sub.plan?.name} ({used}/{max} used)
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {/* Custom Arrow */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none"></div>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 flex items-center gap-3 animate-pulse">
+                  <XCircle className="w-5 h-5" />
+                  <span className="font-medium">{error}</span>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddDialog(false);
+                    setError('');
+                    setNewDeviceName('');
+                    setSelectedSubscription('');
+                  }}
+                  className="flex-1 py-4 rounded-2xl border-2 border-gray-300 hover:bg-gray-50 font-semibold text-gray-700 transition-all transform hover:scale-105"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-semibold hover:shadow-2xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Device
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 flex items-center gap-3 animate-pulse">
-            <XCircle className="w-5 h-5" />
-            <span className="font-medium">{error}</span>
-          </div>
-        )}
-
-        {/* Buttons */}
-        <div className="flex gap-4 pt-4">
-          <button
-            type="button"
-            onClick={() => {
-              setShowAddDialog(false);
-              setError('');
-              setNewDeviceName('');
-              setSelectedSubscription('');
-            }}
-            className="flex-1 py-4 rounded-2xl border-2 border-gray-300 hover:bg-gray-50 font-semibold text-gray-700 transition-all transform hover:scale-105"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-semibold hover:shadow-2xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add Device
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
 
       {/* === ACTIVATION SUCCESS MODAL === */}
       {showActivationModal && createdDevice && (
@@ -602,9 +588,9 @@ const Device = () => {
               animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             }
           `}</style>
-          
+
           <div className="bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl p-8 w-full max-w-md border border-white/40 animate-slideUpFade">
-            
+
             {/* Header Icon - Radar Scanning */}
             <div className="flex justify-center mb-8 mt-4">
               <div className="relative flex items-center justify-center">
@@ -612,12 +598,12 @@ const Device = () => {
                 <div className="absolute w-32 h-32 bg-emerald-400 rounded-full opacity-20 animate-ping" style={{ animationDuration: '2s' }}></div>
                 <div className="absolute w-48 h-48 border border-teal-400 rounded-full opacity-30 animate-pulse" style={{ animationDuration: '1.5s' }}></div>
                 <div className="absolute w-64 h-64 border border-emerald-500 rounded-full opacity-10 animate-pulse" style={{ animationDuration: '3s' }}></div>
-                
+
                 {/* Center Device Icon */}
                 <div className="relative z-10 bg-gradient-to-br from-emerald-400 to-teal-500 w-20 h-20 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.5)] border-4 border-white">
                   <Smartphone className="w-10 h-10 text-white" />
                 </div>
-                
+
                 {/* Scanning Orbit Dot */}
                 <div className="absolute w-32 h-32 animate-spin" style={{ animationDuration: '2.5s' }}>
                   <div className="w-4 h-4 bg-teal-300 rounded-full shadow-[0_0_15px_#5eead4] absolute top-0 left-1/2 -translate-x-1/2"></div>
@@ -640,11 +626,11 @@ const Device = () => {
               <div className="relative bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl overflow-hidden">
                 {/* Scanning line animation */}
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-400 shadow-[0_0_15px_#34d399] animate-scan pointer-events-none"></div>
-                
+
                 <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3 text-center">
                   Your Unique Code
                 </p>
-                
+
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <code className="w-full text-center font-mono text-3xl sm:text-4xl font-bold text-emerald-400 tracking-[0.2em] select-all bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
                     {createdDevice.activationId}
@@ -659,7 +645,7 @@ const Device = () => {
                     <Copy className="w-6 h-6 group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
-                
+
                 <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-sm">
                   <div className="flex items-center gap-2 px-4 py-1.5 bg-rose-500/10 rounded-full border border-rose-500/20">
                     <Timer className="w-4 h-4 text-rose-400 animate-pulse" />

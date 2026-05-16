@@ -11,6 +11,7 @@ const WalletAgentPaymentTemplate = require('../models/WalletAgentPaymentTemplate
 const opayBusinessAuth = require('../middleware/opayBusinessAuth');
 const MerchantWithdrawal = require('../models/MerchantWithdrawal');
 const Setting = require('../models/Setting');
+const { default: mongoose } = require('mongoose');
 
 const WITHDRAW_MIN_KEY = 'merchant_withdraw_min_amount';
 const WITHDRAW_COMMISSION_KEY = 'merchant_withdraw_commission_percent';
@@ -528,13 +529,22 @@ router.post('/session-events/:code', async (req, res) => {
 // Returns paginated list of generated payment page sessions
 router.get('/payment-page-history', opayBusinessAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, status } = req.query;
 
     const pageNum = Math.max(1, Number(page) || 1);
     const lim = Math.max(1, Math.min(100, Number(limit) || 20));
     const skip = (pageNum - 1) * lim;
 
-    const query = { business: req.user._id };
+
+
+    const businessId = new mongoose.Types.ObjectId(String(req.user._id).trim());
+    const query = { business: businessId };
+    const trimmedStatus = status ? String(status).trim() : null;
+    
+    if (trimmedStatus && trimmedStatus !== 'all') {
+      // Use case-insensitive regex for status matching to be robust
+      query.status = { $regex: new RegExp(`^${trimmedStatus}$`, 'i') };
+    }
 
     const [items, total, stats] = await Promise.all([
       OpayBusinessPaymentSession.find(query)
@@ -648,7 +658,7 @@ router.get('/payment-page-history', opayBusinessAuth, async (req, res) => {
       lastVerifyResult: getLastVerifyResult(s),
     }));
 
-    return res.json({ success: true, data, page: pageNum, total, summary });
+    return res.json({ success: true, data, page: pageNum, total, summary, debugQuery: query });
   } catch (err) {
     console.error('opay-business payment-page-history error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading payment page history' });
@@ -929,6 +939,10 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Payment session not found' });
     }
 
+    if (session.status === 'paid') {
+      return res.json({ success: true, message: 'Payment already verified', redirect_url: session.successRedirectUrl });
+    }
+
     const trimmedTrxid = String(trxid || '').trim();
     const provider = providerParam ? String(providerParam).toLowerCase() : null;
 
@@ -992,6 +1006,10 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Transaction ID not found', reasonCode: 'TRX_NOT_FOUND' });
     }
 
+    if (matchedMessage.verify) {
+      return res.status(400).json({ success: false, message: 'Transaction ID already used', reasonCode: 'TRX_USED' });
+    }
+
     // Amount check
     if (Math.abs(Number(matchedMessage.amount) - Number(session.amount)) > 0.5) {
       return res.status(400).json({ success: false, message: 'Amount mismatch', reasonCode: 'AMOUNT_MISMATCH' });
@@ -1019,6 +1037,31 @@ router.post('/verify-payment', async (req, res) => {
     await session.save();
 
     console.log(`[VERIFY SUCCESS] Transaction ${trimmedTrxid} verified and marked as paid`);
+
+    // Fire callback to client webhook with verification details (non-blocking)
+    try {
+      const callbackUrl = session.callbackUrl;
+      if (callbackUrl && /^https?:\/\//i.test(callbackUrl)) {
+        const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
+        const footprintUrlMasked = session.footprintUrl || `${baseUrl}/payment/${session.code}/mask/footprint`;
+
+        const payload = {
+          status: 'COMPLETED',
+          amount: Number(matchedMessage.amount),
+          transaction_id: matchedMessage.trxID,
+          invoice_number: session.invoiceNumber || null,
+          session_code: session.code,
+          checkout_items: session.checkoutItems || null,
+          bank: providerParam ? String(providerParam).toLowerCase() : null,
+          footprint: footprintUrlMasked
+        };
+        axios.post(callbackUrl, payload, { timeout: 5000 }).catch((err) => {
+          console.warn('OpayBusiness Callback POST failed:', err?.message || err);
+        });
+      }
+    } catch (cbErr) {
+      console.warn('OpayBusiness Callback handling error:', cbErr?.message || cbErr);
+    }
 
     return res.json({
       success: true,
@@ -1197,7 +1240,11 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
     }).lean();
     
     const totalWithdrawalAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-    const availableBalance = absoluteTotalSuccessAmount - totalWithdrawalAmount;
+
+    const business = await OpayBusiness.findById(businessId).select('balanceAdjustment').lean();
+    const balanceAdjustment = business?.balanceAdjustment || 0;
+
+    const availableBalance = absoluteTotalSuccessAmount - totalWithdrawalAmount + balanceAdjustment;
     const withdrawalConfig = await getWithdrawalConfig();
 
     return res.json({
@@ -1257,7 +1304,10 @@ router.post('/withdraw', opayBusinessAuth, async (req, res) => {
     }).select('amount').lean();
     const totalWithdrawalAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
 
-    const availableBalance = totalSuccessAmount - totalWithdrawalAmount;
+    const business = await OpayBusiness.findById(businessId).select('balanceAdjustment').lean();
+    const balanceAdjustment = business?.balanceAdjustment || 0;
+
+    const availableBalance = totalSuccessAmount - totalWithdrawalAmount + balanceAdjustment;
 
     if (amount > availableBalance) {
       return res.status(400).json({ success: false, message: 'Insufficient balance' });

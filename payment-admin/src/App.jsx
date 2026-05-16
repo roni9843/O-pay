@@ -6,6 +6,7 @@ import Users from './pages/Users'
 import UserDetail from './pages/UserDetail'
 import WalletAgents from './pages/WalletAgents'
 import DeviceOnline from './pages/DeviceOnline'
+import ActiveDevices from './pages/ActiveDevices'
 import Payments from './pages/Payments'
 import PaymentMessages from './pages/PaymentMessages'
 import PendingBalances from './pages/PendingBalances'
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/merchant-withdraws" element={<MerchantWithdraws />} />
         <Route path="/payment-link-sessions" element={<PaymentLinkSessions />} />
         <Route path="/device-online" element={<DeviceOnline />} />
+        <Route path="/active-devices" element={<ActiveDevices />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/payment-messages" element={<PaymentMessages />} />
         <Route path="/pending-balances" element={<PendingBalances />} />

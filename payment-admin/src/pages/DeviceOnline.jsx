@@ -1,32 +1,93 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { listDevicesOnlineStatus } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import { Smartphone, Wifi, WifiOff, Clock, User, Phone, Server, CircuitBoard } from 'lucide-react'
+import { Smartphone, Wifi, WifiOff, Clock, User, Phone, Server, CircuitBoard, RefreshCw, Battery, BatteryCharging, Signal } from 'lucide-react'
+import { io } from 'socket.io-client'
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 export default function DeviceOnline() {
   const token = useAuthStore(s => s.token)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+   const [realtime, setRealtime] = useState(false)
+   const [lastUpdated, setLastUpdated] = useState(null)
+   const socketRef = useRef(null)
 
-  useEffect(() => {
-    let ignore = false
-    async function load() {
+   const load = useCallback(async () => {
       if (!token) return
       setLoading(true)
       setError('')
       try {
-        const res = await listDevicesOnlineStatus(token)
-        if (!ignore) setItems(res.data || [])
+         const res = await listDevicesOnlineStatus(token)
+         setItems(res.data || [])
+         setLastUpdated(new Date())
       } catch (e) {
-        if (!ignore) setError(e.message || 'Failed to load device status')
+         setError(e.message || 'Failed to load device status')
       } finally {
-        if (!ignore) setLoading(false)
+         setLoading(false)
       }
+   }, [token])
+
+  useEffect(() => {
+      load()
+   }, [load])
+
+   useEffect(() => {
+      if (!token) return
+
+      const socket = io(SOCKET_URL, {
+         transports: ['websocket'],
+         reconnection: true,
+         reconnectionAttempts: Infinity,
+         reconnectionDelay: 1000,
+      })
+
+      socketRef.current = socket
+
+      const refresh = () => {
+         load()
     }
-    load()
-    return () => { ignore = true }
-  }, [token])
+
+      socket.on('connect', () => {
+         setRealtime(true)
+         refresh()
+      })
+
+      socket.on('disconnect', () => {
+         setRealtime(false)
+      })
+
+      socket.on('device:status', (data) => {
+         setItems(prev => prev.map(item => {
+            if (item.deviceCode === data.deviceId || item._id === data.deviceId) {
+               return { ...item, ...data, online: data.active };
+            }
+            return item;
+         }));
+      })
+
+      socket.on('devices:update', (data) => {
+         // data is an array of online devices with telemetry
+         setItems(prev => prev.map(item => {
+            const live = data.find(d => d.deviceId === item.deviceCode || d.deviceId === item._id);
+            if (live) {
+               return { ...item, ...live, online: live.active };
+            }
+            return { ...item, online: false };
+         }));
+      })
+
+      return () => {
+         socket.off('connect')
+         socket.off('disconnect')
+         socket.off('device:status', refresh)
+         socket.off('devices:update', refresh)
+         socket.close()
+         socketRef.current = null
+      }
+   }, [token, load])
 
   return (
     <div className="space-y-6">
@@ -43,11 +104,22 @@ export default function DeviceOnline() {
                Monitor real-time status of all connected devices and payment gateways.
             </p>
          </div>
-         {loading && (
-             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider animate-pulse">
-                <Wifi className="w-4 h-4" /> Updating Status...
-             </div>
-         )}
+         <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider ${realtime ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
+               {realtime ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+               {realtime ? 'Realtime On' : 'Realtime Off'}
+            </div>
+            {loading && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider animate-pulse">
+                   <RefreshCw className="w-4 h-4 animate-spin" /> Updating Status...
+                </div>
+            )}
+            {lastUpdated && !loading && (
+               <div className="text-[10px] text-slate-500 font-mono">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+               </div>
+            )}
+         </div>
       </div>
 
       {error && (
@@ -79,19 +151,60 @@ export default function DeviceOnline() {
                          {d.online ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                          {d.online ? 'Online' : 'Offline'}
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                       <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
                          <Clock className="w-3 h-3" />
                          {d.lastSeen ? new Date(d.lastSeen).toLocaleTimeString() : 'N/A'}
                       </span>
+
+                      {/* Live Telemetry: Battery & Network */}
+                      {d.online && (
+                         <div className="flex flex-col gap-2 mt-4 w-full bg-black/20 p-3 rounded-xl border border-white/5">
+                            {/* Battery */}
+                            <div className="flex items-center justify-between gap-2">
+                               <div className="flex items-center gap-1.5">
+                                  {d.isCharging ? (
+                                     <BatteryCharging className="w-4 h-4 text-amber-400 animate-pulse" />
+                                  ) : (
+                                     <Battery className={`w-4 h-4 ${(d.batteryLevel || 0) < 20 ? 'text-rose-500' : 'text-emerald-400'}`} />
+                                  )}
+                                  <span className="text-xs font-bold text-white">{d.batteryLevel || 0}%</span>
+                               </div>
+                               <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden ml-2">
+                                  <div 
+                                     className={`h-full transition-all duration-1000 ${d.isCharging ? 'bg-amber-500' : (d.batteryLevel || 0) < 20 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                                     style={{ width: `${d.batteryLevel || 0}%` }}
+                                  />
+                               </div>
+                            </div>
+
+                            {/* Network */}
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                               {d.networkType === 'WiFi' ? (
+                                  <Wifi className="w-3.5 h-3.5 text-cyan-400" />
+                               ) : (
+                                  <Signal className="w-3.5 h-3.5 text-indigo-400" />
+                               )}
+                               <div className="flex flex-col">
+                                  <span className="text-[10px] font-bold text-slate-300 leading-none">{d.networkType || 'Unknown'}</span>
+                                  <span className="text-[9px] text-slate-500 truncate max-w-[80px]">{d.networkName || 'Scanning...'}</span>
+                               </div>
+                            </div>
+                         </div>
+                      )}
                    </div>
 
                    {/* Device Details */}
                    <div className="flex-1 space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div>
                             <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">
                                {d.deviceName || d.deviceUserName || 'Unnamed Device'}
                             </h3>
+                            <div className="text-sm text-slate-300 mb-2">User: {d.deviceUserName || 'N/A'}</div>
+                            <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wider text-slate-300 mb-2">
+                               <span className="px-2 py-1 rounded-full bg-white/5 border border-white/5">{d.owner?.role || 'no role'}</span>
+                               <span className="px-2 py-1 rounded-full bg-white/5 border border-white/5">{d.owner?.email || 'no email'}</span>
+                            </div>
                             <div className="flex items-center gap-2 text-xs text-slate-400 font-mono bg-black/20 w-fit px-2 py-1 rounded-lg border border-white/5">
                                <CircuitBoard className="w-3 h-3" />
                                {d.deviceCode || 'NO CODE'}

@@ -26,6 +26,11 @@ export default function OpayBusinessHistory() {
   const [expandedCode, setExpandedCode] = useState(null);
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [totalItems, setTotalItems] = useState(0);
+
   const loadBusiness = async () => {
     if (!token || !id) return;
     if (business) return;
@@ -52,14 +57,18 @@ export default function OpayBusinessHistory() {
     if (!token || !id) return;
     setLoading(true);
     setError('');
+    setItems([]); // Clear current items to show loading state clearly
+    console.log(`[Audit] Fetching history for status: ${statusFilter}, page: ${page}`);
     try {
       const [historyRes, overviewRes] = await Promise.all([
-        getOpayBusinessPaymentHistory(token, id, { page: 1, limit: 100 }),
+        getOpayBusinessPaymentHistory(token, id, { page, limit, status: statusFilter }),
         getOpayBusinessDashboardOverview(token, id)
       ]);
 
       if (historyRes.success) {
+        console.log('[Audit] Backend Query applied:', historyRes.debugQuery);
         setItems(historyRes.data);
+        setTotalItems(historyRes.total || 0);
         setSummary(historyRes.summary);
       }
       
@@ -77,7 +86,7 @@ export default function OpayBusinessHistory() {
     if (!business) loadBusiness();
     loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, token]);
+  }, [id, token, page, statusFilter]);
 
   const maxAmount = Math.max(...daily.map(d => d.successAmount || 0), 1000);
   const maxCount = Math.max(...daily.map(d => d.totalGenerated || 0), 5);
@@ -125,12 +134,19 @@ export default function OpayBusinessHistory() {
         <button
           onClick={loadHistory}
           disabled={loading}
-          className="px-4 py-2 rounded-xl bg-violet-600/10 text-violet-400 text-xs font-black border border-violet-500/20 hover:bg-violet-600/20 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-violet-600/10 text-violet-400 text-xs font-black border border-violet-500/20 hover:bg-violet-600/20 disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95"
         >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Refresh Audit
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
+          {loading ? 'Auditing...' : 'Refresh Audit'}
         </button>
       </div>
+
+      {error && (
+        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-4 text-sm text-rose-400 flex items-center gap-3 animate-shake">
+          <XCircle className="w-5 h-5" />
+          <p className="font-bold">{error}</p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -276,12 +292,33 @@ export default function OpayBusinessHistory() {
             <h3 className="text-sm font-black text-white uppercase tracking-widest">Audit Logs</h3>
             <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest">Detailed lifecycle of each session</p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-black/40 border border-white/5 text-[10px] font-black text-slate-400">
-            {items.length} Entries Recorded
-          </span>
+          <div className="flex items-center gap-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className="bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid Only</option>
+              <option value="pending">Pending</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="expired">Expired</option>
+            </select>
+            <span className="px-3 py-1 rounded-full bg-black/40 border border-white/5 text-[10px] font-black text-slate-400">
+              {totalItems} Entries Recorded
+            </span>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative min-h-[400px]">
+          {loading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-10 h-10 animate-spin text-violet-500" />
+                <p className="text-xs font-black text-violet-400 uppercase tracking-widest animate-pulse">Syncing Audit Data...</p>
+              </div>
+            </div>
+          )}
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="bg-white/5 text-slate-400 border-b border-white/5">
@@ -294,7 +331,19 @@ export default function OpayBusinessHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {items.map((item) => (
+              {items.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan="6" className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-slate-600" />
+                      </div>
+                      <p className="text-sm font-black text-slate-500 uppercase tracking-widest">No matching records found</p>
+                      <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Try adjusting your filters or auditing again</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : items.map((item) => (
                 <React.Fragment key={item.code}>
                   <tr 
                     onClick={() => toggleExpand(item.code)}
@@ -408,6 +457,30 @@ export default function OpayBusinessHistory() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="px-8 py-4 bg-white/5 border-t border-white/10 flex items-center justify-between">
+          <p className="text-xs text-slate-400 font-bold">
+            Showing {totalItems > 0 ? (page - 1) * limit + 1 : 0} to {Math.min(page * limit, totalItems)} of {totalItems}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-xs font-black text-violet-400 mx-2">Page {page}</span>
+            <button
+              disabled={page * limit >= totalItems}
+              onClick={() => setPage(p => p + 1)}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

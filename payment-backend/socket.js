@@ -38,18 +38,53 @@ module.exports = function initSocket(server, app) {
     io.emit('devices:update', Array.from(onlineDevices.values()));
   }
 
-  function markActive(deviceId, socketId) {
+  function logDeviceSnapshot(reason) {
+    const online = [];
+    const offline = [];
+
+    for (const device of onlineDevices.values()) {
+      if (device.active) {
+        online.push(device);
+      } else {
+        offline.push(device);
+      }
+    }
+
+    const format = (device) => {
+      const meta = deviceMeta.get(String(device.deviceId)) || {};
+      const label = meta.deviceUserName || meta.deviceName || device.deviceId;
+      const deviceName = meta.deviceName ? ` / ${meta.deviceName}` : '';
+      const userName = meta.deviceUserName ? ` / ${meta.deviceUserName}` : '';
+      const socketSuffix = device.socketId ? `(${device.socketId})` : '';
+      const timeSuffix = device.lastSeen ? ` @ ${device.lastSeen}` : '';
+      return `${label}${deviceName}${userName}${socketSuffix}${timeSuffix}`;
+    };
+
+    console.log('====================================================');
+    console.log(`[device:status] ${reason}`);
+    console.log(`[device:status] online: ${online.length}`);
+    console.log(`[device:status] offline: ${offline.length}`);
+    console.log(`[device:status] online list: ${online.length ? online.map(format).join(' | ') : 'none'}`);
+    console.log(`[device:status] offline list: ${offline.length ? offline.map(format).join(' | ') : 'none'}`);
+    console.log('====================================================');
+  }
+
+  function markActive(deviceId, socketId, telemetry = {}) {
     const now = new Date().toISOString();
+    const entry = onlineDevices.get(String(deviceId)) || {};
     onlineDevices.set(String(deviceId), {
+      ...entry,
       deviceId: String(deviceId),
       active: true,
       lastSeen: now,
-      socketId: socketId || null,
+      socketId: socketId || entry.socketId || null,
+      ...telemetry
     });
-    io.emit('device:status', { deviceId: String(deviceId), active: true, lastSeen: now });
+    io.emit('device:status', { deviceId: String(deviceId), active: true, lastSeen: now, ...telemetry });
     broadcastDevices();
+    logDeviceSnapshot(`active ${String(deviceId)}`);
     // Notify viewers for this device's owner (filtered stream)
-    notifyViewerRooms(String(deviceId), true, now).catch(() => {});
+    notifyViewerRooms(String(deviceId), true, now, telemetry).catch(() => {});
   }
 
   function markInactive(deviceId) {
@@ -62,8 +97,17 @@ module.exports = function initSocket(server, app) {
     }
     io.emit('device:status', { deviceId: String(deviceId), active: false, lastSeen: now });
     broadcastDevices();
+    logDeviceSnapshot(`inactive ${String(deviceId)}`);
     // Notify viewers for this device's owner (filtered stream)
     notifyViewerRooms(String(deviceId), false, now).catch(() => {});
+  }
+
+  function markInactiveIfCurrent(deviceId, socketId) {
+    const entry = onlineDevices.get(String(deviceId));
+    if (entry && entry.socketId && entry.socketId !== socketId) {
+      return;
+    }
+    markInactive(deviceId);
   }
 
   async function ensureDeviceMeta(deviceId) {
@@ -78,7 +122,7 @@ module.exports = function initSocket(server, app) {
     return null;
   }
 
-  async function notifyViewerRooms(deviceId, active, lastSeen) {
+  async function notifyViewerRooms(deviceId, active, lastSeen, telemetry = {}) {
     const meta = await ensureDeviceMeta(deviceId);
     if (!meta || !meta.ownerId) return;
     const payload = {
@@ -87,8 +131,18 @@ module.exports = function initSocket(server, app) {
       lastSeen,
       deviceName: meta.deviceName || null,
       deviceUserName: meta.deviceUserName || null,
+      ...telemetry
     };
     io.to(`user:${meta.ownerId}`).emit('viewer:device', payload);
+  }
+
+  async function logDeviceEvent(action, deviceId, socketId) {
+    const meta = await ensureDeviceMeta(deviceId);
+    const label = meta?.deviceUserName || meta?.deviceName || deviceId;
+    const deviceName = meta?.deviceName ? ` / ${meta.deviceName}` : '';
+    const userName = meta?.deviceUserName ? ` / ${meta.deviceUserName}` : '';
+    const socketPart = socketId ? ` socket=${socketId}` : '';
+    console.log(`[device:${action}] ${label}${deviceName}${userName}${socketPart}`);
   }
 
   io.on('connection', (socket) => {
@@ -111,8 +165,17 @@ module.exports = function initSocket(server, app) {
         return;
       }
       currentDeviceId = deviceId;
-      console.log(`[device:register] deviceId=${deviceId} socket=${socket.id}`);
-      markActive(deviceId, socket.id);
+      logDeviceEvent('connected', deviceId, socket.id).catch(() => {});
+      
+      // Handle telemetry during register if provided
+      const telemetry = {
+        batteryLevel: payload.batteryLevel || null,
+        isCharging: payload.isCharging || false,
+        networkType: payload.networkType || null,
+        networkName: payload.networkName || null
+      };
+
+      markActive(deviceId, socket.id, telemetry);
       
       // Send initial live data
       sendLiveInfo(deviceId, socket).catch(console.error);
@@ -188,7 +251,7 @@ module.exports = function initSocket(server, app) {
     });
 
     // Heartbeat from device
-    socket.on('device:heartbeat', async () => {
+    socket.on('device:heartbeat', async (payload = {}) => {
       if (!currentDeviceId) return;
 
       // Update live info on every heartbeat
@@ -196,9 +259,27 @@ module.exports = function initSocket(server, app) {
 
       const now = new Date().toISOString();
       const entry = onlineDevices.get(currentDeviceId);
+      
+      const telemetry = {
+        batteryLevel: payload.batteryLevel ?? (entry ? entry.batteryLevel : null),
+        isCharging: payload.isCharging ?? (entry ? entry.isCharging : false),
+        networkType: payload.networkType ?? (entry ? entry.networkType : null),
+        networkName: payload.networkName ?? (entry ? entry.networkName : null)
+      };
+
       if (entry) {
-        onlineDevices.set(currentDeviceId, { ...entry, lastSeen: now });
+        onlineDevices.set(currentDeviceId, { ...entry, lastSeen: now, ...telemetry });
+      } else {
+        // If for some reason entry doesn't exist, re-mark as active
+        markActive(currentDeviceId, socket.id, telemetry);
       }
+
+      // Broadcast update to all listeners
+      io.emit('device:status', { deviceId: currentDeviceId, active: true, lastSeen: now, ...telemetry });
+      broadcastDevices();
+      
+      // Notify owner's rooms
+      notifyViewerRooms(currentDeviceId, true, now, telemetry).catch(() => {});
     });
 
     async function sendLiveInfo(deviceId, targetSocket) {
@@ -266,7 +347,8 @@ module.exports = function initSocket(server, app) {
 
     socket.on('disconnect', () => {
       if (currentDeviceId) {
-        markInactive(currentDeviceId);
+        logDeviceEvent('disconnected', currentDeviceId, socket.id).catch(() => {});
+        markInactiveIfCurrent(currentDeviceId, socket.id);
       }
       // Cleanup app presence registrations for this socket
       if (socket.data && socket.data.appIds && socket.data.appIds.size) {

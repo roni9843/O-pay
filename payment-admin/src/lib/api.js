@@ -150,6 +150,18 @@ export async function getStats(token) {
   })
 }
 
+export async function getTodayStats(token) {
+  return request('/api/admin/today-stats', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function getTodayUserList(token) {
+  return request('/api/admin/today-user-list', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
 export async function listDevices(token, params = {}) {
   const qs = new URLSearchParams(params).toString()
   return request(`/api/admin/devices${qs ? `?${qs}` : ''}`, {
@@ -629,7 +641,7 @@ export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
   getAllLandingSettings, saveBulkLandingSettings,
-  getStats, listDevices, listDevicesOnlineStatus, deleteDevice, listPayments,
+  getStats, getTodayStats, listDevices, listDevicesOnlineStatus, deleteDevice, listPayments,
   getSubscriptionPlans, purchaseUserSubscription, getUserSubscriptionsAdmin,
   uploadPaymentPageImage, getWalletAgentTemplates, saveWalletAgentTemplate,
   getDevicePaymentMethods, getUserPaymentMethods, updatePaymentMethodStatus,

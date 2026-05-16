@@ -100,6 +100,222 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+// Today's payment statistics (verified payments from last 24 hours)
+router.get('/today-stats', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Use same aggregation as today-user-list to get consistent grouping by resolved owner
+    const agg = await PaymentMessage.aggregate([
+      { $match: { verify: true, createdAt: { $gte: startOfToday } } },
+      {
+        $lookup: {
+          from: 'apiaccesstokens',
+          localField: 'apiAccessToken',
+          foreignField: '_id',
+          as: 'token'
+        }
+      },
+      { $unwind: { path: '$token', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'token.owner',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'devices',
+          let: { dId: '$deviceId', dName: '$deviceName' },
+          pipeline: [
+            { $match: { $expr: { $or: [ { $eq: ['$deviceCode', '$$dId'] }, { $eq: ['$deviceUserName', '$$dId'] }, { $eq: ['$deviceName', '$$dName'] }, { $eq: [{ $toString: '$_id' }, '$$dId'] } ] } } },
+            { $project: { owner: 1, deviceName: 1, deviceCode: 1 } }
+          ],
+          as: 'deviceMatch'
+        }
+      },
+      { $unwind: { path: '$deviceMatch', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          resolvedOwnerId: { $ifNull: [ '$user._id', '$deviceMatch.owner' ] }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'resolvedOwnerId',
+          foreignField: '_id',
+          as: 'resolvedOwner'
+        }
+      },
+      { $unwind: { path: '$resolvedOwner', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          resolvedOwnerName: { $ifNull: [ '$resolvedOwner.name', '$deviceMatch.deviceName' ] },
+          resolvedOwnerEmail: { $ifNull: [ '$resolvedOwner.email', null ] },
+          resolvedOwnerRole: { $ifNull: [ '$resolvedOwner.role', null ] }
+        }
+      },
+      {
+        $group: {
+          _id: { $cond: [ { $ifNull: ['$resolvedOwnerId', false] }, { owner: '$resolvedOwnerId' }, { device: '$deviceId' } ] },
+          count: { $sum: 1 },
+          amount: { $sum: '$amount' },
+          resolvedOwnerName: { $first: '$resolvedOwnerName' },
+          resolvedOwnerEmail: { $first: '$resolvedOwnerEmail' },
+          resolvedOwnerRole: { $first: '$resolvedOwnerRole' }
+        }
+      },
+      { $sort: { count: -1, amount: -1 } }
+    ]);
+
+    // Calculate total and find top user
+    let totalAmount = 0;
+    let totalTransactions = 0;
+    let topUser = null;
+    let maxCount = 0;
+
+    agg.forEach(item => {
+      totalAmount += item.amount || 0;
+      totalTransactions += item.count || 0;
+      if ((item.count || 0) > maxCount) {
+        maxCount = item.count || 0;
+        topUser = {
+          count: item.count || 0,
+          amount: item.amount || 0,
+          name: item.resolvedOwnerName,
+          email: item.resolvedOwnerEmail
+        };
+      }
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        totalAmount,
+        totalTransactions,
+        topUser: topUser || { count: 0, amount: 0 }
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Today's per-user paid counts (verified PaymentMessage grouped by user/token/device fallback)
+router.get('/today-user-list', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const agg = await PaymentMessage.aggregate([
+      { $match: { verify: true, createdAt: { $gte: startOfToday } } },
+      // Lookup token -> user (if message linked to an API token)
+      {
+        $lookup: {
+          from: 'apiaccesstokens',
+          localField: 'apiAccessToken',
+          foreignField: '_id',
+          as: 'token'
+        }
+      },
+      { $unwind: { path: '$token', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'token.owner',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      // Lookup device by possible identifiers to find an owner
+      {
+        $lookup: {
+          from: 'devices',
+          let: { dId: '$deviceId', dName: '$deviceName' },
+          pipeline: [
+            { $match: { $expr: { $or: [ { $eq: ['$deviceCode', '$$dId'] }, { $eq: ['$deviceUserName', '$$dId'] }, { $eq: ['$deviceName', '$$dName'] }, { $eq: [{ $toString: '$_id' }, '$$dId'] } ] } } },
+            { $project: { owner: 1, deviceName: 1, deviceCode: 1 } }
+          ],
+          as: 'deviceMatch'
+        }
+      },
+      { $unwind: { path: '$deviceMatch', preserveNullAndEmptyArrays: true } },
+      // Resolve owner ID first (prefer token user, fallback to device owner)
+      {
+        $addFields: {
+          resolvedOwnerId: { $ifNull: [ '$user._id', '$deviceMatch.owner' ] }
+        }
+      },
+      // Lookup full user info for the resolved owner
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'resolvedOwnerId',
+          foreignField: '_id',
+          as: 'resolvedOwner'
+        }
+      },
+      { $unwind: { path: '$resolvedOwner', preserveNullAndEmptyArrays: true } },
+      // Add final resolved fields
+      {
+        $addFields: {
+          resolvedOwnerName: { $ifNull: [ '$resolvedOwner.name', '$deviceMatch.deviceName' ] },
+          resolvedOwnerEmail: { $ifNull: [ '$resolvedOwner.email', null ] },
+          resolvedOwnerRole: { $ifNull: [ '$resolvedOwner.role', null ] }
+        }
+      },
+      {
+        $group: {
+          _id: { $cond: [ { $ifNull: ['$resolvedOwnerId', false] }, { owner: '$resolvedOwnerId' }, { device: '$deviceId' } ] },
+          count: { $sum: 1 },
+          amount: { $sum: '$amount' },
+          resolvedOwnerName: { $first: '$resolvedOwnerName' },
+          resolvedOwnerEmail: { $first: '$resolvedOwnerEmail' },
+          resolvedOwnerRole: { $first: '$resolvedOwnerRole' }
+        }
+      },
+      { $sort: { count: -1, amount: -1 } }
+    ])
+
+    const rows = agg.map(item => {
+      if (item._id.owner) {
+        return {
+          userId: String(item._id.owner),
+          name: item.resolvedOwnerName || 'Unknown',
+          email: item.resolvedOwnerEmail || null,
+          role: item.resolvedOwnerRole || null,
+          count: item.count,
+          amount: item.amount || 0
+        }
+      }
+      return {
+        userId: null,
+        name: item._id.device || 'Unknown device',
+        email: null,
+        role: null,
+        count: item.count,
+        amount: item.amount || 0
+      }
+    })
+
+    return res.json({ success: true, data: rows })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ success: false, message: err.message || 'Server error' })
+  }
+})
+
 // Users list with aggregates
 router.get('/users', auth, async (req, res) => {
   try {
@@ -1417,13 +1633,20 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
 
     const { id } = req.params;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, status } = req.query;
 
     const pageNum = Math.max(1, Number(page) || 1);
     const lim = Math.max(1, Math.min(100, Number(limit) || 20));
     const skip = (pageNum - 1) * lim;
 
-    const query = { business: id };
+    const businessId = new mongoose.Types.ObjectId(String(id).trim());
+    const query = { business: businessId };
+    const trimmedStatus = status ? String(status).trim() : null;
+    
+    if (trimmedStatus && trimmedStatus !== 'all') {
+      // Use case-insensitive regex for status matching to be robust
+      query.status = { $regex: new RegExp(`^${trimmedStatus}$`, 'i') };
+    }
 
     const [items, total, stats] = await Promise.all([
       OpayBusinessPaymentSession.find(query)
@@ -1433,7 +1656,7 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
         .lean(),
       OpayBusinessPaymentSession.countDocuments(query),
       OpayBusinessPaymentSession.aggregate([
-        { $match: { business: new mongoose.Types.ObjectId(id) } },
+        { $match: { business: businessId } },
         {
           $group: {
             _id: null,
@@ -1457,7 +1680,7 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
 
     // Calculate withdrawals for available balance
     const withdrawals = await MerchantWithdrawal.aggregate([
-        { $match: { merchantId: new mongoose.Types.ObjectId(id), status: { $in: ['approved', 'pending'] } } },
+        { $match: { merchantId: businessId, status: { $in: ['approved', 'pending'] } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     const totalWithdrawalAmount = withdrawals[0]?.total || 0;
@@ -1493,7 +1716,7 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
       footprintUrlNonMask: s.footprintUrlNonMask || `${baseUrl}/payment/${s.code}/footprint`,
     }));
 
-    return res.json({ success: true, data, page: pageNum, total, summary });
+    return res.json({ success: true, data, page: pageNum, total, summary, debugQuery: query });
   } catch (err) {
     console.error('admin opay-business payment-page-history error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
