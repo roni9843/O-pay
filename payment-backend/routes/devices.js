@@ -328,147 +328,157 @@ let writeLock = false; // 🔒 simple in-memory lock
  * POST /api/payment-messages
  * body: { fullMessage, masking, from, trxID, date, time, deviceName, deviceId }
  */
-router.post('/send-payment-message', async (req, res, next) => { // Batch enabled
 
-  const messages = Array.isArray(req.body) ? req.body : [req.body];
-  const processedResults = [];
-  console.log(`Processing ${messages.length} message(s)`);
 
-  // Get Bangladesh local date (YYYY-MM-DD)
-  const bdNow = new Date().toLocaleString("en-BD", { timeZone: "Asia/Dhaka", hour12: false });
-  const bdDate = new Date(bdNow).toISOString().split("T")[0];
 
-  // Path setup
-  const dirPath = path.join(__dirname, "../messages");
-  const filePath = path.join(dirPath, `${bdDate}.json`);
+// ====================== ROUTE ======================
+router.post('/send-payment-message', async (req, res, next) => {
+    const messages = Array.isArray(req.body) ? req.body : [req.body];
+    const processedResults = [];
 
-  try {
-    // Wait if another write is happening
-    while (writeLock) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    writeLock = true; // lock before writing
+    console.log(`Processing ${messages.length} message(s)`);
 
-    await fs.mkdir(dirPath, { recursive: true });
+    // Bangladesh date (YYYY-MM-DD)
+    const bdNow = new Date().toLocaleString("en-BD", { 
+        timeZone: "Asia/Dhaka", 
+        hour12: false 
+    });
+    const bdDate = new Date(bdNow).toISOString().split("T")[0];
 
-    // Read old data (as array)
-    let existingData = [];
+    const dirPath = path.join(__dirname, "../messages");
+    const filePath = path.join(dirPath, `${bdDate}.json`);
+    const tempPath = `${filePath}.tmp`;   // Atomic write এর জন্য
+
     try {
-      const fileContent = await fs.readFile(filePath, "utf-8");
-      existingData = JSON.parse(fileContent || "[]");
-      if (!Array.isArray(existingData)) existingData = [];
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-
-    // Bangladesh time (full)
-    const bdDateAndTimeZone = new Date().toLocaleString("en-BD", {
-      timeZone: "Asia/Dhaka",
-      hour12: false
-    });
-
-    for (const body of messages) {
-      const newData = {
-      type: body.type || "notification",
-      title: body.title || "Unknown",
-      text: body.text || "",
-      deviceTimezone: body.timestamp || "null",
-      timestamp: new Date().toISOString().replace("T", " ").split(".")[0],
-      bdDateAndTimeZone, // ✅ Bangladesh time saved
-      device_id: body.device_id || "unknown_device",
-      device_name: body.device_name || "unknown_device",
-    };
-
-    // Append newData into array
-    existingData.push(newData);
-    processedResults.push(newData);
-
-
-
-    // ---- MongoDB logic ----
-    const parsedData = parseTransactionText(newData.text);
-
-  // Check if from 108263544 (OTP SMS)
-  if (newData.title === "+8809601004896" || newData.title === "09601-004896") {
-    
-   const oPayData = await oPayOtpChecker(newData.text);
-
-
-   console.log("oPayData -> ", oPayData);
-
-
-   await verifyOtpUsingSms({
-      provider: oPayData.provider,
-      accountNumber: oPayData.accountNumber,
-      deviceId: oPayData.deviceId,
-      simIndex: parseInt(oPayData.simIndex, 10),
-      otp: oPayData?.otp,
-      gateway: oPayData.gateway,
-    });
-
-    console.log("✅ OTP processed for:", newData.title);
-    continue;
-
-  }
-
-    if (["16216", "NAGAD", "bKash", "upay"].includes(newData.title)) {
-
-      console.log("parsedData -> ", parsedData);
-
-      if (
-        parsedData.amount &&
-        // parsedData.from &&
-        parsedData.trxID 
-        // parsedData.date &&
-        // parsedData.time
-      ) {
-        try {
-          const transaction = new PaymentMessage({
-            amount: parsedData.amount,
-            from: parsedData.from,
-            fullMessage: newData.text,
-            trxID: parsedData.trxID,
-            date: parsedData.date,
-            time: parsedData.time,
-            deviceName: newData.device_name,
-            deviceId: newData.device_id,
-            type: newData.type,
-            title: newData.title,
-            masking: newData.title,
-            bdDateAndTimeZone: newData.bdDateAndTimeZone,
-            deviceTime: body.timestamp
-          });
-          await transaction.save();
-          console.log("✅ Transaction saved to MongoDB:", parsedData);
-        } catch (mongoErr) {
-          console.error("❌ Error saving to MongoDB:", mongoErr.message);
+        // Strong Lock with timeout
+        const startTime = Date.now();
+        while (writeLock) {
+            if (Date.now() - startTime > 8000) {  // 8 seconds timeout
+                throw new Error("File write lock timeout");
+            }
+            await new Promise(r => setTimeout(r, 30));
         }
-      } else {
-        console.log("❌ Parsed data incomplete, skipping MongoDB save:", parsedData);
-      }
+        writeLock = true;
+
+        await fs.mkdir(dirPath, { recursive: true });
+
+        // Read existing data safely
+        let existingData = [];
+        try {
+            const fileContent = await fs.readFile(filePath, "utf-8");
+            existingData = JSON.parse(fileContent || "[]");
+            if (!Array.isArray(existingData)) existingData = [];
+        } catch (err) {
+            if (err.code === "ENOENT") {
+                // File doesn't exist - first time today
+                existingData = [];
+            } else if (err instanceof SyntaxError) {
+                console.error(`❌ Corrupted JSON detected on ${bdDate}. Backing up...`);
+                await fs.rename(filePath, `${filePath}.corrupted.${Date.now()}`).catch(() => {});
+                existingData = [];
+            } else {
+                throw err;
+            }
+        }
+
+        const bdDateAndTimeZone = new Date().toLocaleString("en-BD", {
+            timeZone: "Asia/Dhaka",
+            hour12: false
+        });
+
+        for (const body of messages) {
+            const newData = {
+                type: body.type || "notification",
+                title: body.title || "Unknown",
+                text: body.text || "",
+                deviceTimezone: body.timestamp || null,
+                timestamp: new Date().toISOString().replace("T", " ").split(".")[0],
+                bdDateAndTimeZone,
+                device_id: body.device_id || "unknown_device",
+                device_name: body.device_name || "unknown_device",
+            };
+
+            existingData.push(newData);
+            processedResults.push(newData);
+
+            // ==================== MongoDB + Special Logic ====================
+            const parsedData = parseTransactionText(newData.text);
+
+            // OTP SMS from oPay
+            if (newData.title === "+8809601004896" || newData.title === "09601-004896") {
+                try {
+                    const oPayData = await oPayOtpChecker(newData.text);
+                    console.log("oPayData -> ", oPayData);
+
+                    await verifyOtpUsingSms({
+                        provider: oPayData.provider,
+                        accountNumber: oPayData.accountNumber,
+                        deviceId: oPayData.deviceId,
+                        simIndex: parseInt(oPayData.simIndex, 10),
+                        otp: oPayData?.otp,
+                        gateway: oPayData.gateway,
+                    });
+                    console.log("✅ OTP processed for:", newData.title);
+                } catch (otpErr) {
+                    console.error("❌ OTP processing failed:", otpErr.message);
+                }
+                continue;
+            }
+
+            // bKash, Nagad, upay etc.
+            if (["16216", "NAGAD", "bKash", "upay"].includes(newData.title)) {
+                console.log("parsedData -> ", parsedData);
+
+                if (parsedData.amount && parsedData.trxID) {
+                    try {
+                        const transaction = new PaymentMessage({
+                            amount: parsedData.amount,
+                            from: parsedData.from,
+                            fullMessage: newData.text,
+                            trxID: parsedData.trxID,
+                            date: parsedData.date,
+                            time: parsedData.time,
+                            deviceName: newData.device_name,
+                            deviceId: newData.device_id,
+                            type: newData.type,
+                            title: newData.title,
+                            masking: newData.title,
+                            bdDateAndTimeZone: newData.bdDateAndTimeZone,
+                            deviceTime: body.timestamp
+                        });
+
+                        await transaction.save();
+                        console.log("✅ Transaction saved to MongoDB:", parsedData.trxID);
+                    } catch (mongoErr) {
+                        console.error("❌ MongoDB Save Error:", mongoErr.message);
+                    }
+                } else {
+                    console.log("❌ Parsed data incomplete, skipping MongoDB save");
+                }
+            }
+        }
+
+        // ==================== ATOMIC WRITE ====================
+        await fs.writeFile(tempPath, JSON.stringify(existingData, null, 2), "utf-8");
+        await fs.rename(tempPath, filePath);
+
+        console.log(`✅ Successfully saved ${messages.length} message(s) to ${bdDate}.json`);
+
+        res.status(200).json({
+            success: true,
+            message: `${messages.length} message(s) processed`,
+            count: messages.length,
+            data: processedResults.length === 1 ? processedResults[0] : processedResults
+        });
+
+    } catch (err) {
+        console.error("❌ Error in /send-payment-message:", err.message);
+        next(err);
+    } finally {
+        writeLock = false;
+        // Cleanup temp file
+        fs.unlink(tempPath).catch(() => {});
     }
-
-
-
-
-    } // end for loop
-
-    await fs.writeFile(filePath, JSON.stringify(existingData, null, 2), "utf-8");
-    writeLock = false;
-
-    res.status(200).json({
-      success: true,
-      message: `${messages.length} message(s) processed`,
-      count: messages.length,
-      data: processedResults.length === 1 ? processedResults[0] : processedResults
-    });
-
-  } catch (err) {
-    writeLock = false;
-    next(err);
-  }finally {
-  writeLock = false; // সবসময় লক মুক্ত হবে
-}
 });
 
 

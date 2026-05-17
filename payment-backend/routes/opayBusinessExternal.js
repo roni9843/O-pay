@@ -824,6 +824,7 @@ OUTPUT (STRICT JSON ONLY):
 
         if (parsed && typeof parsed.status === 'boolean') {
           console.log(`[AI SUCCESS] Model=${modelName}, attempt=${attempt}`);
+          parsed.modelUsed = modelName;
           return parsed;
         }
 
@@ -982,6 +983,21 @@ router.post('/verify-payment', async (req, res) => {
     // Run AI verification
     const aiResult = await runAiVerificationWithLoading(checkingDetails, smsList);
 
+    session.aiVerification = {
+      aiChecked: !!aiResult,
+      status: aiResult ? aiResult.status : null,
+      reason: aiResult ? aiResult.reason : null,
+      risk_flag: aiResult ? aiResult.risk_flag : null,
+      confidence: aiResult ? aiResult.confidence : null,
+      model: aiResult ? aiResult.modelUsed : null,
+      methodUsed: (aiResult && aiResult.status === true) ? 'ai_and_manual' : 'manual_fallback',
+      promptData: {
+        target_transaction: checkingDetails,
+        sms_history: smsList
+      }
+    };
+    await session.save();
+
     if (aiResult && aiResult.status === false) {
       console.log(`[CRITICAL ALERT] Transaction ${trimmedTrxid} BLOCKED by AI: ${aiResult.reason}`);
       return res.status(400).json({
@@ -1034,8 +1050,67 @@ router.post('/verify-payment', async (req, res) => {
 
     session.status = 'paid';
     session.paymentMessage = matchedMessage._id;
-    await session.save();
 
+    // ── Wallet Agent Credit Deduction ──
+    const paymentAmount = Number(session.amount) || 0;
+    let walletAgentSnapshot = null;
+    let merchantSnapshot = null;
+
+    try {
+      // Load wallet agent from payment method owner
+      const agentUser = await User.findById(method.owner).select('name credit minimumCredit');
+      if (agentUser) {
+        const creditBefore = agentUser.credit || 0;
+        const creditAfter = Math.max(0, creditBefore - paymentAmount);
+        agentUser.credit = creditAfter;
+        await agentUser.save();
+
+        walletAgentSnapshot = {
+          agentId: agentUser._id,
+          agentName: agentUser.name || 'Unknown Agent',
+          creditBefore,
+          creditAfter,
+          creditDeducted: paymentAmount,
+        };
+
+        session.walletAgentSnapshot = walletAgentSnapshot;
+        console.log(`[CREDIT DEDUCTED] Agent: ${agentUser.name}, Before: ৳${creditBefore}, After: ৳${creditAfter}, Deducted: ৳${paymentAmount}`);
+      }
+    } catch (creditErr) {
+      console.error('[CREDIT DEDUCTION ERROR]', creditErr.message);
+    }
+
+    // ── Merchant Balance Snapshot (Read-only, no double-count) ──
+    // NOTE: availableBalance is auto-calculated as sum(paid sessions) - withdrawals + balanceAdjustment
+    // We do NOT touch balanceAdjustment here to avoid double-counting.
+    // We just record a snapshot for the admin dashboard display.
+    try {
+      const business = await require('../models/OpayBusiness').findById(session.business._id || session.business).select('name balanceAdjustment');
+      if (business) {
+        // Calculate current balance before this payment (sum of all OTHER paid sessions)
+        const previousPaidTotal = await OpayBusinessPaymentSession.aggregate([
+          { $match: { business: business._id, status: 'paid', _id: { $ne: session._id } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const balanceBefore = (previousPaidTotal[0]?.total || 0) + (business.balanceAdjustment || 0);
+        const balanceAfter = balanceBefore + paymentAmount;
+
+        merchantSnapshot = {
+          businessId: business._id,
+          businessName: business.name || 'Unknown Merchant',
+          balanceBefore,
+          balanceAfter,
+          balanceAdded: paymentAmount,
+        };
+
+        session.merchantSnapshot = merchantSnapshot;
+        console.log(`[MERCHANT SNAPSHOT] ${business.name}: Before ৳${balanceBefore} → After ৳${balanceAfter} (+৳${paymentAmount})`);
+      }
+    } catch (balErr) {
+      console.error('[MERCHANT SNAPSHOT ERROR]', balErr.message);
+    }
+
+    await session.save();
     console.log(`[VERIFY SUCCESS] Transaction ${trimmedTrxid} verified and marked as paid`);
 
     // Fire callback to client webhook with verification details (non-blocking)
@@ -1045,19 +1120,37 @@ router.post('/verify-payment', async (req, res) => {
         const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
         const footprintUrlMasked = session.footprintUrl || `${baseUrl}/payment/${session.code}/mask/footprint`;
 
-        const payload = {
+          const payload = {
           status: 'COMPLETED',
           amount: Number(matchedMessage.amount),
           transaction_id: matchedMessage.trxID,
           invoice_number: session.invoiceNumber || null,
           session_code: session.code,
+          user_identity: session.userIdentityAddress || null,
           checkout_items: session.checkoutItems || null,
           bank: providerParam ? String(providerParam).toLowerCase() : null,
           footprint: footprintUrlMasked
         };
-        axios.post(callbackUrl, payload, { timeout: 5000 }).catch((err) => {
-          console.warn('OpayBusiness Callback POST failed:', err?.message || err);
-        });
+        axios.post(callbackUrl, payload, { timeout: 5000 })
+          .then(async (res) => {
+            session.callbackResult = {
+              success: true,
+              statusCode: res.status,
+              payloadSent: payload,
+              responseReceived: res.data
+            };
+            await session.save();
+          })
+          .catch(async (err) => {
+            session.callbackResult = {
+              success: false,
+              error: err?.message || 'Unknown error',
+              payloadSent: payload,
+              responseReceived: err?.response?.data || null
+            };
+            await session.save();
+            console.warn('OpayBusiness Callback POST failed:', err?.message || err);
+          });
       }
     } catch (cbErr) {
       console.warn('OpayBusiness Callback handling error:', cbErr?.message || cbErr);

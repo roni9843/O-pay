@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { Link } from 'react-router-dom'
+
 import { listUsers, listDevicesOnlineStatus, getDevicePaymentMethods, getUserPaymentMethods, updatePaymentMethodStatus, addCredit, updateUser, addMinimumCredit } from '../lib/api'
 import { User as UserIcon, Smartphone, CreditCard, PhoneCall, ChevronDown, ChevronUp, Wallet } from 'lucide-react'
 
@@ -242,10 +244,15 @@ export default function WalletAgents() {
                           <CreditCard className="w-3 h-3" />
                           <span>Credit: ৳{(agent.credit ?? 0).toFixed(2)}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                          <CreditCard className="w-3 h-3" />
-                          <span>Min: ৳{(agent.minimumCredit ?? 0).toFixed(2)}</span>
-                        </span>
+                        
+                        <Link 
+                          to={`/wallet-agents/${agent._id}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all ml-auto"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <UserIcon className="w-3 h-3" />
+                          <span>View Profile</span>
+                        </Link>
                       </div>
                     </div>
                   </div>

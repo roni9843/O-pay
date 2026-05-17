@@ -21,6 +21,8 @@ import TopupMethods from './pages/TopupMethods'
 import TopupRequests from './pages/TopupRequests'
 import AddPaymentMethod from './pages/AddPaymentMethod' // Imported
 import AdminStatus from './pages/AdminStatus'
+import WalletAgentDetail from './pages/WalletAgentDetail'
+
 
 import OpayBusiness from './pages/OpayBusiness'
 import OpayBusinessDetail from './pages/OpayBusinessDetail'
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/users/:id" element={<UserDetail />} />
         <Route path="/wallet-agents" element={<WalletAgents />} />
+        <Route path="/wallet-agents/:id" element={<WalletAgentDetail />} />
+
         <Route path="/opay-business" element={<OpayBusiness />} />
         <Route path="/opay-business/:id" element={<OpayBusinessDetail />} />
         <Route path="/opay-business/:id/history" element={<OpayBusinessHistory />} />

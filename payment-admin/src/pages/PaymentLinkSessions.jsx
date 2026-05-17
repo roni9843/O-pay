@@ -781,6 +781,130 @@ export default function PaymentLinkSessions() {
                               </div>
                             </div>
                           )}
+
+                          {/* AI Verification Box */}
+                          {s.aiVerification && (
+                            <div className="bg-cyan-950/20 p-4 border border-cyan-500/20 rounded-2xl md:col-span-4 mt-2">
+                              <div className="text-[10px] uppercase font-bold text-cyan-400 mb-3 flex items-center gap-1.5 border-b border-cyan-500/20 pb-2">
+                                <ShieldCheck className="w-3.5 h-3.5" /> AI Forensic Scan Details
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 text-xs">
+                                <div>
+                                  <div className="text-[9px] uppercase text-cyan-500 mb-0.5">Model Used</div>
+                                  <div className="text-[11px] font-mono text-cyan-200">{s.aiVerification.model || 'N/A'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[9px] uppercase text-cyan-500 mb-0.5">Verification Method</div>
+                                  <div className="text-[11px] font-mono text-cyan-200">{s.aiVerification.methodUsed || 'N/A'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[9px] uppercase text-cyan-500 mb-0.5">AI Status</div>
+                                  <div className={`text-[11px] font-bold ${s.aiVerification.status ? 'text-emerald-400' : 'text-rose-400'}`}>{s.aiVerification.status ? 'VERIFIED' : 'FAILED'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[9px] uppercase text-cyan-500 mb-0.5">Risk Flag</div>
+                                  <div className="text-[11px] font-mono text-cyan-200 uppercase">{s.aiVerification.risk_flag || 'N/A'}</div>
+                                </div>
+                                <div className="md:col-span-4 lg:col-span-5">
+                                  <div className="text-[9px] uppercase text-cyan-500 mb-0.5">AI Reason / Feedback</div>
+                                  <div className="text-sm text-slate-300 font-medium">{s.aiVerification.reason || 'N/A'}</div>
+                                </div>
+                                {s.aiVerification.promptData && (
+                                  <div className="md:col-span-4 lg:col-span-5 mt-1">
+                                    <div className="text-[9px] uppercase text-cyan-500 mb-1">Prompt Data Analyzed by AI</div>
+                                    <pre className="text-[10px] font-mono text-cyan-100/70 bg-black/40 p-3 rounded-xl border border-cyan-500/10 max-h-48 overflow-y-auto whitespace-pre-wrap shadow-inner">
+                                      {JSON.stringify(s.aiVerification.promptData, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Callback Webhook Details */}
+                          {s.callbackResult && (
+                            <div className={`${s.callbackResult.success ? 'bg-emerald-950/20 border-emerald-500/20' : 'bg-rose-950/20 border-rose-500/20'} p-4 border rounded-2xl md:col-span-4 mt-2`}>
+                              <div className={`text-[10px] uppercase font-bold mb-3 flex items-center gap-1.5 border-b pb-2 ${s.callbackResult.success ? 'text-emerald-400 border-emerald-500/20' : 'text-rose-400 border-rose-500/20'}`}>
+                                <Globe className="w-3.5 h-3.5" /> Webhook Callback Delivery Status
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div>
+                                  <div className={`text-[9px] uppercase mb-1 ${s.callbackResult.success ? 'text-emerald-500' : 'text-rose-500'}`}>Status: {s.callbackResult.success ? 'SUCCESS' : 'FAILED'} (HTTP {s.callbackResult.statusCode || 'ERROR'})</div>
+                                  {s.callbackResult.error && (
+                                    <div className="text-[10px] text-rose-300 mb-2">{s.callbackResult.error}</div>
+                                  )}
+                                  <div className="text-[9px] uppercase text-slate-500 mb-1 mt-2">Payload Sent to Merchant</div>
+                                  <pre className="text-[11px] font-mono text-slate-300 bg-black/40 p-3 rounded-xl border border-white/5 max-h-48 overflow-y-auto whitespace-pre-wrap shadow-inner">
+                                    {JSON.stringify(s.callbackResult.payloadSent, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <div className="text-[9px] uppercase text-slate-500 mb-1 mt-2">Response Received from Merchant</div>
+                                  <pre className="text-[11px] font-mono text-slate-300 bg-black/40 p-3 rounded-xl border border-white/5 max-h-48 overflow-y-auto whitespace-pre-wrap shadow-inner">
+                                    {JSON.stringify(s.callbackResult.responseReceived, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Wallet Agent Credit + Merchant Balance Snapshot */}
+                          {(s.walletAgentSnapshot || s.merchantSnapshot) && (
+                            <div className="bg-gradient-to-br from-violet-950/30 to-amber-950/20 p-5 border border-violet-500/20 rounded-2xl md:col-span-4 mt-2">
+                              <div className="text-[10px] uppercase font-bold text-violet-300 mb-4 flex items-center gap-2 border-b border-violet-500/20 pb-2">
+                                <Activity className="w-3.5 h-3.5" /> Financial Settlement Snapshot
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {s.walletAgentSnapshot && (
+                                  <div className="bg-black/30 rounded-2xl p-4 border border-violet-500/20">
+                                    <div className="text-[10px] uppercase font-bold text-violet-400 mb-3 flex items-center gap-1.5">
+                                      <User className="w-3 h-3" /> Wallet Agent Credit Deducted
+                                    </div>
+                                    <div className="text-sm font-bold text-violet-200 mb-3">{s.walletAgentSnapshot.agentName || 'Unknown Agent'}</div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-slate-400">Before</span>
+                                        <span className="font-mono font-bold text-slate-300">৳{Number(s.walletAgentSnapshot.creditBefore || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-rose-400">Deducted</span>
+                                        <span className="font-mono font-bold text-rose-400">– ৳{Number(s.walletAgentSnapshot.creditDeducted || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-emerald-400">After</span>
+                                        <span className="font-mono font-bold text-emerald-400">৳{Number(s.walletAgentSnapshot.creditAfter || 0).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {s.merchantSnapshot && (
+                                  <div className="bg-black/30 rounded-2xl p-4 border border-amber-500/20">
+                                    <div className="text-[10px] uppercase font-bold text-amber-400 mb-3 flex items-center gap-1.5">
+                                      <Briefcase className="w-3 h-3" /> Merchant Balance Added
+                                    </div>
+                                    <div className="text-sm font-bold text-amber-200 mb-3">{s.merchantSnapshot.businessName || 'Unknown Merchant'}</div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-slate-400">Before</span>
+                                        <span className="font-mono font-bold text-slate-300">৳{Number(s.merchantSnapshot.balanceBefore || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-emerald-400">Added</span>
+                                        <span className="font-mono font-bold text-emerald-400">+ ৳{Number(s.merchantSnapshot.balanceAdded || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                                        <span className="text-[10px] uppercase text-amber-400">After</span>
+                                        <span className="font-mono font-bold text-amber-400">৳{Number(s.merchantSnapshot.balanceAfter || 0).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                         </div>
                       </motion.div>
                     )}

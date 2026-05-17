@@ -252,7 +252,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
                <div>
                   <h3 className="text-lg font-bold text-white">Today's Paid Count by User</h3>
-                  <p className="text-sm text-slate-400">Includes wallet agents and merchants — verified payments in last 24 hours</p>
+                  <p className="text-sm text-slate-400">Includes wallet agents and merchants — today's verified payments record</p>
                </div>
                <div className="text-sm text-slate-300 font-semibold">Total: {todayStatsData?.totalTransactions ?? 0} txns</div>
             </div>

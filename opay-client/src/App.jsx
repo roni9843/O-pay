@@ -304,7 +304,7 @@ export default function App() {
             <img className="h-10 w-10 rounded-full" src={logo} alt="logo" />
             <div className="leading-tight">
               <div className="text-sm font-semibold text-slate-900">Oracle Pay</div>
-              <div className="text-[12px] text-slate-500">Transaction ID: <span className="font-mono">{id}</span></div>
+              <div className="text-[12px] text-slate-500">Session Code: <span className="font-mono">{id}</span></div>
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
@@ -432,23 +432,96 @@ export default function App() {
         </div>
       )}
 
+      {/* Professional AI Forensic Scan Overlay */}
       {(verifying.status === 'pending') && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 text-center">
-            <div className="mb-4">
-              <svg className="animate-spin h-14 w-14 mx-auto text-slate-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-              </svg>
+        <div className="fixed inset-0 z-50 bg-[#0a0f1c]/95 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-8 pt-8 pb-6 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 8.944 11.922.42.095.858.143 1.295.143a3 3 0 01.435-.008" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold text-white tracking-tight">AI Forensic Scan</div>
+                  <div className="text-sm text-slate-400">Secure Transaction Verification</div>
+                </div>
+              </div>
             </div>
-            <div className="text-xl font-semibold mb-1">ট্রান্সজেকশন খোঁজা হচ্ছে…</div>
-            <div className="text-slate-600 mb-3">অনুগ্রহ করে অপেক্ষা করুন</div>
-            <div className="text-sm text-slate-700 mb-2">সময় বাকি: <span className="font-semibold">{pendingCountdown || 0}s</span></div>
-            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-slate-700 transition-all"
-                style={{ width: `${Math.max(0, Math.min(100, ((20 - (pendingCountdown || 0)) / 20) * 100))}%` }}
-              />
+
+            <div className="p-8">
+              {/* Scanning Animation */}
+              <div className="flex justify-center mb-8">
+                <div className="relative w-24 h-24">
+                  <div className="absolute inset-0 border-4 border-cyan-500/20 rounded-full animate-[spin_3s_linear_infinite]"></div>
+                  <div className="absolute inset-2 border-4 border-dashed border-cyan-400/40 rounded-full animate-[spin_2.2s_linear_infinite_reverse]"></div>
+
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center animate-pulse">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-center text-lg font-semibold text-white mb-2">
+                Transaction Analysis in Progress
+              </h3>
+
+              <p className="text-center text-slate-400 text-sm leading-relaxed mb-8">
+                Our AI system is cross-verifying your transaction with banking records in real-time.
+              </p>
+
+              {/* Status Steps */}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  </div>
+                  <span className="text-slate-300">Validating Transaction ID</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+                  </div>
+                  <span className="text-slate-300">Cross-checking with Bank Network</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm opacity-75">
+                  <div className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-slate-500 rounded-full" style={{ animationDelay: '800ms' }}></div>
+                  </div>
+                  <span className="text-slate-400">Final Security Clearance</span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-2 flex justify-between text-xs font-mono text-slate-400">
+                <span>PROGRESS</span>
+                <span className="text-cyan-400 font-semibold">
+                  {Math.min(100, Math.floor(((20 - (pendingCountdown || 0)) / 20) * 100))}%
+                </span>
+              </div>
+
+              <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-1000 ease-out shadow-[0_0_12px_rgb(34,211,238)]"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, ((20 - (pendingCountdown || 0)) / 20) * 100))}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="px-8 py-4 border-t border-slate-800 text-center">
+              <p className="text-xs text-slate-500">
+                Please do not close this window • Time remaining: <span className="font-mono text-slate-400">{pendingCountdown || 0}s</span>
+              </p>
             </div>
           </div>
         </div>

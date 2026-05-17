@@ -66,6 +66,26 @@ const OpayBusinessPaymentSessionSchema = new mongoose.Schema(
     
     // Linked Payment Message
     paymentMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentMessage' },
+    
+    // AI Verification and Callback Details
+    aiVerification: { type: mongoose.Schema.Types.Mixed },
+    callbackResult: { type: mongoose.Schema.Types.Mixed },
+
+    // Credit & Balance Snapshot at time of payment success
+    walletAgentSnapshot: {
+      agentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      agentName: { type: String },
+      creditBefore: { type: Number },
+      creditAfter: { type: Number },
+      creditDeducted: { type: Number },
+    },
+    merchantSnapshot: {
+      businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'OpayBusiness' },
+      businessName: { type: String },
+      balanceBefore: { type: Number },
+      balanceAfter: { type: Number },
+      balanceAdded: { type: Number },
+    },
   },
   { timestamps: true }
 );

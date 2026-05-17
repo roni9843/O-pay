@@ -60,6 +60,18 @@ export default function SimplePaymentPage() {
   const [verifying, setVerifying] = useState(false);
   const [verificationFailed, setVerificationFailed] = useState(false);
   const [failMessage, setFailMessage] = useState('');
+  const [pendingCountdown, setPendingCountdown] = useState(20);
+
+  useEffect(() => {
+    let interval;
+    if (verifying) {
+      setPendingCountdown(20);
+      interval = setInterval(() => {
+        setPendingCountdown((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [verifying]);
 
   useEffect(() => {
     if (paymentSuccess && redirectTarget) {
@@ -803,13 +815,13 @@ export default function SimplePaymentPage() {
              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500 text-white text-3xl mb-4 shadow-xl">
                ✓
              </div>
-             <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Payment Successful!</h2>
-             <p className="text-slate-500 text-lg">Redirecting to merchant...</p>
+             <h2 className="text-3xl font-extrabold text-slate-800 mb-2">পেমেন্ট সফল হয়েছে!</h2>
+             <p className="text-slate-500 text-lg">মার্চেন্টে রিডাইরেক্ট করা হচ্ছে...</p>
              
              <div className="mt-8 text-xs text-gray-400">
-               <p>If you are not redirected automatically,</p>
+               <p>যদি স্বয়ংক্রিয়ভাবে রিডাইরেক্ট না হয়,</p>
                <a href={redirectTarget} className="text-emerald-600 underline hover:text-emerald-700 font-medium">
-                 click here to continue
+                 এগিয়ে যেতে এখানে ক্লিক করুন
                </a>
              </div>
           </div>
@@ -818,12 +830,97 @@ export default function SimplePaymentPage() {
         </div>
       )}
 
-      {/* ================= LOADING OVERLAY ================= */}
+      {/* ================= LOADING OVERLAY (AI Forensic Scan) ================= */}
       {verifying && (
-        <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-2xl animate-bounce-slow">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-emerald-500 mb-4"></div>
-            <p className="text-lg font-semibold text-slate-700">Verifying Payment...</p>
+        <div className="fixed inset-0 z-[110] bg-[#0a0f1c]/95 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-8 pt-8 pb-6 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 8.944 11.922.42.095.858.143 1.295.143a3 3 0 01.435-.008" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold text-white tracking-tight">এআই ফরেনসিক স্ক্যান</div>
+                  <div className="text-sm text-slate-400">নিরাপদ লেনদেন যাচাইকরণ</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8">
+              {/* Scanning Animation */}
+              <div className="flex justify-center mb-8">
+                <div className="relative w-24 h-24">
+                  <div className="absolute inset-0 border-4 border-cyan-500/20 rounded-full animate-[spin_3s_linear_infinite]"></div>
+                  <div className="absolute inset-2 border-4 border-dashed border-cyan-400/40 rounded-full animate-[spin_2.2s_linear_infinite_reverse]"></div>
+
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center animate-pulse">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-center text-lg font-semibold text-white mb-2">
+                লেনদেন বিশ্লেষণ চলছে
+              </h3>
+
+              <p className="text-center text-slate-400 text-sm leading-relaxed mb-8">
+                আমাদের এআই সিস্টেম রিয়েল-টাইমে ব্যাঙ্কের রেকর্ডের সাথে আপনার লেনদেন যাচাই করছে।
+              </p>
+
+              {/* Status Steps */}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  </div>
+                  <span className="text-slate-300">ট্রানজ্যাকশন আইডি যাচাই করা হচ্ছে</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+                  </div>
+                  <span className="text-slate-300">ব্যাঙ্ক নেটওয়ার্কের সাথে মেলানো হচ্ছে</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm opacity-75">
+                  <div className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-slate-500 rounded-full" style={{ animationDelay: '800ms' }}></div>
+                  </div>
+                  <span className="text-slate-400">চূড়ান্ত নিরাপত্তা যাচাই</span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-2 flex justify-between text-xs font-mono text-slate-400">
+                <span>অগ্রগতি</span>
+                <span className="text-cyan-400 font-semibold">
+                  {Math.min(100, Math.floor(((20 - (pendingCountdown || 0)) / 20) * 100))}%
+                </span>
+              </div>
+
+              <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-1000 ease-out shadow-[0_0_12px_rgb(34,211,238)]"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, ((20 - (pendingCountdown || 0)) / 20) * 100))}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="px-8 py-4 border-t border-slate-800 text-center">
+              <p className="text-xs text-slate-500">
+                অনুগ্রহ করে এই উইন্ডোটি বন্ধ করবেন না • বাকি সময়: <span className="font-mono text-slate-400">{pendingCountdown || 0}s</span>
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -835,14 +932,14 @@ export default function SimplePaymentPage() {
             <div className="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
               <span className="text-4xl">❌</span>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">Verification Failed</h3>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">যাচাইকরণ ব্যর্থ হয়েছে</h3>
             <p className="text-slate-600 mb-6">{failMessage}</p>
             
             <button
               onClick={() => setVerificationFailed(false)}
               className="w-full py-3.5 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all bg-red-500"
             >
-              Try Again
+              আবার চেষ্টা করুন
             </button>
           </div>
         </div>
