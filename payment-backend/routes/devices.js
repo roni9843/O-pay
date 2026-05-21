@@ -347,18 +347,21 @@ router.post('/send-payment-message', async (req, res, next) => {
 
     const dirPath = path.join(__dirname, "../messages");
     const filePath = path.join(dirPath, `${bdDate}.json`);
-    const tempPath = `${filePath}.tmp`;   // Atomic write এর জন্য
+    const tempPath = `${filePath}.${Date.now()}-${Math.round(Math.random() * 10000)}.tmp`;   // Atomic write এর জন্য
+
+    let lockAcquired = false;
 
     try {
         // Strong Lock with timeout
         const startTime = Date.now();
         while (writeLock) {
-            if (Date.now() - startTime > 8000) {  // 8 seconds timeout
+            if (Date.now() - startTime > 20000) {  // 20 seconds timeout
                 throw new Error("File write lock timeout");
             }
             await new Promise(r => setTimeout(r, 30));
         }
         writeLock = true;
+        lockAcquired = true;
 
         await fs.mkdir(dirPath, { recursive: true });
 
@@ -475,7 +478,9 @@ router.post('/send-payment-message', async (req, res, next) => {
         console.error("❌ Error in /send-payment-message:", err.message);
         next(err);
     } finally {
-        writeLock = false;
+        if (lockAcquired) {
+            writeLock = false;
+        }
         // Cleanup temp file
         fs.unlink(tempPath).catch(() => {});
     }
@@ -744,11 +749,25 @@ router.delete(
         });
       }
 
+      // 1. Find all PaymentMethods associated with this device
+      const paymentMethods = await PaymentMethod.find({ device: device._id });
+      const pmIds = paymentMethods.map(pm => pm._id);
+
+      // 2. Cascade delete all PaymentMethodPageContent linked to these PaymentMethods
+      if (pmIds.length > 0) {
+        const PaymentMethodPageContent = require('../models/PaymentMethodPageContent');
+        await PaymentMethodPageContent.deleteMany({ paymentMethod: { $in: pmIds } });
+      }
+
+      // 3. Cascade delete all PaymentMethods associated with this device
+      await PaymentMethod.deleteMany({ device: device._id });
+
+      // 4. Finally, delete the device
       await Device.deleteOne({ _id: device._id });
 
       return res.json({
         success: true,
-        message: 'Device deleted successfully'
+        message: 'Device and related payment methods & page content deleted successfully'
       });
     } catch (err) {
       next(err);

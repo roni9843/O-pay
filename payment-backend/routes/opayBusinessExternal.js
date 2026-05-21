@@ -956,7 +956,12 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid agent account' });
     }
 
-    const deviceIdentifier = method.device.deviceCode || method.device.deviceName;
+    // First, find the matching message in MongoDB using the TrxID (case-insensitive)
+    const trxRegex = new RegExp(`^${trimmedTrxid}$`, 'i');
+    let matchedMessage = await require('../models/PaymentMessage').findOne({ trxID: trxRegex });
+
+    // Use the device that actually received the transaction SMS if found
+    const deviceIdentifier = matchedMessage?.deviceId || method.device.deviceCode || method.device.deviceName;
 
     // Get last 10 SMS for AI analysis
     const last10Sms = await require('../models/PaymentMessage').find({
@@ -1014,9 +1019,10 @@ router.post('/verify-payment', async (req, res) => {
       console.log('[AI FALLBACK] AI failed, proceeding with manual checks');
     }
 
-    // Manual verification checks (TrxID, Amount, Provider, Device, Time)
-    const trxRegex = new RegExp(`^${trimmedTrxid}$`, 'i');
-    const matchedMessage = await require('../models/PaymentMessage').findOne({ trxID: trxRegex });
+    // Refetch or find the matching message in MongoDB if not found earlier
+    if (!matchedMessage) {
+      matchedMessage = await require('../models/PaymentMessage').findOne({ trxID: trxRegex });
+    }
 
     if (!matchedMessage) {
       return res.status(400).json({ success: false, message: 'Transaction ID not found', reasonCode: 'TRX_NOT_FOUND' });
@@ -1037,11 +1043,11 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Transaction too old', reasonCode: 'TRX_TOO_OLD' });
     }
 
-    // Device check
+    // Device check - relaxed to log warning instead of blocking if SMS is valid and matches
     const msgDeviceId = matchedMessage.deviceId;
     const agentDeviceCode = method.device.deviceCode;
     if (agentDeviceCode && msgDeviceId && agentDeviceCode !== msgDeviceId) {
-      return res.status(400).json({ success: false, message: 'Device mismatch', reasonCode: 'DEVICE_MISMATCH' });
+      console.warn(`[DEVICE MISMATCH WARNING] Expected ${agentDeviceCode} but SMS was received on ${msgDeviceId}. Bypassing block as TrxID is valid.`);
     }
 
     // Mark verified
@@ -1422,6 +1428,55 @@ router.post('/withdraw', opayBusinessAuth, async (req, res) => {
     });
 
     await withdrawal.save();
+
+    // Send SMS Notifications (Merchant and Admins)
+    try {
+      const business = await OpayBusiness.findById(businessId).select('name kycData').lean();
+      const businessName = business?.name || 'A Merchant';
+      const merchantPhone = business?.kycData?.primaryContact?.phone || business?.kycData?.company?.mdMobile;
+      const methodStr = method?.type === 'MFS' ? `${method.provider} (${method.number})` : `${method?.bankName || method?.type || 'Bank'}`;
+
+      // 1. Send SMS to Merchant
+      if (merchantPhone) {
+        const formattedMerchant = merchantPhone.startsWith("88") ? merchantPhone : (merchantPhone.startsWith("0") ? "88" + merchantPhone : "880" + merchantPhone);
+        const merchantMsg = `Dear Merchant,\nYour Withdrawal request for ${requestedAmount} BDT (${methodStr}) has been submitted.\nStatus: Pending Approval.\nThank you!`;
+        
+        await fetch("https://api.o-sms.com/api/service/send-single", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recipient: formattedMerchant, message: merchantMsg })
+        }).catch(e => console.error("Failed to send withdraw SMS to merchant:", e.message));
+      }
+
+      // 2. Send SMS to Admin(s)
+      const setting = await Setting.findOne({ key: 'admin_notification_numbers' }).lean();
+      let adminNumbers = [];
+      if (setting && Array.isArray(setting.value)) adminNumbers = setting.value;
+      else if (setting && typeof setting.value === 'string') adminNumbers = setting.value.split(',').map(n => n.trim()).filter(n => n);
+
+      const formattedAdmins = adminNumbers.map(num => num.startsWith("88") ? num : (num.startsWith("0") ? "88" + num : "880" + num));
+
+      if (formattedAdmins.length > 0) {
+        const adminMsg = `New Withdrawal Request!\nMerchant: ${businessName}\nAmount: ${requestedAmount} BDT\nMethod: ${methodStr}\nPlease check Admin Panel.`;
+        
+        await fetch("https://api.o-sms.com/api/service/send-bulk", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            recipients: formattedAdmins,
+            message: adminMsg
+          })
+        }).catch(e => console.error("Failed to send withdraw SMS to admins:", e.message));
+      }
+    } catch (notifyErr) {
+      console.error("Withdrawal SMS notification error:", notifyErr.message);
+    }
 
     return res.json({
       success: true,

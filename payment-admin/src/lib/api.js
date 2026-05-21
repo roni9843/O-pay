@@ -72,6 +72,13 @@ export async function updateUser(token, id, payload) {
   })
 }
 
+export async function deleteUser(token, id) {
+  return request(`/api/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
 export async function updateSubscriptionAdmin(token, id, payload) {
   return request(`/api/subscriptions/${id}/admin`, {
     method: 'PATCH',

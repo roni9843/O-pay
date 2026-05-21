@@ -61,10 +61,20 @@ async function updateAgentMethodsStatus(userId) {
   }
 }
 
+let statsCache = null;
+let statsCacheTime = 0;
+const STATS_CACHE_DURATION = 8000; // 8 seconds cache
+
 // Overall stats
 router.get('/stats', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+
+    const now = Date.now();
+    if (statsCache && (now - statsCacheTime < STATS_CACHE_DURATION)) {
+      return res.json({ success: true, data: statsCache });
+    }
+
     const [
       usersCount, 
       devicesCount, 
@@ -82,18 +92,19 @@ router.get('/stats', auth, async (req, res) => {
       require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
       require('../models/AgentApplication').countDocuments({ status: 'pending' })
     ]);
-    return res.json({ 
-      success: true, 
-      data: { 
-        usersCount, 
-        devicesCount, 
-        verifiedPayments, 
-        pendingBalanceTopUps, 
-        pendingWithdrawals,
-        pendingCreditTopUps,
-        pendingAgentApplications
-      } 
-    });
+
+    statsCache = {
+      usersCount, 
+      devicesCount, 
+      verifiedPayments, 
+      pendingBalanceTopUps, 
+      pendingWithdrawals,
+      pendingCreditTopUps,
+      pendingAgentApplications
+    };
+    statsCacheTime = now;
+
+    return res.json({ success: true, data: statsCache });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -565,6 +576,15 @@ router.delete('/devices/:id', auth, async (req, res) => {
     const device = await Device.findById(id);
     if (!device) return res.status(404).json({ success: false, message: 'Device not found' });
 
+    // Find all PaymentMethod rows linked to this device
+    const paymentMethods = await PaymentMethod.find({ device: device._id });
+    const pmIds = paymentMethods.map(pm => pm._id);
+
+    // Delete all PaymentMethodPageContent rows linked to these payment methods
+    if (pmIds.length > 0) {
+      await PaymentMethodPageContent.deleteMany({ paymentMethod: { $in: pmIds } });
+    }
+
     // Delete all PaymentMethod rows linked to this device
     await PaymentMethod.deleteMany({ device: device._id });
 
@@ -592,7 +612,7 @@ router.delete('/devices/:id', auth, async (req, res) => {
 router.get('/payments', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { page = 1, limit = 50, q, status, userId, deviceId } = req.query;
+    const { page = 1, limit = 50, q, status, userId, deviceId, from, to } = req.query;
     
     // Pagination
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
@@ -606,9 +626,10 @@ router.get('/payments', auth, async (req, res) => {
     else if (status === 'unverified') match.verify = false;
     // else 'all' -> no filter
 
-    // Filter by specific User
-    if (userId) {
-       const userDevices = await Device.find({ owner: userId }).select('_id deviceUserName deviceCode deviceName').lean();
+    // Filter by specific User (supporting both userId and owner parameter names)
+    const targetUserId = userId || req.query.owner;
+    if (targetUserId) {
+       const userDevices = await Device.find({ owner: targetUserId }).select('_id deviceUserName deviceCode deviceName').lean();
        const ids = [];
        userDevices.forEach(d => ids.push(String(d._id), d.deviceUserName, d.deviceCode, d.deviceName));
        match.deviceId = { $in: ids.filter(Boolean) };
@@ -617,6 +638,20 @@ router.get('/payments', auth, async (req, res) => {
     // Filter by specific Device
     if (deviceId) {
        match.deviceId = deviceId; 
+    }
+
+    // Filter by Date Range
+    if (from || to) {
+      match.createdAt = {};
+      if (from) {
+        const f = new Date(from);
+        if (!isNaN(f)) match.createdAt.$gte = f;
+      }
+      if (to) {
+        const t = new Date(to);
+        if (!isNaN(t)) match.createdAt.$lte = t;
+      }
+      if (!Object.keys(match.createdAt).length) delete match.createdAt;
     }
 
     // Global Search (q)
@@ -1130,11 +1165,11 @@ router.get('/users/:id', auth, async (req, res) => {
   }
 });
 
-// Update user (admin only) - basic fields + role
+// Update user (admin only) - basic fields + role + password
 router.patch('/users/:id', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { name, email, role } = req.body || {};
+    const { name, email, role, password } = req.body || {};
     const update = {};
     if (typeof name === 'string' && name.trim()) update.name = name.trim();
     if (typeof email === 'string' && email.trim()) update.email = email.trim();
@@ -1146,6 +1181,10 @@ router.patch('/users/:id', auth, async (req, res) => {
       const mc = Number(req.body.minimumCredit);
       if (!isNaN(mc)) update.minimumCredit = mc;
     }
+    if (typeof password === 'string' && password.trim()) {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(password.trim(), salt);
+    }
 
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ success: false, message: 'No valid fields to update' });
@@ -1156,6 +1195,31 @@ router.patch('/users/:id', auth, async (req, res) => {
     return res.json({ success: true, data: user });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Delete a user and cascade delete all their devices, payment methods, page content & subscriptions (admin only)
+router.delete('/users/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Cascade delete
+    await User.findByIdAndDelete(userId);
+    await Device.deleteMany({ owner: userId });
+    await PaymentMethod.deleteMany({ owner: userId });
+    await PaymentMethodPageContent.deleteMany({ owner: userId });
+    await UserSubscription.deleteMany({ user: userId });
+
+    return res.json({ success: true, message: 'User and all associated devices/methods deleted successfully' });
+  } catch (err) {
+    console.error('Delete user error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 });
@@ -1308,10 +1372,36 @@ function generateBusinessToken() {
 // List all payment link sessions globally
 router.get('/payment-sessions', auth, async (req, res) => {
   const ApiAccessToken = require('../models/ApiAccessToken');
+  const PaymentMethod = require('../models/PaymentMethod');
 
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { page = 1, limit = 50, search = '', startDate, endDate, status } = req.query;
+    const { 
+      page = 1, 
+      limit = 50, 
+      search = '', 
+      txnId = '',
+      startDate, 
+      endDate, 
+      status,
+      businessId,
+      targetOwnerId,
+      ownerId,
+      // Advanced filters for PaymentMessage
+      f_amount,
+      f_masking,
+      f_from,
+      f_trxid,
+      f_pmDateStart,
+      f_pmDateEnd,
+      f_pmTimeStart,
+      f_pmTimeEnd,
+      f_deviceName,
+      f_deviceId,
+      f_bdTimeStart,
+      f_bdTimeEnd,
+      f_verify
+    } = req.query;
     
     const pageNum = Math.max(1, Number(page) || 1);
     const lim = Math.max(1, Math.min(100, Number(limit) || 50));
@@ -1322,18 +1412,161 @@ router.get('/payment-sessions', auth, async (req, res) => {
     let personalTokens = [];
     let totalPersonal = 0;
 
-    let query = {};
+    // Build sub-query for PaymentMessage filters if active
+    let pmQuery = {};
+    let pmFilterActive = false;
+
+    if (f_amount) {
+      pmQuery.amount = Number(f_amount);
+      pmFilterActive = true;
+    }
+    if (f_masking && String(f_masking).trim()) {
+      pmQuery.masking = new RegExp(String(f_masking).trim(), 'i');
+      pmFilterActive = true;
+    }
+    if (f_from && String(f_from).trim()) {
+      pmQuery.from = new RegExp(String(f_from).trim(), 'i');
+      pmFilterActive = true;
+    }
+    if (f_trxid && String(f_trxid).trim()) {
+      pmQuery.trxID = new RegExp(String(f_trxid).trim(), 'i');
+      pmFilterActive = true;
+    }
+    if (f_deviceName && String(f_deviceName).trim()) {
+      pmQuery.deviceName = new RegExp(String(f_deviceName).trim(), 'i');
+      pmFilterActive = true;
+    }
+    if (f_deviceId && String(f_deviceId).trim()) {
+      pmQuery.deviceId = new RegExp(String(f_deviceId).trim(), 'i');
+      pmFilterActive = true;
+    }
+    if (f_verify && f_verify !== 'all') {
+      pmQuery.verify = f_verify === 'true';
+      pmFilterActive = true;
+    }
+
+    if (f_pmDateStart || f_pmDateEnd) {
+      pmQuery.date = {};
+      if (f_pmDateStart) pmQuery.date.$gte = String(f_pmDateStart);
+      if (f_pmDateEnd) pmQuery.date.$lte = String(f_pmDateEnd);
+      pmFilterActive = true;
+    }
+
+    if (f_pmTimeStart || f_pmTimeEnd) {
+      pmQuery.time = {};
+      if (f_pmTimeStart) pmQuery.time.$gte = String(f_pmTimeStart);
+      if (f_pmTimeEnd) pmQuery.time.$lte = String(f_pmTimeEnd);
+      pmFilterActive = true;
+    }
+
+    if (f_bdTimeStart || f_bdTimeEnd) {
+      pmQuery.BDTimeZone = {};
+      if (f_bdTimeStart) pmQuery.BDTimeZone.$gte = String(f_bdTimeStart);
+      if (f_bdTimeEnd) pmQuery.BDTimeZone.$lte = String(f_bdTimeEnd);
+      pmFilterActive = true;
+    }
+
+    let matchingPMIds = [];
+    let matchingPersonalTokenIds = [];
+    if (pmFilterActive) {
+      const PaymentMessage = require('../models/PaymentMessage');
+      const pms = await PaymentMessage.find(pmQuery).select('_id apiAccessToken').lean();
+      matchingPMIds = pms.map(m => m._id);
+      matchingPersonalTokenIds = pms.map(m => m.apiAccessToken).filter(Boolean);
+    }
+
+    let baseQuery = {};
     if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
+      const dateFilter = {};
+      if (startDate && !isNaN(Date.parse(startDate))) {
+        dateFilter.$gte = new Date(startDate);
+      }
       if (endDate) {
         const endDay = new Date(endDate);
-        endDay.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = endDay;
+        if (!isNaN(endDay.getTime())) {
+          endDay.setHours(23, 59, 59, 999);
+          dateFilter.$lte = endDay;
+        }
+      }
+      if (Object.keys(dateFilter).length > 0) {
+        baseQuery.createdAt = dateFilter;
       }
     }
     if (status && status !== 'all') {
-      query.status = status;
+      baseQuery.status = status;
+    }
+
+    const businessQuery = { ...baseQuery };
+    const personalQuery = { ...baseQuery };
+
+    if (pmFilterActive) {
+      businessQuery.paymentMessage = { $in: matchingPMIds };
+      personalQuery._id = { $in: matchingPersonalTokenIds };
+    }
+
+    if (businessId && String(businessId).trim() && String(businessId) !== 'all') {
+      businessQuery.business = businessId;
+      personalQuery._id = { $in: [] };
+    }
+
+    if (targetOwnerId && String(targetOwnerId).trim() && String(targetOwnerId) !== 'all') {
+      personalQuery.owner = targetOwnerId;
+
+      const targetMethods = await PaymentMethod.find({ owner: targetOwnerId })
+        .select('accountNumber')
+        .lean();
+      const targetAccountNumbers = targetMethods.map(method => method.accountNumber).filter(Boolean);
+      if (targetAccountNumbers.length > 0) {
+        const PaymentMessage = require('../models/PaymentMessage');
+        const matchingMsgs = await PaymentMessage.find({
+          $or: [
+            { from: { $in: targetAccountNumbers } },
+            { masking: { $in: targetAccountNumbers } }
+          ]
+        }).select('_id').lean();
+        const matchingMsgIds = matchingMsgs.map(m => m._id);
+
+        const targetSessionMatch = {
+          $or: [
+            { 'events.meta.method.accountNumber': { $in: targetAccountNumbers } },
+            { paymentMessage: { $in: matchingMsgIds } }
+          ]
+        };
+        businessQuery.$and = businessQuery.$and || [];
+        businessQuery.$and.push(targetSessionMatch);
+      } else {
+        businessQuery._id = { $in: [] };
+      }
+    }
+
+    if (ownerId && String(ownerId).trim() && String(ownerId) !== 'all') {
+      personalQuery.owner = ownerId;
+    }
+
+    // Apply explicit txnId filter if provided
+    if (txnId && String(txnId).trim()) {
+      const txnRegex = new RegExp(String(txnId).trim(), 'i');
+      const pms = await PaymentMessage.find({ trxID: txnRegex }).select('_id apiAccessToken').lean();
+      const txnIdMessageIds = pms.map(m => m._id);
+      const txnIdPersonalTokenIds = pms.map(m => m.apiAccessToken).filter(Boolean);
+
+      const businessTxnIdFilter = {
+        $or: [
+          { paymentMessage: { $in: txnIdMessageIds } },
+          { 'lastVerificationFailure.trxid': txnRegex },
+          { 'verificationAttempts.trxid': txnRegex },
+          { 'events.meta.txid': txnRegex },
+          { 'events.meta.trxid': txnRegex }
+        ]
+      };
+      businessQuery.$and = businessQuery.$and || [];
+      businessQuery.$and.push(businessTxnIdFilter);
+
+      const personalTxnIdFilter = {
+        _id: { $in: txnIdPersonalTokenIds }
+      };
+      personalQuery.$and = personalQuery.$and || [];
+      personalQuery.$and.push(personalTxnIdFilter);
     }
 
     if (search) {
@@ -1367,8 +1600,7 @@ router.get('/payment-sessions', auth, async (req, res) => {
       const userIds = matchingUsers.map(u => u._id);
 
       // --- Business Session Query ---
-      const businessQuery = {
-        ...(startDate || endDate || (status && status !== 'all') ? query : {}),
+      const businessSearchMatch = {
         $or: [
           { code: searchRegex },
           { userIdentityAddress: searchRegex },
@@ -1386,13 +1618,26 @@ router.get('/payment-sessions', auth, async (req, res) => {
           { 'verificationFootprint.userAgent': searchRegex },
           { 'checkoutItems.username': searchRegex },
           { business: { $in: businessIds } },
-          { paymentMessage: { $in: messageIds } }
+          { paymentMessage: { $in: messageIds } },
+          { 'lastVerificationFailure.trxid': searchRegex },
+          { 'verificationAttempts.trxid': searchRegex },
+          { 'events.meta.txid': searchRegex },
+          { 'events.meta.trxid': searchRegex },
+          { 'walletAgentSnapshot.agentName': searchRegex },
+          { 'walletAgentSnapshot.agentId': { $in: userIds } }
         ]
       };
 
+      if (!isNaN(search)) {
+        const num = Number(search);
+        businessSearchMatch.$or.push({ amount: num });
+      }
+
+      businessQuery.$and = businessQuery.$and || [];
+      businessQuery.$and.push(businessSearchMatch);
+
       // --- Personal Token Query ---
-      const personalQuery = {
-        ...(startDate || endDate || (status && status !== 'all') ? query : {}),
+      const personalSearchMatch = {
         $or: [
           { token: searchRegex },
           { userIdentifyAddress: searchRegex },
@@ -1403,56 +1648,113 @@ router.get('/payment-sessions', auth, async (req, res) => {
         ]
       };
 
-      // Numeric search for amount
       if (!isNaN(search)) {
         const num = Number(search);
-        businessQuery.$or.push({ amount: num });
-        personalQuery.$or.push({ 'meta.amount': num });
+        personalSearchMatch.$or.push({ 'meta.amount': num });
       }
 
-      [businessSessions, totalBusiness, personalTokens, totalPersonal] = await Promise.all([
-        OpayBusinessPaymentSession.find(businessQuery)
-          .populate('business', 'name domain email')
-          .populate('paymentMessage')
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(lim)
-          .lean(),
-        OpayBusinessPaymentSession.countDocuments(businessQuery),
-        ApiAccessToken.find(personalQuery)
-          .populate('owner', 'name email')
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(lim)
-          .lean(),
-        ApiAccessToken.countDocuments(personalQuery),
-      ]);
-    } else {
-      [businessSessions, totalBusiness, personalTokens, totalPersonal] = await Promise.all([
-        OpayBusinessPaymentSession.find(query)
-          .populate('business', 'name domain email')
-          .populate('paymentMessage')
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(lim)
-          .lean(),
-        OpayBusinessPaymentSession.countDocuments(query),
-        ApiAccessToken.find(query)
-          .populate('owner', 'name email')
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(lim)
-          .lean(),
-        ApiAccessToken.countDocuments(query),
-      ]);
+      personalQuery.$and = personalQuery.$and || [];
+      personalQuery.$and.push(personalSearchMatch);
     }
 
+    [businessSessions, totalBusiness, personalTokens, totalPersonal] = await Promise.all([
+      OpayBusinessPaymentSession.find(businessQuery)
+        .populate('business', 'name domain email')
+        .populate('paymentMessage')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .lean(),
+      OpayBusinessPaymentSession.countDocuments(businessQuery),
+      ApiAccessToken.find(personalQuery)
+        .populate('owner', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .lean(),
+      ApiAccessToken.countDocuments(personalQuery),
+    ]);
+
     const items = [...businessSessions];
+
     const total = totalBusiness + totalPersonal;
+
+    const failedSessionQuery = {
+      ...businessQuery,
+    };
+    
+    if (businessQuery.$and) {
+      failedSessionQuery.$and = [...businessQuery.$and];
+    } else {
+      failedSessionQuery.$and = [];
+    }
+
+    const failureConditionsOr = [
+      { status: { $in: ['expired', 'cancelled'] } },
+      { 'lastVerificationFailure.code': { $exists: true, $ne: null } },
+      { 'lastVerificationFailure.message': { $exists: true, $ne: null } }
+    ];
+
+    const failureConditionsTrxIdExist = {
+      $or: [
+        { 'lastVerificationFailure.trxid': { $exists: true, $nin: [null, ''] } },
+        { 'verificationAttempts.trxid': { $exists: true, $nin: [null, ''] } },
+        { 'events.meta.txid': { $exists: true, $nin: [null, ''] } },
+        { 'events.meta.trxid': { $exists: true, $nin: [null, ''] } },
+      ]
+    };
+
+    failedSessionQuery.$and.push({ $or: failureConditionsOr });
+    failedSessionQuery.$and.push(failureConditionsTrxIdExist);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const failedTimeExpr = {
+      $let: {
+        vars: {
+          failureAt: '$lastVerificationFailure.at',
+          attemptAt: { $arrayElemAt: ['$verificationAttempts.at', 0] },
+          eventAt: { $arrayElemAt: ['$events.at', 0] },
+        },
+        in: {
+          $ifNull: [
+            '$$failureAt',
+            { $ifNull: [ '$$attemptAt', { $ifNull: [ '$$eventAt', { $ifNull: [ '$updatedAt', '$createdAt' ] } ] } ] }
+          ]
+        }
+      }
+    };
+
+    const [failedTotalAgg, failedTodayAgg, failedYesterdayAgg] = await Promise.all([
+      OpayBusinessPaymentSession.aggregate([
+        { $match: failedSessionQuery },
+        { $count: 'count' }
+      ]),
+      OpayBusinessPaymentSession.aggregate([
+        { $match: failedSessionQuery },
+        { $addFields: { failAt: failedTimeExpr } },
+        { $match: { failAt: { $gte: todayStart, $lt: tomorrowStart } } },
+        { $count: 'count' }
+      ]),
+      OpayBusinessPaymentSession.aggregate([
+        { $match: failedSessionQuery },
+        { $addFields: { failAt: failedTimeExpr } },
+        { $match: { failAt: { $gte: yesterdayStart, $lt: todayStart } } },
+        { $count: 'count' }
+      ]),
+    ]);
+
+    const failedTotal = failedTotalAgg[0]?.count || 0;
+    const failedToday = failedTodayAgg[0]?.count || 0;
+    const failedYesterday = failedYesterdayAgg[0]?.count || 0;
 
 
     const Device = require('../models/Device');
-    const PaymentMethod = require('../models/PaymentMethod');
     const PaymentMessage = require('../models/PaymentMessage');
 
     // We need to resolve the Device owner and the PaymentMethod Details
@@ -1514,9 +1816,16 @@ router.get('/payment-sessions', auth, async (req, res) => {
       };
     });
 
-    // Process Personal Tokens
-    const processedPersonal = await Promise.all(personalTokens.map(async (t) => {
-       const linkedMsg = await PaymentMessage.findOne({ apiAccessToken: t._id }).lean();
+    // High-speed bulk matching for linked PaymentMessage to avoid N+1 queries in loops
+    const personalTokenIds = personalTokens.map(t => t._id);
+    const linkedMsgs = personalTokenIds.length 
+      ? await PaymentMessage.find({ apiAccessToken: { $in: personalTokenIds } }).lean() 
+      : [];
+    const linkedMsgMap = new Map(linkedMsgs.map((m) => [String(m.apiAccessToken), m]));
+
+    // Process Personal Tokens in-memory (0 database queries in loop)
+    const processedPersonal = personalTokens.map((t) => {
+       const linkedMsg = linkedMsgMap.get(String(t._id)) || null;
        const status = linkedMsg ? 'paid' : (new Date(t.expiresAt) < new Date() ? 'expired' : 'pending');
        
        return {
@@ -1534,12 +1843,21 @@ router.get('/payment-sessions', auth, async (req, res) => {
          isPersonal: true,
          payment_page_url: `${baseUrl}/${t.methods?.join(',')}/${t.token}`,
        };
-    }));
+    });
 
     const finalData = [...data, ...processedPersonal].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, lim);
 
-
-    return res.json({ success: true, data: finalData, page: pageNum, total });
+    return res.json({
+      success: true,
+      data: finalData,
+      page: pageNum,
+      total,
+      summary: {
+        failedTotal,
+        failedToday,
+        failedYesterday,
+      }
+    });
   } catch (err) {
     console.error('admin get global payment-sessions error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading payment sessions' });
@@ -1968,15 +2286,22 @@ router.post('/opay-businesses', auth, async (req, res) => {
   }
 });
 
-// Update Opay business basic fields (currently only enabled)
+// Update Opay business basic fields (enabled, password)
 router.patch('/opay-businesses/:id', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const { id } = req.params;
-    const { enabled } = req.body || {};
+    const { enabled, password } = req.body || {};
 
     const update = {};
     if (typeof enabled === 'boolean') update.enabled = enabled;
+
+    if (password !== undefined) {
+      if (typeof password !== 'string' || password.trim().length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+      }
+      update.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     const updated = await OpayBusiness.findByIdAndUpdate(id, update, { new: true }).lean();
     if (!updated) return res.status(404).json({ success: false, message: 'Business not found' });
@@ -2057,6 +2382,32 @@ router.post('/merchant-withdrawals/:id/status', auth, async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
     
+    // Send SMS Notification to Merchant on status change (Approved/Rejected)
+    try {
+      const business = await OpayBusiness.findById(updated.merchantId).select('name kycData').lean();
+      const merchantPhone = business?.kycData?.primaryContact?.phone || business?.kycData?.company?.mdMobile;
+      if (merchantPhone && ['approved', 'rejected'].includes(status)) {
+        const formattedMerchant = merchantPhone.startsWith("88") ? merchantPhone : (merchantPhone.startsWith("0") ? "88" + merchantPhone : "880" + merchantPhone);
+        let msgText = '';
+        if (status === 'approved') {
+          msgText = `Congratulations ${business?.name || 'Merchant'}!\nYour Withdrawal request for ${updated.amount} BDT has been APPROVED.\nThank you!`;
+        } else if (status === 'rejected') {
+          msgText = `Dear Merchant,\nYour Withdrawal request for ${updated.amount} BDT has been REJECTED.\nReason: ${rejectReason || 'N/A'}\nThank you!`;
+        }
+
+        await fetch("https://api.o-sms.com/api/service/send-single", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recipient: formattedMerchant, message: msgText })
+        }).catch(e => console.error("Failed to send status update SMS to merchant:", e.message));
+      }
+    } catch (notifyErr) {
+      console.error("Merchant status SMS notification error:", notifyErr.message);
+    }
+
     return res.json({ success: true, data: updated });
   } catch (err) {
     console.error(err);

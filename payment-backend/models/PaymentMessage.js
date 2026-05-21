@@ -6,6 +6,7 @@ const transactionSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true,
+    index: true,
   },
   fullMessage: {
     type: String,
@@ -14,10 +15,12 @@ const transactionSchema = new mongoose.Schema({
   masking: {
     type: String,
     default: "null",
+    index: true,
   },
   from: {
     type: String,
     default: "null",
+    index: true,
   },
   trxID: {
     type: String,
@@ -39,6 +42,7 @@ const transactionSchema = new mongoose.Schema({
   deviceId: {
     type: String,
     default: "unknown_device",
+    index: true,
   },
   deviceTime: {
     type: String,
@@ -59,6 +63,7 @@ const transactionSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+    index: true,
   },
   // Verification flags
   verify: {

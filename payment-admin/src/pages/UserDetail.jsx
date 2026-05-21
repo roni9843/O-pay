@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useParams } from 'react-router-dom'
-import { listUsers, addBalance, getSubscriptionPlans, purchaseUserSubscription, getUserSubscriptionsAdmin, updateSubscriptionAdmin } from '../lib/api'
+import { useParams, useNavigate } from 'react-router-dom'
+import { listUsers, addBalance, getSubscriptionPlans, purchaseUserSubscription, getUserSubscriptionsAdmin, updateSubscriptionAdmin, updateUser, deleteUser } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import { User as UserIcon, Wallet, Activity, CalendarClock, Globe2, Loader2, Edit2, X, Check, Power, AlertTriangle } from 'lucide-react'
+import { User as UserIcon, Wallet, Activity, CalendarClock, Globe2, Loader2, Edit2, X, Check, Power, AlertTriangle, Lock, Trash2 } from 'lucide-react'
 
 export default function UserDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const token = useAuthStore(s => s.token)
   const [user, setUser] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [amount, setAmount] = useState('')
@@ -26,6 +28,12 @@ export default function UserDetail() {
   const [editingSub, setEditingSub] = useState(null)
   const [editForm, setEditForm] = useState({ endDate: '', active: true })
   const [editSaving, setEditSaving] = useState(false)
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('')
+  const [passSaving, setPassSaving] = useState(false)
+  const [passError, setPassError] = useState('')
+  const [passSuccess, setPassSuccess] = useState('')
 
   useEffect(() => {
     let ignore = false
@@ -169,6 +177,43 @@ export default function UserDetail() {
     }
   }
 
+  async function handlePasswordChange(e) {
+    e.preventDefault()
+    setPassError('')
+    setPassSuccess('')
+    if (!newPassword || newPassword.length < 6) {
+      setPassError('Password must be at least 6 characters long')
+      return
+    }
+    try {
+      setPassSaving(true)
+      await updateUser(token, id, { password: newPassword })
+      setPassSuccess('Password updated successfully!')
+      setNewPassword('')
+      setTimeout(() => setPassSuccess(''), 4000)
+    } catch (err) {
+      setPassError(err.message || 'Failed to update password')
+    } finally {
+      setPassSaving(false)
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!window.confirm("WARNING: Are you absolutely sure you want to delete this user?\n\nThis will permanently delete the user AND ALL of their devices, subscriptions, payment methods, and customized page contents! This action CANNOT be undone.")) {
+      return
+    }
+    try {
+      setDeleting(true)
+      await deleteUser(token, id)
+      alert("User and all associated devices/methods deleted successfully.")
+      navigate('/users')
+    } catch (err) {
+      alert(err.message || "Failed to delete user")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
 
   const subscription = user?.subscription
   let daysLeft = null
@@ -216,6 +261,19 @@ export default function UserDetail() {
             </p>
           </div>
         </div>
+
+        {user && (
+          <div className="relative z-10">
+            <button
+              onClick={handleDeleteUser}
+              disabled={deleting}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white font-semibold shadow-lg transition-all duration-300 disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Delete User
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -326,6 +384,45 @@ export default function UserDetail() {
                 )}
               </div>
             </div>
+
+            {/* Change Password Card */}
+            <div className="rounded-3xl border border-white/5 bg-white/5 backdrop-blur-xl shadow-xl overflow-hidden">
+              <div className="p-6 border-b border-white/5 bg-black/20">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-violet-400" />
+                  Change User Password
+                </h4>
+              </div>
+              <div className="p-6">
+                <form onSubmit={handlePasswordChange} className="flex flex-col sm:flex-row items-end gap-4">
+                  <div className="flex-1 w-full space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Enter new password (min 6 chars)"
+                      className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={passSaving || !newPassword}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold shadow-lg shadow-violet-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    {passSaving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Update Password'}
+                  </button>
+                </form>
+                {passSuccess && (
+                  <p className="mt-3 text-emerald-400 text-sm font-medium bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10 inline-block">{passSuccess}</p>
+                )}
+                {passError && (
+                  <p className="mt-3 text-rose-400 text-sm font-medium bg-rose-500/5 p-2 rounded-lg border border-rose-500/10 inline-block">{passError}</p>
+                )}
+              </div>
+            </div>
+
           </div>
 
           {/* Right Column: Subscription & History */}

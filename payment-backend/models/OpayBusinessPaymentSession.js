@@ -4,7 +4,7 @@ const OpayBusinessPaymentSessionSchema = new mongoose.Schema(
   {
     code: { type: String, required: true, unique: true, index: true },
     business: { type: mongoose.Schema.Types.ObjectId, ref: 'OpayBusiness', required: true, index: true },
-    amount: { type: Number, required: true },
+    amount: { type: Number, required: true, index: true },
     userIdentityAddress: { type: String, required: true },
     callbackUrl: { type: String, required: true },
     successRedirectUrl: { type: String, required: true },
@@ -65,7 +65,7 @@ const OpayBusinessPaymentSessionSchema = new mongoose.Schema(
     footprintUrlNonMask: { type: String },
     
     // Linked Payment Message
-    paymentMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentMessage' },
+    paymentMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentMessage', index: true },
     
     // AI Verification and Callback Details
     aiVerification: { type: mongoose.Schema.Types.Mixed },

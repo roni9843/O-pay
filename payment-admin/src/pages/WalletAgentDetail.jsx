@@ -60,6 +60,8 @@ export default function WalletAgentDetail() {
   const [statusFilter, setStatusFilter] = useState('verified') // verified, all, unverified
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+  const [chartFromDate, setChartFromDate] = useState('')
+  const [chartToDate, setChartToDate] = useState('')
   const PAGE_SIZE = 15
 
   // Controls
@@ -89,7 +91,7 @@ export default function WalletAgentDetail() {
   useEffect(() => {
     if (!token || !id) return
     fetchStatsData()
-  }, [id, token])
+  }, [id, token, chartFromDate, chartToDate])
 
   async function loadInitialData() {
     setLoading(true)
@@ -115,26 +117,50 @@ export default function WalletAgentDetail() {
     if (!token || !id) return
     setStatsLoading(true)
     try {
-      // Fetch more data for charts (last 30 days roughly)
-      const res = await listPayments(token, { 
-        owner: id, 
+      const params = {
+        owner: id,
         status: 'verified',
-        limit: 500 // Get enough for 30 days
-      })
+        limit: 1000
+      }
+
+      if (chartFromDate) {
+        params.from = new Date(chartFromDate).toISOString()
+      } else {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        thirtyDaysAgo.setHours(0, 0, 0, 0)
+        params.from = thirtyDaysAgo.toISOString()
+      }
+
+      if (chartToDate) {
+        const toD = new Date(chartToDate)
+        toD.setHours(23, 59, 59, 999)
+        params.to = toD.toISOString()
+      }
+
+      const res = await listPayments(token, params)
       
       const raw = res.data || []
       // Process for chart
       const groups = {}
       raw.forEach(t => {
-        const date = new Date(t.createdAt).toLocaleDateString()
+        const dObj = new Date(t.createdAt)
+        const yyyy = dObj.getFullYear()
+        const mm = String(dObj.getMonth() + 1).padStart(2, '0')
+        const dd = String(dObj.getDate()).padStart(2, '0')
+        const date = `${yyyy}-${mm}-${dd}`
+        
         if (!groups[date]) groups[date] = { date, amount: 0, count: 0 }
         groups[date].amount += (t.amount || 0)
         groups[date].count += 1
       })
       
-      const chartData = Object.values(groups)
+      let chartData = Object.values(groups)
         .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .slice(-30) // Last 30 days
+      
+      if (!chartFromDate && !chartToDate) {
+        chartData = chartData.slice(-30) // Default to last 30 days if no custom dates
+      }
         
       setStatsData(chartData)
     } catch (e) {
@@ -324,15 +350,50 @@ export default function WalletAgentDetail() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          <div className="lg:col-span-2 rounded-[2.5rem] border border-white/5 bg-slate-900/40 p-8 backdrop-blur-xl space-y-6 min-h-[400px]">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                <div>
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                      <TrendingUp className="w-5 h-5 text-violet-400" /> Revenue Flow
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">Daily income performance (30 days)</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                     {chartFromDate || chartToDate ? "Filtered daily income performance" : "Daily income performance (30 days)"}
+                  </p>
                </div>
-               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                  <div className="w-2 h-2 rounded-full bg-violet-500" /> Income Amount
+               
+               {/* Date range pickers for Chart */}
+               <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">From</label>
+                     <input
+                        type="date"
+                        value={chartFromDate}
+                        onChange={e => setChartFromDate(e.target.value)}
+                        className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-violet-500 transition-all"
+                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">To</label>
+                     <input
+                        type="date"
+                        value={chartToDate}
+                        onChange={e => setChartToDate(e.target.value)}
+                        className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-violet-500 transition-all"
+                     />
+                  </div>
+                  {(chartFromDate || chartToDate) && (
+                     <button
+                        onClick={() => {
+                           setChartFromDate('')
+                           setChartToDate('')
+                        }}
+                        className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-[10px] font-bold text-rose-400 hover:text-white transition-all active:scale-95"
+                     >
+                        Clear
+                     </button>
+                  )}
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 ml-2">
+                     <div className="w-2 h-2 rounded-full bg-violet-500" /> Income Amount
+                  </div>
                </div>
             </div>
             
@@ -371,6 +432,11 @@ export default function WalletAgentDetail() {
                          contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '16px' }}
                          itemStyle={{ color: '#fff', fontSize: '12px' }}
                          labelStyle={{ color: '#64748b', fontSize: '10px', marginBottom: '4px' }}
+                         labelFormatter={(str) => {
+                            const d = new Date(str)
+                            if (isNaN(d.getTime())) return str
+                            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                         }}
                        />
                        <Area 
                          type="monotone" 

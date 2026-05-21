@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { getOpayBusiness, listOpayBusinesses, api } from '../lib/api';
@@ -21,6 +21,11 @@ export default function OpayBusinessDetail() {
     const [kycDraft, setKycDraft] = useState(null);
     const [kycSaving, setKycSaving] = useState(false);
     const [kycSaveMsg, setKycSaveMsg] = useState({ type: '', text: '' });
+
+    const [newPassword, setNewPassword] = useState('');
+    const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+    const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('');
+    const [passwordChangeError, setPasswordChangeError] = useState('');
 
     const loadBusiness = async () => {
         if (!token || !id) return;
@@ -183,6 +188,33 @@ export default function OpayBusinessDetail() {
         }
     };
 
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        if (!token || !business) return;
+        if (!newPassword || newPassword.trim().length < 6) {
+            setPasswordChangeError('Password must be at least 6 characters.');
+            setPasswordChangeSuccess('');
+            return;
+        }
+
+        setPasswordChangeLoading(true);
+        setPasswordChangeError('');
+        setPasswordChangeSuccess('');
+        try {
+            await api.patch(`/api/admin/opay-businesses/${business._id}`, { password: newPassword }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPasswordChangeSuccess('Password updated successfully!');
+            setPasswordChangeError('');
+            setNewPassword('');
+        } catch (e) {
+            setPasswordChangeError(e.response?.data?.message || 'Failed to change password.');
+            setPasswordChangeSuccess('');
+        } finally {
+            setPasswordChangeLoading(false);
+        }
+    };
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     if (loading) {
@@ -331,6 +363,37 @@ export default function OpayBusinessDetail() {
                     </div>
                 </div>
             )}
+
+            {/* Change Password Card */}
+            <div className="bg-gradient-to-br from-white/5 to-black/40 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                <h3 className="text-xl font-bold text-slate-100 mb-6 flex items-center gap-3 pb-4 border-b border-white/5">
+                    <div className="p-2 bg-slate-500/20 rounded-xl border border-slate-500/30">
+                        <Lock className="w-5 h-5 text-slate-400" />
+                    </div>
+                    Change Merchant Password
+                </h3>
+                <form onSubmit={handlePasswordChange} className="max-w-md space-y-4">
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">New Password</label>
+                        <input
+                            type="password"
+                            placeholder="Enter new password (min 6 characters)"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-violet-500/50 transition-colors"
+                        />
+                    </div>
+                    {passwordChangeError && <p className="text-xs text-rose-400 font-bold">{passwordChangeError}</p>}
+                    {passwordChangeSuccess && <p className="text-xs text-emerald-400 font-bold">{passwordChangeSuccess}</p>}
+                    <button
+                        type="submit"
+                        disabled={passwordChangeLoading}
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-violet-900/20 transition-all disabled:opacity-50"
+                    >
+                        {passwordChangeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update Password'}
+                    </button>
+                </form>
+            </div>
 
             {/* KYC Details Grid */}
             {kycData && Object.keys(kycData).length > 0 ? (

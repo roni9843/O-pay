@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
-import { getPaymentSessionsAdmin } from '../lib/api'
+import { getPaymentSessionsAdmin, listOpayBusinesses, listUsers } from '../lib/api'
 import {
-  Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff, RefreshCw
+  Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff, RefreshCw, Filter, Loader2
 } from 'lucide-react'
 
 const getBrowserInfo = (ua) => {
@@ -62,31 +62,144 @@ export default function PaymentLinkSessions() {
   const [expandedId, setExpandedId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [tempSearch, setTempSearch] = useState('')
+  const [txnIdFilter, setTxnIdFilter] = useState('')
+  const [tempTxnIdFilter, setTempTxnIdFilter] = useState('')
   const [startDate, setStartDate] = useState('')
   const [tempStartDate, setTempStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [tempEndDate, setTempEndDate] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [tempStatus, setTempStatus] = useState('all')
+  const [merchantFilter, setMerchantFilter] = useState('all')
+  const [tempMerchantFilter, setTempMerchantFilter] = useState('all')
+  const [accountFilter, setAccountFilter] = useState('all')
+  const [tempAccountFilter, setTempAccountFilter] = useState('all')
   const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [merchantOptions, setMerchantOptions] = useState([])
+  const [accountOptions, setAccountOptions] = useState([])
+  const [loadingOptions, setLoadingOptions] = useState(false)
+  const [failureSummary, setFailureSummary] = useState({ failedTotal: 0, failedToday: 0, failedYesterday: 0 })
+
+  // Advanced search states
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [tempAmount, setTempAmount] = useState('')
+  const [tempMasking, setTempMasking] = useState('')
+  const [tempFrom, setTempFrom] = useState('')
+  const [tempTrxid, setTempTrxid] = useState('')
+  const [tempPmDateStart, setTempPmDateStart] = useState('')
+  const [tempPmDateEnd, setTempPmDateEnd] = useState('')
+  const [tempPmTimeStart, setTempPmTimeStart] = useState('')
+  const [tempPmTimeEnd, setTempPmTimeEnd] = useState('')
+  const [tempDeviceName, setTempDeviceName] = useState('')
+  const [tempDeviceId, setTempDeviceId] = useState('')
+  const [tempBdTimeStart, setTempBdTimeStart] = useState('')
+  const [tempBdTimeEnd, setTempBdTimeEnd] = useState('')
+  const [tempVerify, setTempVerify] = useState('all')
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    amount: '',
+    masking: '',
+    from: '',
+    trxid: '',
+    pmDateStart: '',
+    pmDateEnd: '',
+    pmTimeStart: '',
+    pmTimeEnd: '',
+    deviceName: '',
+    deviceId: '',
+    bdTimeStart: '',
+    bdTimeEnd: '',
+    verify: 'all'
+  })
 
   useEffect(() => {
     fetchData()
-  }, [token, page, searchQuery, startDate, endDate, statusFilter])
+  }, [token, page, searchQuery, txnIdFilter, startDate, endDate, statusFilter, appliedFilters])
+
+  useEffect(() => {
+    if (!token) return
+
+    let cancelled = false
+
+    const loadFilterOptions = async () => {
+      setLoadingOptions(true)
+      try {
+        const [businessRes, firstUserPage] = await Promise.all([
+          listOpayBusinesses(token),
+          listUsers(token, { page: 1, limit: 100 })
+        ])
+
+        if (cancelled) return
+
+        setMerchantOptions(Array.isArray(businessRes?.data) ? businessRes.data : [])
+
+        const allUsers = Array.isArray(firstUserPage?.data) ? [...firstUserPage.data] : []
+        const totalUsers = Number(firstUserPage?.total || 0)
+        const pageSize = Array.isArray(firstUserPage?.data) ? firstUserPage.data.length : 0
+
+        if (totalUsers > pageSize && pageSize > 0) {
+          const totalPages = Math.ceil(totalUsers / pageSize)
+          const extraPages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) => index + 2)
+              .map(pageNumber => listUsers(token, { page: pageNumber, limit: pageSize }))
+          )
+
+          extraPages.forEach(pageResult => {
+            if (Array.isArray(pageResult?.data)) {
+              allUsers.push(...pageResult.data)
+            }
+          })
+        }
+
+        if (cancelled) return
+
+        setAccountOptions(allUsers.filter(user => ['wallet_agent', 'user'].includes(user?.role)))
+      } catch (error) {
+        console.error('Failed to load payment session filter options', error)
+      } finally {
+        if (!cancelled) setLoadingOptions(false)
+      }
+    }
+
+    loadFilterOptions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   async function fetchData() {
     if (!token) return
     setLoading(true)
     try {
       const qs = { page, limit: 50, search: searchQuery }
+      if (txnIdFilter) qs.txnId = txnIdFilter
       if (startDate) qs.startDate = startDate
       if (endDate) qs.endDate = endDate
       if (statusFilter !== 'all') qs.status = statusFilter
+      if (merchantFilter !== 'all') qs.businessId = merchantFilter
+      if (accountFilter !== 'all') qs.targetOwnerId = accountFilter
+      
+      // Inject active advanced filters
+      if (appliedFilters.amount) qs.f_amount = appliedFilters.amount
+      if (appliedFilters.masking) qs.f_masking = appliedFilters.masking
+      if (appliedFilters.from) qs.f_from = appliedFilters.from
+      if (appliedFilters.trxid) qs.f_trxid = appliedFilters.trxid
+      if (appliedFilters.pmDateStart) qs.f_pmDateStart = appliedFilters.pmDateStart
+      if (appliedFilters.pmDateEnd) qs.f_pmDateEnd = appliedFilters.pmDateEnd
+      if (appliedFilters.pmTimeStart) qs.f_pmTimeStart = appliedFilters.pmTimeStart
+      if (appliedFilters.pmTimeEnd) qs.f_pmTimeEnd = appliedFilters.pmTimeEnd
+      if (appliedFilters.deviceName) qs.f_deviceName = appliedFilters.deviceName
+      if (appliedFilters.deviceId) qs.f_deviceId = appliedFilters.deviceId
+      if (appliedFilters.bdTimeStart) qs.f_bdTimeStart = appliedFilters.bdTimeStart
+      if (appliedFilters.bdTimeEnd) qs.f_bdTimeEnd = appliedFilters.bdTimeEnd
+      if (appliedFilters.verify !== 'all') qs.f_verify = appliedFilters.verify
       
       const res = await getPaymentSessionsAdmin(token, qs)
       if (res.success) {
         setItems(res.data || [])
         setTotal(res.total || 0)
+        setFailureSummary(res.summary || { failedTotal: 0, failedToday: 0, failedYesterday: 0 })
         setLastUpdated(new Date())
       }
     } catch (err) {
@@ -110,33 +223,90 @@ export default function PaymentLinkSessions() {
     e.preventDefault()
     setPage(1)
     setSearchQuery(tempSearch)
+    setTxnIdFilter(tempTxnIdFilter)
     setStartDate(tempStartDate)
     setEndDate(tempEndDate)
     setStatusFilter(tempStatus)
+    setMerchantFilter(tempMerchantFilter)
+    setAccountFilter(tempAccountFilter)
+    setAppliedFilters({
+      amount: tempAmount,
+      masking: tempMasking,
+      from: tempFrom,
+      trxid: tempTrxid,
+      pmDateStart: tempPmDateStart,
+      pmDateEnd: tempPmDateEnd,
+      pmTimeStart: tempPmTimeStart,
+      pmTimeEnd: tempPmTimeEnd,
+      deviceName: tempDeviceName,
+      deviceId: tempDeviceId,
+      bdTimeStart: tempBdTimeStart,
+      bdTimeEnd: tempBdTimeEnd,
+      verify: tempVerify
+    })
   }
 
   const clearFilters = () => {
     setTempSearch('')
     setSearchQuery('')
+    setTempTxnIdFilter('')
+    setTxnIdFilter('')
     setTempStartDate('')
     setStartDate('')
     setTempEndDate('')
     setEndDate('')
     setTempStatus('all')
     setStatusFilter('all')
+    setTempMerchantFilter('all')
+    setMerchantFilter('all')
+    setTempAccountFilter('all')
+    setAccountFilter('all')
+    
+    // Reset advanced values
+    setTempAmount('')
+    setTempMasking('')
+    setTempFrom('')
+    setTempTrxid('')
+    setTempPmDateStart('')
+    setTempPmDateEnd('')
+    setTempPmTimeStart('')
+    setTempPmTimeEnd('')
+    setTempDeviceName('')
+    setTempDeviceId('')
+    setTempBdTimeStart('')
+    setTempBdTimeEnd('')
+    setTempVerify('all')
+
+    setAppliedFilters({
+      amount: '',
+      masking: '',
+      from: '',
+      trxid: '',
+      pmDateStart: '',
+      pmDateEnd: '',
+      pmTimeStart: '',
+      pmTimeEnd: '',
+      deviceName: '',
+      deviceId: '',
+      bdTimeStart: '',
+      bdTimeEnd: '',
+      verify: 'all'
+    })
     setPage(1)
   }
 
+
   return (
     <div className="space-y-6 pb-12">
+      {/* Minimalistic Premium Header Card */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-3xl bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-transparent p-8 border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl"
       >
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[100px]" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[100px] pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-8 text-left">
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-left">
           <div className="space-y-2">
             <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
               <div className="p-2.5 bg-indigo-500/20 rounded-2xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
@@ -157,98 +327,403 @@ export default function PaymentLinkSessions() {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6 w-full xl:w-auto">
-            <form onSubmit={handleSearch} className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5">
-              <div className="space-y-1.5 lg:col-span-2">
-                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Search</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-indigo-400 group-focus-within:text-indigo-300 transition-colors" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="ID, User, Trx, Amount..."
-                    value={tempSearch}
-                    onChange={(e) => setTempSearch(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 backdrop-blur-md transition-all placeholder:text-slate-600 hover:border-white/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Status</label>
-                <select
-                  value={tempStatus}
-                  onChange={(e) => setTempStatus(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="all">All Status</option>
-                  <option value="paid">Paid</option>
-                  <option value="pending">Pending</option>
-                  <option value="expired">Expired</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">Start Date</label>
-                <input
-                  type="date"
-                  value={tempStartDate}
-                  onChange={(e) => setTempStartDate(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-slate-500 uppercase font-bold ml-1 tracking-widest">End Date</label>
-                <input
-                  type="date"
-                  value={tempEndDate}
-                  onChange={(e) => setTempEndDate(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 text-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500/50 transition-colors"
-                />
-              </div>
-
-              <div className="flex gap-2 h-[42px] mt-auto">
-                <button 
-                  type="submit" 
-                  className="flex-1 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Zap className="w-4 h-4" />
-                  Filter Results
-                </button>
-                {(searchQuery || startDate || endDate || statusFilter !== 'all') && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="aspect-square bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-all border border-white/5 flex items-center justify-center group"
-                  >
-                    <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
-                  </button>
-                )}
-              </div>
-            </form>
-
-            <div className="hidden lg:block w-px h-12 bg-white/10 mx-2" />
-
-            <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-              <div className="relative bg-black/40 border border-white/10 rounded-2xl p-4 text-center min-w-[140px] backdrop-blur-xl">
-                <div className="text-3xl font-mono font-black text-white tracking-tighter">{total}</div>
-                <div className="text-[10px] text-indigo-400 uppercase tracking-widest mt-1 font-black">Tracking Links</div>
-              </div>
+          <div className="relative group self-stretch sm:self-auto">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="relative bg-black/40 border border-white/10 rounded-2xl p-4 text-center min-w-[140px] backdrop-blur-xl">
+              <div className="text-3xl font-mono font-black text-white tracking-tighter">{total}</div>
+              <div className="text-[10px] text-indigo-400 uppercase tracking-widest mt-1 font-black">Tracking Links</div>
             </div>
           </div>
         </div>
       </motion.div>
 
-      <div className="space-y-6">
+      {/* Premium Filter Dashboard Panel */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-3xl bg-black/40 border border-white/5 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden"
+      >
+        {/* Soft glowing ambient light */}
+        <div className="absolute top-0 left-10 w-72 h-72 bg-indigo-500/5 blur-[80px] pointer-events-none" />
+
+        <form onSubmit={handleSearch} className="space-y-6 relative z-10">
+          {/* Header of Filters */}
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                <Filter className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Search Console</h3>
+            </div>
+            
+            {/* Active filters count badge */}
+            {(searchQuery || startDate || endDate || statusFilter !== 'all' || merchantFilter !== 'all' || accountFilter !== 'all' || Object.values(appliedFilters).some(v => v !== '' && v !== 'all')) && (
+              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 uppercase tracking-widest animate-pulse">
+                Active Custom Filters
+              </span>
+            )}
+          </div>
+
+          {/* Quick Fields Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-5">
+            {/* Search Query */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Global Query</label>
+              <div className="relative group">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="ID, user, trx, amount..."
+                  value={tempSearch}
+                  onChange={(e) => setTempSearch(e.target.value)}
+                  className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-sm rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all placeholder:text-slate-500 hover:border-slate-400/80"
+                />
+              </div>
+            </div>
+
+            {/* Txn ID */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Txn ID</label>
+              <div className="relative group">
+                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search TrxID..."
+                  value={tempTxnIdFilter}
+                  onChange={(e) => setTempTxnIdFilter(e.target.value)}
+                  className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-sm rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all placeholder:text-slate-500 hover:border-slate-400/80"
+                />
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Session Status</label>
+              <select
+                value={tempStatus}
+                onChange={(e) => setTempStatus(e.target.value)}
+                className="w-full bg-white/90 border border-slate-300/70 text-slate-900 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all cursor-pointer hover:border-slate-400/80"
+              >
+                <option className="text-slate-900" value="all">All Statuses</option>
+                <option className="text-slate-900" value="paid">Paid</option>
+                <option className="text-slate-900" value="pending">Pending</option>
+                <option className="text-slate-900" value="expired">Expired</option>
+              </select>
+            </div>
+
+            {/* Merchant */}
+            <div className="space-y-2 text-left lg:col-span-2">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Merchant / Opay Business</label>
+              <select
+                value={tempMerchantFilter}
+                onChange={(e) => setTempMerchantFilter(e.target.value)}
+                disabled={loadingOptions}
+                className="w-full bg-white/90 border border-slate-300/70 text-slate-900 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all cursor-pointer hover:border-slate-400/80 disabled:opacity-60"
+              >
+                <option className="text-slate-900" value="all">All Merchants</option>
+                {merchantOptions.map((merchant) => (
+                  <option className="text-slate-900" key={merchant._id} value={merchant._id}>
+                    {merchant.name || merchant.domain || merchant.email || 'Unnamed Merchant'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Wallet Agent / User */}
+            <div className="space-y-2 text-left lg:col-span-2">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Wallet Agent / User</label>
+              <select
+                value={tempAccountFilter}
+                onChange={(e) => setTempAccountFilter(e.target.value)}
+                disabled={loadingOptions}
+                className="w-full bg-white/90 border border-slate-300/70 text-slate-900 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all cursor-pointer hover:border-slate-400/80 disabled:opacity-60"
+              >
+                <option className="text-slate-900" value="all">All Wallet Agents / Users</option>
+                {accountOptions.map((account) => (
+                  <option className="text-slate-900" key={account._id} value={account._id}>
+                    {account.name || account.email || account.phone || 'Unnamed User'} {account.role ? `(${account.role.replace('_', ' ')})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Session Start Date</label>
+              <input
+                type="date"
+                value={tempStartDate}
+                onChange={(e) => setTempStartDate(e.target.value)}
+                className="w-full bg-white/90 border border-slate-300/70 text-slate-900 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all hover:border-slate-400/80"
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1">Session End Date</label>
+              <input
+                type="date"
+                value={tempEndDate}
+                onChange={(e) => setTempEndDate(e.target.value)}
+                className="w-full bg-white/90 border border-slate-300/70 text-slate-900 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all hover:border-slate-400/80"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-rose-300">Txn ID Count</div>
+                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedTotal || 0}</div>
+              </div>
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-amber-200">Today</div>
+                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedToday || 0}</div>
+              </div>
+              <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-sky-200">Yesterday</div>
+                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedYesterday || 0}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center justify-between border-t border-white/5 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className={`px-4 py-2.5 rounded-2xl font-bold border transition-all text-xs flex items-center gap-2 ${
+                showAdvanced 
+                  ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' 
+                  : 'bg-white/5 border-white/5 hover:bg-white/10 text-slate-300'
+              }`}
+            >
+              <Zap className={`w-3.5 h-3.5 ${showAdvanced ? 'text-indigo-400 animate-pulse' : 'text-slate-400'}`} />
+              {showAdvanced ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+            </button>
+
+            <div className="flex items-center gap-3">
+              {(searchQuery || startDate || endDate || statusFilter !== 'all' || merchantFilter !== 'all' || accountFilter !== 'all' || Object.values(appliedFilters).some(v => v !== '' && v !== 'all')) && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  disabled={loading}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 rounded-2xl transition-all border border-white/5 flex items-center gap-2 text-xs group"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 group-hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} />
+                  Reset Filters
+                </button>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700/50 text-white rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-xs"
+              >
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Zap className="w-3.5 h-3.5" />
+                )}
+                {loading ? 'Searching...' : 'Apply Filters'}
+              </button>
+            </div>
+          </div>
+
+          {/* Advanced Drawer */}
+          <AnimatePresence>
+            {showAdvanced && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="overflow-hidden border-t border-white/5 pt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 text-left"
+              >
+                {/* Amount */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Amount</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 500"
+                    value={tempAmount}
+                    onChange={(e) => setTempAmount(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* Masking */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">Gateway Masking</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. bKash, 16216"
+                    value={tempMasking}
+                    onChange={(e) => setTempMasking(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* From Phone */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">From Phone</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 017xxxxxxxx"
+                    value={tempFrom}
+                    onChange={(e) => setTempFrom(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* TrxID */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">Transaction ID (TrxID)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BKB123XYZ"
+                    value={tempTrxid}
+                    onChange={(e) => setTempTrxid(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* Device Name */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">Device Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Xiaomi"
+                    value={tempDeviceName}
+                    onChange={(e) => setTempDeviceName(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all"
+                  />
+                </div>
+
+                {/* Device ID */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">Device ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. dev_xxxx"
+                    value={tempDeviceId}
+                    onChange={(e) => setTempDeviceId(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* Payment Message Verified */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Verification</label>
+                  <select
+                    value={tempVerify}
+                    onChange={(e) => setTempVerify(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500/40 transition-all cursor-pointer"
+                  >
+                    <option className="text-slate-900" value="all">All</option>
+                    <option className="text-slate-900" value="true">Verified (True)</option>
+                    <option className="text-slate-900" value="false">Unverified (False)</option>
+                  </select>
+                </div>
+
+                {/* SMS Date - Start */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Date (Start)</label>
+                  <input
+                    type="date"
+                    value={tempPmDateStart}
+                    onChange={(e) => setTempPmDateStart(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500/40 transition-all"
+                  />
+                </div>
+
+                {/* SMS Date - End */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Date (End)</label>
+                  <input
+                    type="date"
+                    value={tempPmDateEnd}
+                    onChange={(e) => setTempPmDateEnd(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500/40 transition-all"
+                  />
+                </div>
+
+                {/* SMS Time - Start */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Time (Start)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM:SS"
+                    value={tempPmTimeStart}
+                    onChange={(e) => setTempPmTimeStart(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* SMS Time - End */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">SMS Time (End)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM:SS"
+                    value={tempPmTimeEnd}
+                    onChange={(e) => setTempPmTimeEnd(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* BDTimeZone Start */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">BD Time (Start)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2026-05-18"
+                    value={tempBdTimeStart}
+                    onChange={(e) => setTempBdTimeStart(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+
+                {/* BDTimeZone End */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-indigo-400 uppercase font-black tracking-widest ml-1">BD Time (End)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2026-05-19"
+                    value={tempBdTimeEnd}
+                    onChange={(e) => setTempBdTimeEnd(e.target.value)}
+                    className="w-full bg-white/90 border border-slate-300/70 text-slate-900 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 transition-all font-mono"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </form>
+      </motion.div>
+
+      <div className="space-y-6 relative min-h-[400px]">
+        {/* Glowing Loading Bar & Overlay for Smooth UX */}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/25 backdrop-blur-[2px] z-20 rounded-[2.5rem] flex items-start justify-center pt-24 pointer-events-none"
+            >
+              <div className="bg-black/80 border border-white/10 rounded-2xl px-6 py-4 flex items-center gap-3 shadow-2xl backdrop-blur-md">
+                <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Refreshing list...</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {loading && items.length === 0 ? (
           [...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-white/5 rounded-3xl h-64 w-full border border-white/5" />
+            <div key={i} className="animate-pulse bg-white/5 rounded-[2.5rem] h-64 w-full border border-white/5" />
           ))
         ) : items.length === 0 ? (
-          <div className="bg-white/5 rounded-3xl border border-white/5 p-16 text-center text-slate-500 flex flex-col items-center">
+          <div className="bg-white/5 rounded-[2.5rem] border border-white/5 p-16 text-center text-slate-500 flex flex-col items-center">
             <Search className="w-16 h-16 opacity-20 mb-4" />
             <p className="text-lg">No links found.</p>
           </div>
@@ -634,6 +1109,79 @@ export default function PaymentLinkSessions() {
 
                   </div>
 
+                  {/* Financial Settlement — always visible for paid sessions */}
+                  {isSuccess && (s.walletAgentSnapshot || s.merchantSnapshot) && (
+                    <div className="mt-6 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-950/30 via-slate-900/40 to-amber-950/20 overflow-hidden">
+                      {/* Header */}
+                      <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2 bg-white/[0.02]">
+                        <Activity className="w-4 h-4 text-violet-400" />
+                        <span className="text-[11px] font-black uppercase tracking-widest text-violet-300">Financial Settlement</span>
+                        <div className="ml-auto flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> SETTLED
+                        </div>
+                      </div>
+
+                      <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* Wallet Agent Credit */}
+                        {s.walletAgentSnapshot && (
+                          <div className="bg-black/30 rounded-xl border border-violet-500/20 overflow-hidden">
+                            <div className="px-4 py-2.5 bg-violet-500/10 border-b border-violet-500/15 flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-violet-400" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-violet-400">Wallet Agent Credit</span>
+                              <span className="ml-auto text-[10px] font-bold text-violet-200 truncate max-w-[120px]">{s.walletAgentSnapshot.agentName}</span>
+                            </div>
+                            <div className="p-4 flex items-center gap-3">
+                              {/* Before */}
+                              <div className="flex-1 text-center bg-white/5 rounded-lg p-3">
+                                <p className="text-[9px] uppercase text-slate-500 font-bold mb-1">Before</p>
+                                <p className="text-sm font-black font-mono text-slate-200">৳{Number(s.walletAgentSnapshot.creditBefore || 0).toLocaleString()}</p>
+                              </div>
+                              {/* Arrow */}
+                              <div className="flex flex-col items-center gap-1">
+                                <ArrowRight className="w-4 h-4 text-rose-400" />
+                                <span className="text-[9px] font-black text-rose-400 font-mono whitespace-nowrap">-৳{Number(s.walletAgentSnapshot.creditDeducted || 0).toLocaleString()}</span>
+                              </div>
+                              {/* After */}
+                              <div className="flex-1 text-center bg-rose-500/10 border border-rose-500/20 rounded-lg p-3">
+                                <p className="text-[9px] uppercase text-rose-400 font-bold mb-1">After</p>
+                                <p className="text-sm font-black font-mono text-rose-300">৳{Number(s.walletAgentSnapshot.creditAfter || 0).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Merchant Balance */}
+                        {s.merchantSnapshot && (
+                          <div className="bg-black/30 rounded-xl border border-amber-500/20 overflow-hidden">
+                            <div className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/15 flex items-center gap-2">
+                              <Briefcase className="w-3.5 h-3.5 text-amber-400" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Merchant Balance</span>
+                              <span className="ml-auto text-[10px] font-bold text-amber-200 truncate max-w-[120px]">{s.merchantSnapshot.businessName}</span>
+                            </div>
+                            <div className="p-4 flex items-center gap-3">
+                              {/* Before */}
+                              <div className="flex-1 text-center bg-white/5 rounded-lg p-3">
+                                <p className="text-[9px] uppercase text-slate-500 font-bold mb-1">Before</p>
+                                <p className="text-sm font-black font-mono text-slate-200">৳{Number(s.merchantSnapshot.balanceBefore || 0).toLocaleString()}</p>
+                              </div>
+                              {/* Arrow */}
+                              <div className="flex flex-col items-center gap-1">
+                                <ArrowRight className="w-4 h-4 text-emerald-400" />
+                                <span className="text-[9px] font-black text-emerald-400 font-mono whitespace-nowrap">+৳{Number(s.merchantSnapshot.balanceAdded || 0).toLocaleString()}</span>
+                              </div>
+                              {/* After */}
+                              <div className="flex-1 text-center bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                                <p className="text-[9px] uppercase text-emerald-400 font-bold mb-1">After</p>
+                                <p className="text-sm font-black font-mono text-emerald-300">৳{Number(s.merchantSnapshot.balanceAfter || 0).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+                  )}
 
                   {/* EXPANDED EXTRA DETAILS */}
                   <AnimatePresence>
@@ -916,26 +1464,66 @@ export default function PaymentLinkSessions() {
         )}
       </div>
 
-      {/* Pagination */}
-      {total > 50 && (
-        <div className="flex justify-center mt-10">
-          <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl">
+      {/* Sleek Premium Pagination Console */}
+      {total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-10 bg-black/30 border border-white/5 backdrop-blur-xl p-4 rounded-[2rem] shadow-xl relative z-10">
+          {/* Item count summary */}
+          <div className="text-xs text-slate-400 font-medium">
+            Showing <span className="font-mono font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/5">{(page - 1) * 50 + 1}</span> to{' '}
+            <span className="font-mono font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/5">{Math.min(page * 50, total)}</span> of{' '}
+            <span className="font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{total}</span> items
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-2">
             <button
-              disabled={page === 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              className="px-6 py-2.5 hover:bg-white/10 rounded-xl text-sm disabled:opacity-30 disabled:hover:bg-transparent font-bold transition-all flex items-center gap-2"
+              disabled={page === 1 || loading}
+              onClick={() => {
+                setPage(1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-white/5 text-slate-300 rounded-xl text-xs font-bold border border-white/5 transition-all"
+              title="First Page"
             >
-              Previous
+              First
             </button>
-            <div className="px-5 text-sm font-black font-mono bg-gradient-to-r from-indigo-500 to-purple-500 py-2.5 rounded-xl text-white shadow-lg">
-              Page {page}
-            </div>
+            
             <button
-              disabled={items.length < 50}
-              onClick={() => setPage(p => p + 1)}
-              className="px-6 py-2.5 hover:bg-white/10 rounded-xl text-sm disabled:opacity-30 disabled:hover:bg-transparent font-bold transition-all flex items-center gap-2"
+              disabled={page === 1 || loading}
+              onClick={() => {
+                setPage(p => Math.max(1, p - 1))
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-white/5 text-slate-300 rounded-xl text-xs font-bold border border-white/5 transition-all"
+            >
+              Prev
+            </button>
+
+            <div className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-xs font-black font-mono shadow-md shadow-indigo-600/10">
+              {page} / {Math.ceil(total / 50) || 1}
+            </div>
+
+            <button
+              disabled={page >= (Math.ceil(total / 50) || 1) || loading}
+              onClick={() => {
+                setPage(p => Math.min((Math.ceil(total / 50) || 1), p + 1))
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-white/5 text-slate-300 rounded-xl text-xs font-bold border border-white/5 transition-all"
             >
               Next
+            </button>
+
+            <button
+              disabled={page >= (Math.ceil(total / 50) || 1) || loading}
+              onClick={() => {
+                setPage(Math.ceil(total / 50) || 1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-white/5 text-slate-300 rounded-xl text-xs font-bold border border-white/5 transition-all"
+              title="Last Page"
+            >
+              Last
             </button>
           </div>
         </div>

@@ -7,6 +7,10 @@ import {
   Shield,
   Lock,
   RotateCcw,
+  Trash2,
+  Edit3,
+  Check,
+  X,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
@@ -14,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 const AddPaymentMethod = () => {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.user?._id); // Dynamic owner ID
+  const userRole = useAuthStore((state) => state.user?.role); // Extract User Role
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [phoneNumbers, setPhoneNumbers] = useState({});
@@ -26,6 +31,8 @@ const AddPaymentMethod = () => {
   const [success, setSuccess] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [pollingInterval, setPollingInterval] = useState({});
+  const [editingSim, setEditingSim] = useState(null); // { methodId, currentNumber }
+  const [editNumberValue, setEditNumberValue] = useState('');
 
   const providers = ['bKash', 'Rocket', 'Nagad', 'Upay'];
   const PAYMENT_GATEWAYS = ['personal', 'merchant'];
@@ -213,6 +220,50 @@ const AddPaymentMethod = () => {
     }
   };
 
+  const deletePaymentMethod = async (methodId) => {
+    if (!window.confirm('Are you sure you want to delete this payment method? This action will also delete all custom page layouts associated with it and cannot be undone.')) return;
+    setLoading(true);
+    setError('');
+    try {
+      await api.delete(`/api/payment-methods/${methodId}`, token);
+      
+      const refresh = await api.get(`/api/payment-methods?device=${selectedDevice}`, token);
+      setExistingMethods(Array.isArray(refresh?.data) ? refresh.data : []);
+      setSuccess('Payment method deleted successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) {
+      setError(e?.message || 'Failed to delete payment method');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePaymentMethod = async (methodId, newNumber) => {
+    if (!newNumber || newNumber.length < 11) {
+      setError('Please enter a valid 11-digit BD number');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await api.patch(
+        `/api/payment-methods/${methodId}/number`,
+        { accountNumber: newNumber },
+        token
+      );
+
+      const refresh = await api.get(`/api/payment-methods?device=${selectedDevice}`, token);
+      setExistingMethods(Array.isArray(refresh?.data) ? refresh.data : []);
+      setEditingSim(null);
+      setSuccess('Phone number updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) {
+      setError(e?.message || 'Failed to update phone number');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -325,16 +376,88 @@ const AddPaymentMethod = () => {
                           <div key={i} className="relative">
 
                             {/* Already added */}
-                            {taken && (
-                              <div className="flex items-center justify-between p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-xl">
-                                <div>
-                                  <p className="text-sm font-medium text-emerald-300">SIM {i + 1}</p>
-                                  <p className="font-mono text-xl font-bold text-emerald-400 mt-1">{value || '—'}</p>
-                                  <p className="text-xs text-emerald-400 capitalize mt-1">{gateway === 'merchant' ? 'Agent' : gateway}</p>
+                            {/* Already added */}
+                            {taken && (() => {
+                              const matchedMethod = existingMethods.find(
+                                (m) =>
+                                  String(m.provider).toLowerCase() === String(provider).toLowerCase() &&
+                                  Number(m.simIndex) === Number(i + 1)
+                              );
+                              const isEditingThis = editingSim?.methodId === matchedMethod?._id;
+
+                              if (isEditingThis && matchedMethod) {
+                                return (
+                                  <div className="p-5 rounded-2xl bg-white/5 border border-white/20 backdrop-blur-xl space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm font-semibold text-cyan-300">Edit SIM {i + 1} ({provider})</span>
+                                      <button
+                                        onClick={() => setEditingSim(null)}
+                                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                    <div className="flex gap-3">
+                                      <input
+                                        type="text"
+                                        value={editNumberValue}
+                                        onChange={(e) => setEditNumberValue(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                        placeholder="01XXXXXXXXX"
+                                        className="flex-1 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-lg focus:border-cyan-400 focus:outline-none transition-all"
+                                      />
+                                      <button
+                                        disabled={editNumberValue.length < 11 || loading}
+                                        onClick={() => updatePaymentMethod(matchedMethod._id, editNumberValue)}
+                                        className="px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all"
+                                      >
+                                        {loading ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Check className="w-5 h-5" />}
+                                        Save
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-xl">
+                                  <div>
+                                    <p className="text-sm font-medium text-emerald-300">SIM {i + 1}</p>
+                                    <p className="font-mono text-xl font-bold text-emerald-400 mt-1">{value || '—'}</p>
+                                    <p className="text-xs text-emerald-400 capitalize mt-1">
+                                      {gateway === 'merchant' ? 'Agent' : gateway}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-3">
+                                    {userRole === 'user' && matchedMethod && (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setEditingSim({ methodId: matchedMethod._id, currentNumber: value });
+                                            setEditNumberValue(value);
+                                          }}
+                                          className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-all duration-300"
+                                          title="Edit number"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                          Change
+                                        </button>
+                                        
+                                        <button
+                                          onClick={() => deletePaymentMethod(matchedMethod._id)}
+                                          className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center gap-1.5 transition-all duration-300"
+                                          title="Delete number"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                          Delete
+                                        </button>
+                                      </>
+                                    )}
+                                    <CheckCircle className="w-7 h-7 text-emerald-400 shrink-0" />
+                                  </div>
                                 </div>
-                                <CheckCircle className="w-8 h-8 text-emerald-400" />
-                              </div>
-                            )}
+                              );
+                            })()}
 
                             {/* Add new */}
                             {!taken && (
@@ -465,12 +588,21 @@ const AddPaymentMethod = () => {
                     {confirmModal.provider} • {confirmModal.gateway} • SIM {confirmModal.index + 1}
                   </p>
                 </div>
-                <div className="p-5 bg-amber-900/30 border border-amber-500/50 rounded-2xl">
-                  <p className="text-amber-300 font-bold flex items-center gap-3">
-                    <Shield className="w-5 h-5" />
-                    This number <span className="underline">cannot be changed or removed</span> later.
-                  </p>
-                </div>
+                {userRole === 'user' ? (
+                  <div className="p-5 bg-indigo-900/30 border border-indigo-500/50 rounded-2xl">
+                    <p className="text-indigo-300 font-bold flex items-center gap-3">
+                      <Shield className="w-5 h-5" />
+                      As a standard user, you can <span className="underline font-black text-cyan-400">change or remove</span> this number at any time from your dashboard.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-5 bg-amber-900/30 border border-amber-500/50 rounded-2xl">
+                    <p className="text-amber-300 font-bold flex items-center gap-3">
+                      <Shield className="w-5 h-5" />
+                      This number <span className="underline">cannot be changed or removed</span> later for wallet agents.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4">

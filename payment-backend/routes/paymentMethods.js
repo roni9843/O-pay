@@ -711,4 +711,87 @@ router.patch(
   }
 );
 
+/**
+ * User: Delete payment method (standard user only)
+ * DELETE /api/payment-methods/:id
+ */
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const pm = await PaymentMethod.findOne({ _id: req.params.id, owner: req.user.id });
+    if (!pm) return res.status(404).json({ success: false, message: "Payment method not found" });
+
+    // Restrict to standard 'user' only (not wallet_agent)
+    if (req.user.role !== 'user') {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Only standard users are allowed to delete their payment methods. Wallet agents must contact admin." 
+      });
+    }
+
+    // Cascade delete PaymentMethodPageContent
+    const PaymentMethodPageContent = require('../models/PaymentMethodPageContent');
+    await PaymentMethodPageContent.deleteMany({ paymentMethod: pm._id });
+
+    // Delete PaymentMethod
+    await pm.deleteOne();
+
+    res.json({ success: true, message: "Payment method deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * User: Update payment method phone number (standard user only)
+ * PATCH /api/payment-methods/:id/number
+ */
+router.patch(
+  "/:id/number",
+  [
+    body("accountNumber")
+      .isString()
+      .trim()
+      .matches(/^01[3-9]\d{8}$/)
+      .withMessage("Valid 11-digit BD mobile number required")
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
+
+      const pm = await PaymentMethod.findOne({ _id: req.params.id, owner: req.user.id });
+      if (!pm) return res.status(404).json({ success: false, message: "Payment method not found" });
+
+      // Restrict to standard 'user' only (not wallet_agent)
+      if (req.user.role !== 'user') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Only standard users are allowed to update their payment methods. Wallet agents must contact admin." 
+        });
+      }
+
+      const { accountNumber } = req.body;
+
+      // Check conflict on device
+      const exists = await PaymentMethod.findOne({
+        _id: { $ne: pm._id },
+        device: pm.device,
+        provider: pm.provider,
+        accountNumber
+      });
+
+      if (exists) {
+        return res.status(400).json({ success: false, message: "This number is already linked to this device" });
+      }
+
+      pm.accountNumber = accountNumber;
+      await pm.save();
+
+      res.json({ success: true, message: "Phone number updated successfully", data: pm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;
