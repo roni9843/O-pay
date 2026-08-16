@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
-import { getPaymentSessionsAdmin, listOpayBusinesses, listUsers } from '../lib/api'
+import { getPaymentSessionsAdmin, getPaymentSessionDetailsAdmin, listOpayBusinesses, listUsers } from '../lib/api'
 import {
   Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff, RefreshCw, Filter, Loader2
 } from 'lucide-react'
@@ -60,6 +60,7 @@ export default function PaymentLinkSessions() {
   const [page, setPage] = useState(1)
   const [copiedLink, setCopiedLink] = useState('')
   const [expandedId, setExpandedId] = useState(null)
+  const [loadingDetailsId, setLoadingDetailsId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [tempSearch, setTempSearch] = useState('')
   const [txnIdFilter, setTxnIdFilter] = useState('')
@@ -215,8 +216,28 @@ export default function PaymentLinkSessions() {
     setTimeout(() => setCopiedLink(''), 2000)
   }
 
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id)
+  const toggleExpand = async (id) => {
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
+    }
+    
+    setExpandedId(id)
+    
+    const item = items.find(i => i._id === id)
+    if (item && !item.events) {
+      setLoadingDetailsId(id)
+      try {
+        const res = await getPaymentSessionDetailsAdmin(token, id)
+        if (res.success && res.data) {
+          setItems(prev => prev.map(i => i._id === id ? { ...i, ...res.data } : i))
+        }
+      } catch (err) {
+        console.error('Failed to load session details', err)
+      } finally {
+        setLoadingDetailsId(null)
+      }
+    }
   }
 
   const handleSearch = (e) => {
@@ -470,20 +491,6 @@ export default function PaymentLinkSessions() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-rose-300">Txn ID Count</div>
-                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedTotal || 0}</div>
-              </div>
-              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-amber-200">Today</div>
-                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedToday || 0}</div>
-              </div>
-              <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-sky-200">Yesterday</div>
-                <div className="mt-1 text-2xl font-black text-white font-mono">{failureSummary.failedYesterday || 0}</div>
-              </div>
-            </div>
           </div>
 
           {/* Action Row */}
@@ -1185,7 +1192,18 @@ export default function PaymentLinkSessions() {
 
                   {/* EXPANDED EXTRA DETAILS */}
                   <AnimatePresence>
-                    {isExpanded && (
+                    {loadingDetailsId === s._id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden mt-6 flex items-center justify-center gap-3 border-t border-white/5 pt-6 text-indigo-400"
+                      >
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Loading Detailed Analysis...</span>
+                      </motion.div>
+                    )}
+                    {isExpanded && loadingDetailsId !== s._id && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}

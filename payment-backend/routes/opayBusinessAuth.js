@@ -3,6 +3,17 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const OpayBusiness = require('../models/OpayBusiness');
+const OpayBusinessPackage = require('../models/OpayBusinessPackage');
+
+async function checkActivationBypass(business) {
+  if (!business.isLifetimePaid) {
+    const pkg = await OpayBusinessPackage.findOne({ isActive: true });
+    if (!pkg) {
+      business.isLifetimePaid = true;
+      await business.save();
+    }
+  }
+}
 
 // POST /api/opay-business/auth/register
 router.post('/register', async (req, res) => {
@@ -37,6 +48,8 @@ router.post('/register', async (req, res) => {
       enabled: true
     });
 
+    await checkActivationBypass(business);
+
     const token = jwt.sign(
       { id: business._id, role: 'opay_business' },
       process.env.JWT_SECRET,
@@ -53,7 +66,9 @@ router.post('/register', async (req, res) => {
         domain: business.domain,
         apiToken: business.apiToken,
         enabled: business.enabled,
-        kycStatus: business.kycStatus
+        kycStatus: business.kycStatus,
+        isLifetimePaid: business.isLifetimePaid,
+        lifetimePaymentCode: business.lifetimePaymentCode
       },
       message: 'Registration successful'
     });
@@ -86,6 +101,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    await checkActivationBypass(business);
+
     const token = jwt.sign(
       { id: business._id, role: 'opay_business' },
       process.env.JWT_SECRET,
@@ -102,7 +119,9 @@ router.post('/login', async (req, res) => {
         domain: business.domain,
         apiToken: business.apiToken,
         enabled: business.enabled,
-        kycStatus: business.kycStatus
+        kycStatus: business.kycStatus,
+        isLifetimePaid: business.isLifetimePaid,
+        lifetimePaymentCode: business.lifetimePaymentCode
       }
     });
 
@@ -123,6 +142,8 @@ router.get('/me', async (req, res) => {
 
         if(!business) return res.status(404).json({success: false, message: 'User not found'});
         
+        await checkActivationBypass(business);
+        
         return res.json({
             success: true,
             user: {
@@ -132,7 +153,9 @@ router.get('/me', async (req, res) => {
                 domain: business.domain,
                 apiToken: business.apiToken,
                 enabled: business.enabled,
-                kycStatus: business.kycStatus
+                kycStatus: business.kycStatus,
+                isLifetimePaid: business.isLifetimePaid,
+                lifetimePaymentCode: business.lifetimePaymentCode
             }
         });
 

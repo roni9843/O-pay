@@ -417,6 +417,14 @@ export async function createCreditTopupMethod(token, payload) {
    })
 }
 
+export async function updateCreditTopupMethod(token, id, payload) {
+  return request(`/api/credit-topup-methods/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
 export async function deleteCreditTopupMethod(token, id) {
    return request(`/api/credit-topup-methods/${id}`, {
      method: 'DELETE',
@@ -644,6 +652,91 @@ export async function sendAlarm(token, payload) {
   })
 }
 
+export async function getPaymentSessionDetailsAdmin(token, sessionId) {
+  return request(`/api/admin/payment-session/${sessionId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function getAdminAutoWithdrawalMinBalance(token) {
+  return request('/api/settings/auto-withdrawal-min-balance', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function setAdminAutoWithdrawalMinBalance(token, balance) {
+  return request('/api/settings/auto-withdrawal-min-balance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ balance })
+  })
+}
+
+export async function getAdminMerchantTopupFee(token) {
+  return request('/api/settings/merchant-topup-fee', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function setAdminMerchantTopupFee(token, payload) {
+  return request('/api/settings/merchant-topup-fee', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function updateAdminProfile(token, payload) {
+  return request('/api/admin/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function getOpayBusinessPackage(token) {
+  return request('/api/admin/opay-business/package', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function updateOpayBusinessPackage(token, payload) {
+  return request('/api/admin/opay-business/package', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function toggleOpayBusinessLifetimePayment(token, businessId, status) {
+  return request(`/api/admin/opay-business/${businessId}/lifetime`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ isActive: status })
+  })
+}
+
+export async function getMerchantTopupHistory(token, page = 1) {
+  return request(`/api/admin/merchant-topup-history?page=${page}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function listAutoWithdrawals(token, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  return request(`/api/admin/auto-withdrawals?${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function rejectAutoWithdrawal(token, id, data) {
+  return request(`/api/admin/auto-withdrawals/${id}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data)
+  })
+}
+
 export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
@@ -652,16 +745,22 @@ export default {
   getSubscriptionPlans, purchaseUserSubscription, getUserSubscriptionsAdmin,
   uploadPaymentPageImage, getWalletAgentTemplates, saveWalletAgentTemplate,
   getDevicePaymentMethods, getUserPaymentMethods, updatePaymentMethodStatus,
-  listOpayBusinesses, createOpayBusiness, updateOpayBusiness, regenerateOpayBusinessToken, getOpayBusiness, getPaymentSessionsAdmin,
+  listOpayBusinesses, createOpayBusiness, updateOpayBusiness, regenerateOpayBusinessToken, getOpayBusiness, getPaymentSessionsAdmin, getPaymentSessionDetailsAdmin,
   getCreditPlans, createCreditPlan, updateCreditPlan, deleteCreditPlan,
   getAgentApplications, getAgentApplicationDetail, updateAgentApplicationStatus, deleteAgentApplication,
-  getCreditTopupMethods, createCreditTopupMethod, deleteCreditTopupMethod,
+  getCreditTopupMethods, createCreditTopupMethod, updateCreditTopupMethod, deleteCreditTopupMethod,
   getCreditTopupRequests, updateCreditTopupRequestStatus, addMinimumCredit,
   getPaymentPartners, createPaymentPartner, deletePaymentPartner,
   getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs,
   getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig,
-  getAdminNotificationNumbers, setAdminNotificationNumbers,
-  getGlobalStatus, setGlobalStatus, setUserStatus, listUsersWithStatus
+  getAdminNotificationNumbers, setAdminNotificationNumbers, getAdminAutoWithdrawalMinBalance, setAdminAutoWithdrawalMinBalance,
+  getAdminMerchantTopupFee, setAdminMerchantTopupFee,
+  getGlobalStatus, setGlobalStatus, setUserStatus, listUsersWithStatus,
+  updateAdminProfile,
+  getOpayBusinessPackage, updateOpayBusinessPackage,
+  toggleOpayBusinessLifetimePayment,
+  getMerchantTopupHistory,
+  listAutoWithdrawals, rejectAutoWithdrawal
 }
 
 

@@ -301,7 +301,72 @@ export async function submitCreditTopupRequest(token, payload) {
   return post("/api/credit-topup-requests", payload, token);
 }
 
-export default { 
+// AUTO WITHDRAWAL FUNCTIONS
+export async function getPendingAutoWithdrawals(token) {
+  return request("/api/auto-withdrawal/pending", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function bookAutoWithdrawal(token, id) {
+  return request(`/api/auto-withdrawal/${id}/book`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function rejectAutoWithdrawal(token, id, reason) {
+  return request(`/api/auto-withdrawal/${id}/reject`, {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reason })
+  });
+}
+
+export async function getAutoWithdrawalHistory(token) {
+  return request("/api/auto-withdrawal/history", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function completeAutoWithdrawal(token, id, proofImages) {
+  const formData = new FormData();
+  if (proofImages && proofImages.length > 0) {
+    proofImages.forEach(file => {
+      formData.append("proofs", file);
+    });
+  }
+  return request(`/api/auto-withdrawal/${id}/complete`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData
+  });
+}
+
+// NAGAD FUNCTIONS
+export async function getAgentPendingNagad(token) {
+  return request("/api/dashboard/pending-nagad", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function acceptPendingNagad(token, code) {
+  return request("/api/dashboard/pending-nagad/accept", {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
+export async function rejectPendingNagad(token, code) {
+  return request("/api/dashboard/pending-nagad/reject", {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
+export default {  
   register, 
   sendOtp,
   verifyOtpAndRegister,
@@ -336,5 +401,13 @@ export default {
   uploadPaymentPageImage,
   getCreditTopupMethods,
   submitCreditTopupRequest,
-  getMyCreditTopupRequests
+  getMyCreditTopupRequests,
+  getPendingAutoWithdrawals,
+  bookAutoWithdrawal,
+  rejectAutoWithdrawal,
+  getAutoWithdrawalHistory,
+  completeAutoWithdrawal,
+  getAgentPendingNagad,
+  acceptPendingNagad,
+  rejectPendingNagad
 };

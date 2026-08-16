@@ -58,9 +58,42 @@ export default function SimplePaymentPage() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState(null);
   const [verifying, setVerifying] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState(null);
   const [verificationFailed, setVerificationFailed] = useState(false);
   const [failMessage, setFailMessage] = useState('');
   const [pendingCountdown, setPendingCountdown] = useState(20);
+  const [isPendingNagad, setIsPendingNagad] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (isPendingNagad && code) {
+      const poll = async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/opay-business/payment-page/${code}`);
+          const data = await res.json();
+          if (res.ok && data.success) {
+            if (data.status === 'paid') {
+              setIsPendingNagad(false);
+              setRedirectTarget(data.success_redirect_url || data.successRedirectUrl);
+              setShowBkashPayment(false);
+              setPaymentSuccess(true);
+            } else if (data.status === 'cancelled' || data.status === 'expired') {
+              setIsPendingNagad(false);
+              setFailMessage('পেমেন্টটি বাতিল বা মেয়াদোত্তীর্ণ করা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন বা সাহায্য চাইতে মার্চেন্টের সাথে যোগাযোগ করুন।');
+              setVerificationFailed(true);
+            }
+          }
+        } catch (e) {
+          console.error("Polling error:", e);
+        }
+      };
+
+      timer = setInterval(poll, 5000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isPendingNagad, code, API_URL]);
 
   useEffect(() => {
     let interval;
@@ -185,6 +218,9 @@ export default function SimplePaymentPage() {
         }
         if (data.code) {
           setSessionCode(data.code);
+        }
+        if (data.checkout_items) {
+          setCheckoutItems(data.checkout_items);
         }
         setLoadingAmount(false);
       } catch (err) {
@@ -323,7 +359,10 @@ export default function SimplePaymentPage() {
             
             setVerifying(false);
 
-            if (data.success && data.redirect_url) {
+            if (data.success && data.status === 'pending_nagad') {
+              setIsPendingNagad(true);
+              setShowBkashPayment(false);
+            } else if (data.success && data.redirect_url) {
               setRedirectTarget(data.redirect_url);
               setShowBkashPayment(false);
               setPaymentSuccess(true);
@@ -348,6 +387,38 @@ export default function SimplePaymentPage() {
     );
   }
 
+  if (isPendingNagad) {
+    return (
+      <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8 text-center flex flex-col items-center">
+          {/* Header Image/Logo */}
+          <div className="w-24 h-24 rounded-2xl bg-white shadow-md flex items-center justify-center p-3 mb-6 border border-orange-100">
+            <img src="https://images.seeklogo.com/logo-png/41/3/nagad-logo-png_seeklogo-411803.png" alt="Nagad" className="w-full h-full object-contain animate-pulse" />
+          </div>
+          
+          <h2 className="text-2xl font-bold mb-3" style={{ color: "#f04e23" }}>
+            পেমেন্টটি যাচাই করা হচ্ছে
+          </h2>
+          <p className="text-sm text-gray-600 leading-relaxed mb-8">
+            আপনার Nagad ট্রানজেকশনটি সফলভাবে সাবমিট হয়েছে এবং তা এডমিন অনুমোদনের জন্য অপেক্ষমান (Pending) রয়েছে। এটি সাধারণত ১-৫ মিনিট সময় নিতে পারে। দয়া করে এই উইন্ডোটি বন্ধ বা রিফ্রেশ করবেন না।
+          </p>
+
+          {/* Spinner and Status Indicator */}
+          <div className="relative w-20 h-20 mb-8 flex items-center justify-center">
+            <div className="absolute inset-0 border-4 border-orange-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-orange-500 rounded-full animate-spin"></div>
+            <span className="text-2xl">⏳</span>
+          </div>
+
+          <div className="px-4 py-2.5 rounded-full bg-orange-50 text-[11px] font-bold text-orange-700 uppercase tracking-wider animate-pulse flex items-center gap-1.5 border border-orange-200">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+            Awaiting Admin Confirmation...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Determine when the Pay button should be enabled:
   // - a mobile wallet is selected
   // - that wallet is active in backend
@@ -368,8 +439,9 @@ export default function SimplePaymentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+    <>
+      <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
 
         {/* ================= HEADER ================= */}
         <div
@@ -756,10 +828,17 @@ export default function SimplePaymentPage() {
           </p>
         </div>
       </div>
+    </div>
 
       {/* ================= SUCCESS ANIMATION OVERLAY ================= */}
       {paymentSuccess && (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden transition-all duration-500"
+          style={{ 
+            backgroundColor: checkoutItems?.customSuccess?.bgColor || '#ffffff',
+            color: checkoutItems?.customSuccess?.textColor || '#0f172a'
+          }}
+        >
           <style>{`
             @keyframes flyCoin {
               0% { transform: translateX(0) scale(1) rotate(0deg); opacity: 1; }
@@ -789,7 +868,7 @@ export default function SimplePaymentPage() {
               <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center shadow-lg border-2 border-slate-100 p-2">
                  <img src={logo} alt="Opay" className="w-full h-full object-contain" />
               </div>
-              <p className="mt-2 text-sm font-bold text-slate-600">Opay</p>
+              <p className="mt-2 text-sm font-bold opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#475569' }}>Opay</p>
             </div>
 
             {/* Flying Money Stream */}
@@ -802,31 +881,47 @@ export default function SimplePaymentPage() {
 
             {/* Shop / Merchant Side */}
             <div className="absolute right-10 flex flex-col items-center z-10">
-              <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center shadow-lg border-4 border-emerald-50 shop-pulse">
-                 <span className="text-4xl">🏪</span>
-              </div>
-              <p className="mt-2 text-sm font-bold text-emerald-600">
+              {checkoutItems?.customSuccess?.imageUrl ? (
+                <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center shadow-lg border-2 border-slate-100 p-1.5 shop-pulse">
+                   <img src={checkoutItems.customSuccess.imageUrl} alt="Merchant Logo" className="w-full h-full object-contain rounded-xl" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center shadow-lg border-4 border-emerald-50 shop-pulse">
+                   <span className="text-4xl">🏪</span>
+                </div>
+              )}
+              <p className="mt-2 text-sm font-bold opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#475569' }}>
                 {redirectTarget ? new URL(redirectTarget).hostname.replace('www.', '') : 'Merchant'}
               </p>
             </div>
           </div>
 
-          <div className="text-center mt-8 animate-[slideUp_0.5s_ease-out]">
-             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500 text-white text-3xl mb-4 shadow-xl">
-               ✓
-             </div>
-             <h2 className="text-3xl font-extrabold text-slate-800 mb-2">পেমেন্ট সফল হয়েছে!</h2>
-             <p className="text-slate-500 text-lg">মার্চেন্টে রিডাইরেক্ট করা হচ্ছে...</p>
+          <div className="text-center mt-8 animate-[slideUp_0.5s_ease-out] px-6 max-w-lg">
+             {checkoutItems?.customSuccess?.imageUrl ? (
+               <img 
+                 src={checkoutItems.customSuccess.imageUrl} 
+                 alt="Success Custom Graphic" 
+                 className="mx-auto w-24 h-24 object-contain rounded-3xl mb-6 shadow-xl border border-white/10"
+               />
+             ) : (
+               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500 text-white text-3xl mb-4 shadow-xl">
+                 ✓
+               </div>
+             )}
+             <h2 className="text-3xl font-extrabold mb-2" style={{ color: checkoutItems?.customSuccess?.textColor || '#0f172a' }}>
+               {checkoutItems?.customSuccess?.title || "পেমেন্ট সফল হয়েছে!"}
+             </h2>
+             <p className="text-lg opacity-85" style={{ color: checkoutItems?.customSuccess?.textColor || '#475569' }}>
+               {checkoutItems?.customSuccess?.message || "মার্চেন্টে রিডাইরেক্ট করা হচ্ছে..."}
+             </p>
              
-             <div className="mt-8 text-xs text-gray-400">
+             <div className="mt-8 text-xs opacity-70" style={{ color: checkoutItems?.customSuccess?.textColor || '#94a3b8' }}>
                <p>যদি স্বয়ংক্রিয়ভাবে রিডাইরেক্ট না হয়,</p>
-               <a href={redirectTarget} className="text-emerald-600 underline hover:text-emerald-700 font-medium">
+               <a href={redirectTarget} className="underline font-bold transition-all hover:opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#059669' }}>
                  এগিয়ে যেতে এখানে ক্লিক করুন
                </a>
              </div>
-          </div>
-
-
+           </div>
         </div>
       )}
 
@@ -945,6 +1040,6 @@ export default function SimplePaymentPage() {
         </div>
       )}
 
-    </div>
+    </>
   );
 }

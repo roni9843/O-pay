@@ -13,6 +13,7 @@ export default function BalanceAdjustment() {
   const [walletAgentId, setWalletAgentId] = useState('')
   const [merchantId, setMerchantId] = useState('')
   const [amount, setAmount] = useState('')
+  const [note, setNote] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -136,6 +137,7 @@ export default function BalanceAdjustment() {
         merchantId,
         amount: parsedAmount,
         action,
+        note,
       })
 
       const updatedAgent = res?.data?.walletAgent
@@ -160,6 +162,7 @@ export default function BalanceAdjustment() {
       }
 
       setAmount('')
+      setNote('')
       if (isPairedMode) {
         setMessage('Paired adjustment completed successfully')
       } else {
@@ -349,6 +352,17 @@ export default function BalanceAdjustment() {
               />
             </div>
 
+            <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-slate-300">Note (Optional)</label>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Write a reason or note"
+                className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              />
+            </div>
+
             {livePreview && (
               <div className="md:col-span-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
@@ -416,6 +430,7 @@ export default function BalanceAdjustment() {
                 type="button"
                 onClick={() => {
                   setAmount('')
+                  setNote('')
                   setError('')
                   setMessage('')
                 }}
@@ -495,6 +510,7 @@ export default function BalanceAdjustment() {
                       <th className="px-3 py-2">Merchant</th>
                       <th className="px-3 py-2">Wallet Credit</th>
                       <th className="px-3 py-2">Merchant Wallet</th>
+                      <th className="px-3 py-2">Note</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -527,6 +543,9 @@ export default function BalanceAdjustment() {
                         <td className="px-3 py-2">
                           <div>{Number(item.merchantWalletBefore || 0).toFixed(2)} → {Number(item.merchantWalletAfter || 0).toFixed(2)}</div>
                           <div className="text-[11px] text-slate-500">delta: {item.merchantBalanceDelta > 0 ? '+' : ''}{Number(item.merchantBalanceDelta || 0).toFixed(2)}</div>
+                        </td>
+                        <td className="px-3 py-2 whitespace-normal break-words max-w-xs">
+                          {item.note || '-'}
                         </td>
                       </tr>
                     ))}

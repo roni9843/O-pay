@@ -25,7 +25,7 @@ export default function PaymentTest() {
                 payment_amount: Number(amount),
                 user_identity_address: user?.email || 'test-user@opay.org', // Default to merchant email
                 callback_url: `${origin}/payment-test/callback`, // Mock/Local callback
-                success_redirect_url: `${origin}/payment-test/success`,
+                success_redirect_url: `${origin}/sucess-page/{code}`,
                 invoice_number: `TEST-${Date.now()}`,
                 checkout_items: {
                     type: "Test Payment",

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { LayoutDashboard, Settings, LogOut, Menu, X, FileText, ChevronDown, ChevronUp, Loader2, CreditCard, BookOpen, Clock, Wallet } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, FileText, ChevronDown, ChevronUp, Loader2, CreditCard, BookOpen, Clock, Wallet, Link2, Box, PlusCircle } from 'lucide-react';
 import clsx from 'clsx';
 import appStoreLogo from "../assets/appstore.png";
 import KYCSummary from './KYCSummary';
@@ -27,9 +27,15 @@ export default function DashboardLayout({ children }) {
 
     const navItems = [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Package', href: '/package', icon: Box },
         { label: 'KYC Verification', href: '/kyc', icon: FileText },
+        { label: 'Payment Link', href: '/custom-payment-link', icon: Link2 },
         { label: 'Payment Test', href: '/payment-test', icon: CreditCard },
+        { label: 'API Withdrawals', href: '/auto-withdrawal-history', icon: Clock },
         { label: 'History', href: '/history', icon: Clock },
+        { label: 'Pending Nagad', href: '/pending-nagad', icon: Clock },
+        { label: 'Add Balance', href: '/add-balance', icon: PlusCircle },
+        { label: 'Topup History', href: '/topup-history', icon: Wallet },
         { label: 'Withdrawal', href: '/withdrawal', icon: Wallet },
         { label: 'API Docs', href: '/api-docs', icon: BookOpen },
         { label: 'Settings', href: '/settings', icon: Settings },

@@ -86,11 +86,11 @@ export default function OpayBusiness() {
   const toggleEnabled = async (item) => {
     if (!token) return
     try {
-      // Use new toggle endpoint
-      const res = await api.post(`/opay-business/kyc/toggle-status/${item._id}`, {}, {
+      // Use new toggle endpoint with correct /api prefix
+      const res = await api.post(`/api/opay-business/kyc/toggle-status/${item._id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      const updatedEnabled = res.data.enabled
+      const updatedEnabled = res.enabled
       setItems((prev) => prev.map((b) => (b._id === item._id ? { ...b, enabled: updatedEnabled } : b)))
     } catch (e) {
       alert('Failed to update status: ' + (e.response?.data?.message || e.message))

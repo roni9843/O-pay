@@ -113,7 +113,18 @@ module.exports = function initSocket(server, app) {
   async function ensureDeviceMeta(deviceId) {
     const key = String(deviceId);
     if (deviceMeta.has(key) && deviceMeta.get(key)?.ownerId) return deviceMeta.get(key);
-    const doc = await Device.findOne({ deviceCode: key }).select('owner deviceName deviceUserName').lean();
+    
+    let doc = null;
+    try {
+      const query = { $or: [{ deviceCode: key }, { deviceUserName: key }, { deviceName: key }] };
+      if (key.match(/^[0-9a-fA-F]{24}$/)) {
+        query.$or.push({ _id: key });
+      }
+      doc = await Device.findOne(query).select('owner deviceName deviceUserName').lean();
+    } catch (e) {
+      console.error('[ensureDeviceMeta] error:', e);
+    }
+    
     if (doc) {
       const meta = { ownerId: String(doc.owner), deviceName: doc.deviceName || null, deviceUserName: doc.deviceUserName || null };
       deviceMeta.set(key, meta);
@@ -172,13 +183,46 @@ module.exports = function initSocket(server, app) {
         batteryLevel: payload.batteryLevel || null,
         isCharging: payload.isCharging || false,
         networkType: payload.networkType || null,
-        networkName: payload.networkName || null
+        networkName: payload.networkName || null,
+        fcmToken: payload.fcmToken || null
       };
+
+      // Save fcmToken to database if provided
+      if (telemetry.fcmToken) {
+        Device.updateOne({ deviceCode: deviceId }, { $set: { fcmToken: telemetry.fcmToken } })
+          .catch(err => console.error('[device:register] failed to update fcmToken:', err));
+      }
 
       markActive(deviceId, socket.id, telemetry);
       
       // Send initial live data
       sendLiveInfo(deviceId, socket).catch(console.error);
+    });
+
+    // Device acknowledges notification via socket
+    socket.on('ack_notification', async (payload) => {
+      try {
+        const deviceId = payload?.deviceId;
+        const type = payload?.type || 'notification';
+        if (!deviceId) return;
+        
+        const device = await Device.findOne({ deviceCode: deviceId }).lean();
+        if (device) {
+            io.emit('notification_delivered', {
+                deviceName: device.deviceName || device.deviceUserName || deviceId,
+                deviceId: device._id,
+                type: type,
+                time: new Date().toISOString()
+            });
+            const PushLog = require('./models/PushLog');
+            await PushLog.updateMany(
+                { device: device._id, type: type, status: 'sent' },
+                { $set: { status: 'delivered', deliveredAt: new Date() } }
+            );
+        }
+      } catch(e) {
+        console.error('Socket ack_notification error:', e);
+      }
     });
 
     // App presence: register a tab/connection under an appId
@@ -264,11 +308,16 @@ module.exports = function initSocket(server, app) {
         batteryLevel: payload.batteryLevel ?? (entry ? entry.batteryLevel : null),
         isCharging: payload.isCharging ?? (entry ? entry.isCharging : false),
         networkType: payload.networkType ?? (entry ? entry.networkType : null),
-        networkName: payload.networkName ?? (entry ? entry.networkName : null)
+        networkName: payload.networkName ?? (entry ? entry.networkName : null),
+        fcmToken: payload.fcmToken ?? (entry ? entry.fcmToken : null)
       };
 
       if (entry) {
-        onlineDevices.set(currentDeviceId, { ...entry, lastSeen: now, ...telemetry });
+        const wasInactive = !entry.active;
+        onlineDevices.set(currentDeviceId, { ...entry, active: true, lastSeen: now, ...telemetry });
+        if (wasInactive) {
+          logDeviceSnapshot(`re-active via heartbeat ${currentDeviceId}`);
+        }
       } else {
         // If for some reason entry doesn't exist, re-mark as active
         markActive(currentDeviceId, socket.id, telemetry);
@@ -310,6 +359,13 @@ module.exports = function initSocket(server, app) {
             }
 
             let infoItems = [];
+            
+            // Add Device Info and Time
+            const deviceName = meta.deviceName || meta.deviceUserName || "Unknown Device";
+            infoItems.push(`📱 ${deviceName}`);
+            infoItems.push(`🔑 ID: ${deviceId}`);
+            infoItems.push(`🕒 ${moment().tz("Asia/Dhaka").format('hh:mm A, DD MMM')}`);
+            
             infoItems.push(`Credit: ${Math.floor(user.credit)} BDT`);
 
             if (user.role === 'wallet_agent') {

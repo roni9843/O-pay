@@ -82,8 +82,7 @@ router.get('/overview', auth, async (req, res) => {
       });
     }
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = require('moment-timezone')().tz('Asia/Dhaka').startOf('day').toDate();
 
     const matchStage = tokenIds.length
       ? { $match: { apiAccessToken: { $in: tokenIds }, verify: true } }
@@ -409,6 +408,280 @@ router.get('/payment-messages', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// GET /api/dashboard/pending-nagad
+// Returns pending Nagad sessions matching this agent's accounts or devices
+router.get('/pending-nagad', auth, async (req, res) => {
+  try {
+    const PaymentMethod = require('../models/PaymentMethod');
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const Device = require('../models/Device');
+
+    // 1. Get active Nagad payment methods of this agent
+    const methods = await PaymentMethod.find({ owner: req.user._id, provider: 'nagad' }).select('accountNumber').lean();
+    const accountNumbers = methods.map(m => m.accountNumber).filter(Boolean);
+
+    // 2. Get devices owned by this agent
+    const devices = await Device.find({ owner: req.user._id }).select('_id deviceName deviceCode deviceUserName').lean();
+    const deviceIdentifiers = [];
+    devices.forEach(d => {
+      deviceIdentifiers.push(String(d._id));
+      if (d.deviceName) deviceIdentifiers.push(d.deviceName);
+      if (d.deviceCode) deviceIdentifiers.push(d.deviceCode);
+      if (d.deviceUserName) deviceIdentifiers.push(d.deviceUserName);
+    });
+
+    // 3. Find OpayBusinessPaymentSession where status is 'pending_nagad'
+    const sessions = await OpayBusinessPaymentSession.find({ status: 'pending_nagad' })
+      .populate('paymentMessage')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const filtered = sessions.filter(session => {
+      // Check verification attempts
+      const attempts = Array.isArray(session.verificationAttempts) ? session.verificationAttempts : [];
+      const hasMatchingAttempt = attempts.some(att => accountNumbers.includes(att.agentAccountNumber));
+      if (hasMatchingAttempt) return true;
+
+      // Check paymentMessage device
+      if (session.paymentMessage) {
+        const msgDevice = session.paymentMessage.deviceId || session.paymentMessage.deviceName;
+        if (msgDevice && deviceIdentifiers.includes(String(msgDevice))) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    return res.json({ success: true, data: filtered });
+  } catch (err) {
+    console.error('Agent pending Nagad fetch error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Approve a pending Nagad session by Wallet Agent
+router.post('/pending-nagad/accept', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Code is required' });
+    }
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const PaymentMessage = require('../models/PaymentMessage');
+    const PaymentMethod = require('../models/PaymentMethod');
+    const User = require('../models/User');
+    const OpayBusiness = require('../models/OpayBusiness');
+    const Device = require('../models/Device');
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_nagad' }).populate('business');
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending session not found' });
+    }
+
+    // Verify ownership
+    const methods = await PaymentMethod.find({ owner: req.user._id, provider: 'nagad' }).select('accountNumber').lean();
+    const accountNumbers = methods.map(m => m.accountNumber).filter(Boolean);
+    const devices = await Device.find({ owner: req.user._id }).select('_id deviceName deviceCode deviceUserName').lean();
+    const deviceIdentifiers = [];
+    devices.forEach(d => {
+      deviceIdentifiers.push(String(d._id));
+      if (d.deviceName) deviceIdentifiers.push(d.deviceName);
+      if (d.deviceCode) deviceIdentifiers.push(d.deviceCode);
+      if (d.deviceUserName) deviceIdentifiers.push(d.deviceUserName);
+    });
+
+    let isOwner = false;
+    const attempts = Array.isArray(session.verificationAttempts) ? session.verificationAttempts : [];
+    if (attempts.some(att => accountNumbers.includes(att.agentAccountNumber))) {
+      isOwner = true;
+    }
+
+    let matchedMessage = null;
+    if (session.paymentMessage) {
+      matchedMessage = await PaymentMessage.findById(session.paymentMessage);
+      if (matchedMessage) {
+        const msgDevice = matchedMessage.deviceId || matchedMessage.deviceName;
+        if (msgDevice && deviceIdentifiers.includes(String(msgDevice))) {
+          isOwner = true;
+        }
+      }
+    }
+
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to approve this session' });
+    }
+    
+    if (!matchedMessage) {
+      return res.status(404).json({ success: false, message: 'Transaction message not found' });
+    }
+
+    if (matchedMessage.verify) {
+      return res.status(400).json({ success: false, message: 'Transaction ID already used' });
+    }
+
+    // Mark verified
+    matchedMessage.verify = true;
+    await matchedMessage.save();
+
+    session.status = 'paid';
+    session.paymentMessage = matchedMessage._id;
+
+    // Agent is the current user
+    const agentUser = await User.findById(req.user._id).select('name credit minimumCredit');
+    const paymentAmount = Number(session.amount) || 0;
+    
+    if (agentUser) {
+      const creditBefore = agentUser.credit || 0;
+      const creditAfter = Math.max(0, creditBefore - paymentAmount);
+      agentUser.credit = creditAfter;
+      await agentUser.save();
+
+      session.walletAgentSnapshot = {
+        agentId: agentUser._id,
+        agentName: agentUser.name || 'Unknown Agent',
+        creditBefore,
+        creditAfter,
+        creditDeducted: paymentAmount,
+      };
+      
+      const { updateAgentMethodsStatus } = require('./admin'); // Or move to a shared utility
+      try {
+        if (typeof updateAgentMethodsStatus === 'function') {
+           await updateAgentMethodsStatus(agentUser._id);
+        }
+      } catch (e) {}
+    }
+
+    // Merchant Balance Snapshot
+    try {
+      const business = await OpayBusiness.findById(session.business._id || session.business).select('name balanceAdjustment');
+      if (business) {
+        const previousPaidTotal = await OpayBusinessPaymentSession.aggregate([
+          { $match: { business: business._id, status: 'paid', _id: { $ne: session._id } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const balanceBefore = (previousPaidTotal[0]?.total || 0) + (business.balanceAdjustment || 0);
+        const balanceAfter = balanceBefore + paymentAmount;
+
+        session.merchantSnapshot = {
+          businessId: business._id,
+          businessName: business.name || 'Unknown Merchant',
+          balanceBefore,
+          balanceAfter,
+          balanceAdded: paymentAmount,
+        };
+      }
+    } catch (balErr) {}
+
+    await session.save();
+
+    if (session.checkoutItems && session.checkoutItems.type === 'Activation Payment' && session.checkoutItems.merchantIdToActivate) {
+      try {
+        const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
+        if (merchantToActivate) {
+          merchantToActivate.isLifetimePaid = true;
+          await merchantToActivate.save();
+        }
+      } catch (activationErr) {}
+    }
+
+    // Webhook callback
+    try {
+      const callbackUrl = session.callbackUrl;
+      if (callbackUrl && /^https?:\/\//i.test(callbackUrl)) {
+        const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
+        const footprintUrlMasked = session.footprintUrl || `${baseUrl}/payment/${session.code}/mask/footprint`;
+        
+        const payload = {
+          status: 'COMPLETED',
+          amount: Number(matchedMessage.amount),
+          transaction_id: matchedMessage.trxID,
+          invoice_number: session.invoiceNumber || null,
+          session_code: session.code,
+          user_identity: session.userIdentityAddress || null,
+          checkout_items: session.checkoutItems || null,
+          bank: 'nagad',
+          footprint: footprintUrlMasked
+        };
+        const axios = require('axios');
+        axios.post(callbackUrl, payload, { timeout: 5000 }).then(async (res) => {
+          session.callbackResult = { success: true, statusCode: res.status, payloadSent: payload, responseReceived: res.data };
+          await session.save();
+        }).catch(async (err) => {
+          session.callbackResult = { success: false, error: err?.message || 'Unknown error', payloadSent: payload, responseReceived: err?.response?.data || null };
+          await session.save();
+        });
+      }
+    } catch (cbErr) {}
+
+    return res.json({ success: true, message: 'Payment approved successfully' });
+  } catch (err) {
+    console.error('Error approving pending Nagad session (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error during approval' });
+  }
+});
+
+// Reject a pending Nagad session by Wallet Agent
+router.post('/pending-nagad/reject', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Code is required' });
+    }
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const PaymentMethod = require('../models/PaymentMethod');
+    const Device = require('../models/Device');
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_nagad' });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending session not found' });
+    }
+
+    // Verify ownership
+    const methods = await PaymentMethod.find({ owner: req.user._id, provider: 'nagad' }).select('accountNumber').lean();
+    const accountNumbers = methods.map(m => m.accountNumber).filter(Boolean);
+    const devices = await Device.find({ owner: req.user._id }).select('_id deviceName deviceCode deviceUserName').lean();
+    const deviceIdentifiers = [];
+    devices.forEach(d => {
+      deviceIdentifiers.push(String(d._id));
+      if (d.deviceName) deviceIdentifiers.push(d.deviceName);
+      if (d.deviceCode) deviceIdentifiers.push(d.deviceCode);
+      if (d.deviceUserName) deviceIdentifiers.push(d.deviceUserName);
+    });
+
+    let isOwner = false;
+    const attempts = Array.isArray(session.verificationAttempts) ? session.verificationAttempts : [];
+    if (attempts.some(att => accountNumbers.includes(att.agentAccountNumber))) {
+      isOwner = true;
+    }
+
+    if (session.paymentMessage) {
+      const PaymentMessage = require('../models/PaymentMessage');
+      const matchedMessage = await PaymentMessage.findById(session.paymentMessage);
+      if (matchedMessage) {
+        const msgDevice = matchedMessage.deviceId || matchedMessage.deviceName;
+        if (msgDevice && deviceIdentifiers.includes(String(msgDevice))) {
+          isOwner = true;
+        }
+      }
+    }
+
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to reject this session' });
+    }
+
+    session.status = 'cancelled';
+    await session.save();
+
+    return res.json({ success: true, message: 'Payment session cancelled successfully' });
+  } catch (err) {
+    console.error('Error rejecting pending Nagad session (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error during rejection' });
   }
 });
 

@@ -111,42 +111,48 @@ router.post(
       const expiresAt = Date.now() + 2 * 60 * 1000; // 2 min
 
 
-          // Check duplicate
-          const exists = await PaymentMethod.findOne({
-            device:deviceId,
-            owner: device.owner,
-            provider,
-            accountNumber,
-          });
-          if (exists)
-          return res
-          .status(400)
-          .json({ success: false, message: "Number already linked" });
-      
-
-
-      otpStore.set(key, {
-        otp,
-        expiresAt,
-        deviceId,
-        simIndex,
+      // Check duplicate
+      const exists = await PaymentMethod.findOne({
+        device: deviceId,
+        owner: device.owner,
         provider,
         accountNumber,
+      });
+      if (exists)
+        return res
+          .status(400)
+          .json({ success: false, message: "Number already linked" });
+
+
+
+      // Save OTP to DB
+      const OtpLog = require("../models/OtpLog");
+      
+      // Delete existing OTP for this exact match to avoid duplicates
+      await OtpLog.deleteMany({ provider, accountNumber, simIndex });
+
+      await OtpLog.create({
+        provider,
+        accountNumber,
+        simIndex,
+        deviceId,
+        otp,
         gateway,
+        expiresAt: new Date(expiresAt)
       });
 
       console.log(
-        `OTP: ${otp} → ${accountNumber} (SIM ${simIndex}) [${provider} - ${gateway}]`
+        `OTP Saved to DB: ${otp} → ${accountNumber} (SIM ${simIndex}) [${provider} - ${gateway}]`
       );
 
-//       const message = `OPay
-// Your One-Time Password (OTP) is ${otp}.
+      //       const message = `OPay
+      // Your One-Time Password (OTP) is ${otp}.
 
-// Account: ${accountNumber}
-// SIM: ${simIndex} (${provider} - ${gateway})
-// This code is valid for 5 minutes. Please do not share it with anyone for your security.`;
+      // Account: ${accountNumber}
+      // SIM: ${simIndex} (${provider} - ${gateway})
+      // This code is valid for 5 minutes. Please do not share it with anyone for your security.`;
 
- const message = `OPay
+      const message = `OPay
 Your One-Time Password (OTP) is ${otp}.
 
 Account: ${accountNumber}
@@ -246,8 +252,8 @@ router.post(
         deviceId,
         simIndex,
         otp,
-        gateway );
-      
+        gateway);
+
 
 
       // Validate device
@@ -261,10 +267,10 @@ router.post(
           .status(404)
           .json({ success: false, message: "Active device not found" });
 
-      const key = `${provider}-${accountNumber}-${simIndex}`;
-      const stored = otpStore.get(key);
+      const OtpLog = require("../models/OtpLog");
+      const stored = await OtpLog.findOne({ provider, accountNumber, simIndex });
 
-      if (!stored || stored.expiresAt < Date.now()) {
+      if (!stored || stored.expiresAt < new Date()) {
         return res
           .status(400)
           .json({
@@ -305,7 +311,7 @@ router.post(
       });
 
       await pm.save();
-      otpStore.delete(key); // Clear OTP
+      await OtpLog.deleteOne({ _id: stored._id }); // Clear OTP
 
       return res.json({ success: true, data: pm });
     } catch (err) {
@@ -422,13 +428,13 @@ router.get("/find", async (req, res, next) => {
       simIndex,
     } = req.query;
 
-    console.log(  owner,
+    console.log(owner,
       device,
       provider,
       accountNumber,
       gateway,
       simIndex,);
-    
+
 
 
     if (!owner || !device || !provider || !accountNumber || !gateway || !simIndex)
@@ -492,13 +498,13 @@ router.patch("/:id/status", async (req, res, next) => {
 
     // Check credit if activating for wallet agent
     if (req.user.role === 'wallet_agent' && status === 'active') {
-       // Ensure numeric comparison
-       const credit = Number(req.user.credit) || 0;
-       const minCredit = Number(req.user.minimumCredit) || 0;
-       
-       if (credit <= minCredit) {
-          return res.status(403).json({ success: false, message: "Insufficient credit to activate. Please recharge." });
-       }
+      // Ensure numeric comparison
+      const credit = Number(req.user.credit) || 0;
+      const minCredit = Number(req.user.minimumCredit) || 0;
+
+      if (credit <= minCredit) {
+        return res.status(403).json({ success: false, message: "Insufficient credit to activate. Please recharge." });
+      }
     }
 
     method.status = status;
@@ -554,16 +560,16 @@ router.post(
 
       // Check if SIM slot already has this provider
       // e.g. Cannot have two 'bkash' on simIndex 1
-      const slotOccupied = await PaymentMethod.findOne({ 
-        device: deviceId, 
-        provider, 
-        simIndex 
+      const slotOccupied = await PaymentMethod.findOne({
+        device: deviceId,
+        provider,
+        simIndex
       });
-      
+
       if (slotOccupied) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `SIM ${simIndex} already has a ${provider} account. Only one ${provider} account allowed per SIM slot.` 
+        return res.status(400).json({
+          success: false,
+          message: `SIM ${simIndex} already has a ${provider} account. Only one ${provider} account allowed per SIM slot.`
         });
       }
 
@@ -662,7 +668,7 @@ router.patch(
 
       const { provider, accountNumber, simIndex, gateway, status } = req.body;
       const pm = await PaymentMethod.findById(req.params.id);
-      
+
       if (!pm) return res.status(404).json({ success: false, message: "Payment method not found" });
 
       // If key fields are changing, check for conflicts
@@ -671,30 +677,30 @@ router.patch(
         (simIndex && simIndex !== pm.simIndex) ||
         (accountNumber && accountNumber !== pm.accountNumber)
       ) {
-         const targetProvider = provider || pm.provider;
-         const targetSim = simIndex || pm.simIndex;
-         const targetAccount = accountNumber || pm.accountNumber;
-         
-         // Check Account Number Conflict
-         const accountExists = await PaymentMethod.findOne({
-            _id: { $ne: pm._id },
-            device: pm.device,
-            provider: targetProvider,
-            accountNumber: targetAccount
-         });
-         if (accountExists) return res.status(400).json({ success: false, message: "This number is already linked to this device" });
+        const targetProvider = provider || pm.provider;
+        const targetSim = simIndex || pm.simIndex;
+        const targetAccount = accountNumber || pm.accountNumber;
 
-         // Check SIM Slot Conflict
-         const slotOccupied = await PaymentMethod.findOne({
-            _id: { $ne: pm._id },
-            device: pm.device,
-            provider: targetProvider,
-            simIndex: targetSim
-         });
-         if (slotOccupied) return res.status(400).json({ 
-            success: false, 
-            message: `SIM ${targetSim} already has a ${targetProvider} account.` 
-         });
+        // Check Account Number Conflict
+        const accountExists = await PaymentMethod.findOne({
+          _id: { $ne: pm._id },
+          device: pm.device,
+          provider: targetProvider,
+          accountNumber: targetAccount
+        });
+        if (accountExists) return res.status(400).json({ success: false, message: "This number is already linked to this device" });
+
+        // Check SIM Slot Conflict
+        const slotOccupied = await PaymentMethod.findOne({
+          _id: { $ne: pm._id },
+          device: pm.device,
+          provider: targetProvider,
+          simIndex: targetSim
+        });
+        if (slotOccupied) return res.status(400).json({
+          success: false,
+          message: `SIM ${targetSim} already has a ${targetProvider} account.`
+        });
       }
 
       if (provider) pm.provider = provider;
@@ -722,9 +728,9 @@ router.delete("/:id", async (req, res, next) => {
 
     // Restrict to standard 'user' only (not wallet_agent)
     if (req.user.role !== 'user') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Only standard users are allowed to delete their payment methods. Wallet agents must contact admin." 
+      return res.status(403).json({
+        success: false,
+        message: "Only standard users are allowed to delete their payment methods. Wallet agents must contact admin."
       });
     }
 
@@ -764,9 +770,9 @@ router.patch(
 
       // Restrict to standard 'user' only (not wallet_agent)
       if (req.user.role !== 'user') {
-        return res.status(403).json({ 
-          success: false, 
-          message: "Only standard users are allowed to update their payment methods. Wallet agents must contact admin." 
+        return res.status(403).json({
+          success: false,
+          message: "Only standard users are allowed to update their payment methods. Wallet agents must contact admin."
         });
       }
 

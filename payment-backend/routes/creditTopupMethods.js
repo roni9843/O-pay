@@ -48,4 +48,17 @@ router.delete('/:id', [auth, ensureAdmin], async (req, res) => {
   }
 });
 
+// @route   PUT /api/credit-topup-methods/:id
+// @desc    Update a method
+// @access  Admin
+router.put('/:id', [auth, ensureAdmin], async (req, res) => {
+  try {
+    const updated = await CreditTopupMethod.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

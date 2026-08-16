@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { ArrowUpRight } from 'lucide-react'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import KYC from './pages/KYC'
@@ -7,8 +8,16 @@ import ApiDocs from './pages/ApiDocs'
 import History from './pages/History'
 import Withdrawal from './pages/Withdrawal'
 import DashboardLayout from './components/DashboardLayout'
+import PendingNagad from './pages/PendingNagad'
 import { useAuthStore } from './store/authStore'
 import Settings from './pages/Settings'
+import CustomPaymentLink from './pages/CustomPaymentLink'
+import AutoWithdrawalHistory from './pages/AutoWithdrawalHistory'
+import AddBalance from './pages/AddBalance'
+import TopupHistory from './pages/TopupHistory'
+import PublicSuccessPage from './pages/PublicSuccessPage'
+import MerchantActivation from './pages/MerchantActivation'
+import Package from './pages/Package'
 import { useEffect, useState } from 'react'
 import { getDashboardOverview } from './lib/api'
 
@@ -89,17 +98,121 @@ function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Available Balance', value: overview ? `${(overview.totals.availableBalance || 0).toLocaleString('en-BD')} BDT` : '...', color: 'text-violet-600', sub: 'Funds ready to withdraw' },
+          { label: 'Available Balance', value: overview ? `${(overview.totals.availableBalance || 0).toLocaleString('en-BD')} BDT` : '...', color: 'text-violet-600', sub: overview ? `Auto-Withdraw Min: ৳${overview.withdrawalConfig?.minAutoWithdrawBalance || 0}` : 'Funds ready to withdraw' },
           { label: 'Total Revenue', value: overview ? `${(overview.totals.absoluteTotalSuccessAmount || 0).toLocaleString('en-BD')} BDT` : '...', color: 'text-emerald-600', sub: 'Lifetime success volume' },
           { label: 'Today (30d)', value: overview ? (overview.totals.totalSuccess || 0) : '...', color: 'text-slate-900', sub: 'Completed (Last 30d)' },
           { label: "Today's Volume", value: overview ? `${(overview.today.successAmountToday || 0).toLocaleString('en-BD')} BDT` : '...', color: 'text-slate-900', sub: `${overview ? overview.today.successToday : 0} successful links` }
         ].map((card, idx) => (
-          <div key={idx} className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 group">
+          <div key={idx} className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 group relative">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors uppercase">{card.label}</p>
-            <p className={`mt-2 text-2xl font-black ${card.color}`}>{card.value}</p>
+            <div className="flex items-center justify-between relative z-10">
+              <p className={`mt-2 text-2xl font-black ${card.color}`}>{card.value}</p>
+              {idx === 0 && (
+                <button 
+                  onClick={() => window.location.href = '/add-balance'}
+                  className="w-10 h-10 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-600 flex items-center justify-center transition-all shadow-sm cursor-pointer hover:scale-110 active:scale-95"
+                  title="Add Balance"
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+              )}
+            </div>
             <p className="mt-1 text-[10px] text-slate-400 font-bold">{card.sub}</p>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-[2rem] overflow-hidden border border-emerald-100 shadow-[0_18px_60px_rgba(16,185,129,0.12)] bg-gradient-to-br from-emerald-50 via-white to-sky-50">
+        <div className="p-6 md:p-8 border-b border-emerald-100/80 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-600">Custom Payment Link</p>
+            <h3 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Link performance at a glance</h3>
+            <p className="mt-2 text-sm text-slate-500 font-medium max-w-2xl">Active links are still valid and unpaid. Success reflects completed custom links, and the total amount is the lifetime paid value for this feature.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest shadow-sm w-fit">
+            Live Merchant Stats
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 md:p-8">
+          {[
+            {
+              label: 'Active Links',
+              value: overview ? (overview.customStats?.activeCount || 0) : '...',
+              sub: 'Currently usable custom links',
+              accent: 'from-sky-500 to-cyan-500',
+              ring: 'ring-sky-500/10',
+            },
+            {
+              label: 'Success Links',
+              value: overview ? (overview.customStats?.successCount || 0) : '...',
+              sub: 'Completed custom payments',
+              accent: 'from-emerald-500 to-teal-500',
+              ring: 'ring-emerald-500/10',
+            },
+            {
+              label: 'Total Success Amount',
+              value: overview ? `${(overview.customStats?.successAmount || 0).toLocaleString('en-BD')} BDT` : '...',
+              sub: 'Custom payment revenue',
+              accent: 'from-violet-500 to-fuchsia-500',
+              ring: 'ring-violet-500/10',
+            },
+          ].map((card) => (
+            <div key={card.label} className={`relative rounded-[1.75rem] bg-white border border-white/70 shadow-sm p-5 ring-1 ${card.ring} overflow-hidden`}>
+              <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accent}`} />
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{card.label}</p>
+              <p className="mt-3 text-3xl font-black text-slate-900 tracking-tight">{card.value}</p>
+              <p className="mt-2 text-xs font-semibold text-slate-500 leading-relaxed">{card.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[2rem] overflow-hidden border border-fuchsia-100 shadow-[0_18px_60px_rgba(217,70,239,0.12)] bg-gradient-to-br from-fuchsia-50 via-white to-pink-50">
+        <div className="p-6 md:p-8 border-b border-fuchsia-100/80 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-fuchsia-600">API Auto Withdrawals</p>
+            <h3 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Withdrawal performance</h3>
+            <p className="mt-2 text-sm text-slate-500 font-medium max-w-2xl">Overview of all automated payout requests triggered via your API.</p>
+          </div>
+          <button onClick={() => window.location.href = '/auto-withdrawal-history'} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-fuchsia-100 text-fuchsia-700 font-black text-[10px] uppercase tracking-widest shadow-sm w-fit hover:bg-fuchsia-50 transition-colors">
+            View History <ArrowUpRight className="w-3 h-3" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 md:p-8">
+          {[
+            {
+              label: 'Total Requests',
+              value: overview ? (overview.autoWithdrawalStats?.totalCount || 0) : '...',
+              sub: 'All initiated withdrawals',
+              accent: 'from-amber-500 to-orange-500',
+              ring: 'ring-amber-500/10',
+            },
+            {
+              label: 'Completed Payouts',
+              value: overview ? (overview.autoWithdrawalStats?.completedCount || 0) : '...',
+              sub: 'Successfully transferred',
+              accent: 'from-fuchsia-500 to-pink-500',
+              ring: 'ring-fuchsia-500/10',
+            },
+            {
+              label: 'Completed Amount',
+              value: overview ? `${(overview.autoWithdrawalStats?.completedAmount || 0).toLocaleString('en-BD')} BDT` : '...',
+              sub: 'Total value of completed payouts',
+              accent: 'from-indigo-500 to-violet-500',
+              ring: 'ring-indigo-500/10',
+            },
+          ].map((card) => (
+            <div key={card.label} className={`relative rounded-[1.75rem] bg-white border border-white/70 shadow-sm p-5 ring-1 ${card.ring} overflow-hidden`}>
+              <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accent}`} />
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{card.label}</p>
+              <p className="mt-3 text-3xl font-black text-slate-900 tracking-tight">{card.value}</p>
+              <p className="mt-2 text-xs font-semibold text-slate-500 leading-relaxed">{card.sub}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -291,57 +404,139 @@ function Dashboard() {
   )
 }
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, authReady }) {
   const { user } = useAuthStore()
+  if (!authReady) {
+    // সার্ভার থেকে fresh user data আসার আগে কিছু দেখাবে না
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
   if (!user) return <Navigate to="/login" />
+  if (user.isLifetimePaid === false) {
+    return <Navigate to="/lifetime-payment" />
+  }
   return <DashboardLayout>{children}</DashboardLayout>
 }
 
+function ActivationRoute({ children, authReady }) {
+  const { user } = useAuthStore()
+  if (!authReady) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
+  if (!user) return <Navigate to="/login" />
+  if (user.isLifetimePaid === true) {
+    return <Navigate to="/dashboard" />
+  }
+  return children
+}
+
 function App() {
+  const { fetchMe, token } = useAuthStore()
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    // App load হলে সবসময় server থেকে fresh user data নিয়ে আসো
+    // এতে admin manually paid করলে reload এ সঠিক status দেখাবে
+    if (token) {
+      fetchMe().finally(() => setAuthReady(true))
+    } else {
+      setAuthReady(true) // no token = no fetch needed, routes will redirect to login
+    }
+  }, [token])
+
   return (
     <Router>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <Dashboard />
           </ProtectedRoute>
         } />
+        <Route path="/package" element={
+          <ProtectedRoute authReady={authReady}>
+            <Package />
+          </ProtectedRoute>
+        } />
+        <Route path="/lifetime-payment" element={
+          <ActivationRoute authReady={authReady}>
+            <MerchantActivation />
+          </ActivationRoute>
+        } />
         <Route path="/kyc" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <KYC />
           </ProtectedRoute>
         } />
         <Route path="/payment-test" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <PaymentTest />
           </ProtectedRoute>
         } />
 
+        <Route path="/custom-payment-link" element={
+          <ProtectedRoute authReady={authReady}>
+            <CustomPaymentLink />
+          </ProtectedRoute>
+        } />
+
         <Route path="/history" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <History />
           </ProtectedRoute>
         } />
         
+        <Route path="/pending-nagad" element={
+          <ProtectedRoute authReady={authReady}>
+            <PendingNagad />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/withdrawal" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <Withdrawal />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/auto-withdrawal-history" element={
+          <ProtectedRoute authReady={authReady}>
+            <AutoWithdrawalHistory />
+          </ProtectedRoute>
+        } />
+        <Route path="/add-balance" element={
+          <ProtectedRoute authReady={authReady}>
+            <AddBalance />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/topup-history" element={
+          <ProtectedRoute authReady={authReady}>
+            <TopupHistory />
           </ProtectedRoute>
         } />
 
 
         <Route path="/settings" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <Settings />
           </ProtectedRoute>
         } />
         <Route path="/api-docs" element={
-          <ProtectedRoute>
+          <ProtectedRoute authReady={authReady}>
             <ApiDocs />
           </ProtectedRoute>
         } />
+        <Route path="/success-page/:code" element={<PublicSuccessPage />} />
+        <Route path="/sucess-page/:code" element={<PublicSuccessPage />} />
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </Router>

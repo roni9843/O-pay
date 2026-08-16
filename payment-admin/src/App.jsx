@@ -22,13 +22,18 @@ import TopupRequests from './pages/TopupRequests'
 import AddPaymentMethod from './pages/AddPaymentMethod' // Imported
 import AdminStatus from './pages/AdminStatus'
 import WalletAgentDetail from './pages/WalletAgentDetail'
+import PendingNagad from './pages/PendingNagad'
 
 
 import OpayBusiness from './pages/OpayBusiness'
 import OpayBusinessDetail from './pages/OpayBusinessDetail'
 import OpayBusinessHistory from './pages/OpayBusinessHistory'
+import MerchantPackage from './pages/MerchantPackage'
 import MerchantWithdraws from './pages/MerchantWithdraws'
+import PushHistory from './pages/PushHistory'
 import PaymentLinkSessions from './pages/PaymentLinkSessions'
+import AutoWithdrawals from './pages/AutoWithdrawals'
+import MerchantTopupHistory from './pages/MerchantTopupHistory'
 import PrivateRoute from './components/PrivateRoute'
 import AdminLayout from './layouts/AdminLayout'
 import { Toaster } from 'react-hot-toast'
@@ -51,13 +56,18 @@ export default function App() {
         <Route path="/opay-business" element={<OpayBusiness />} />
         <Route path="/opay-business/:id" element={<OpayBusinessDetail />} />
         <Route path="/opay-business/:id/history" element={<OpayBusinessHistory />} />
+        <Route path="/merchant-package" element={<MerchantPackage />} />
         <Route path="/merchant-withdraws" element={<MerchantWithdraws />} />
+        <Route path="/merchant-topup-history" element={<MerchantTopupHistory />} />
+        <Route path="/auto-withdrawals" element={<AutoWithdrawals />} />
         <Route path="/payment-link-sessions" element={<PaymentLinkSessions />} />
         <Route path="/device-online" element={<DeviceOnline />} />
+        <Route path="/push-history" element={<PushHistory />} />
         <Route path="/active-devices" element={<ActiveDevices />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/payment-messages" element={<PaymentMessages />} />
         <Route path="/pending-balances" element={<PendingBalances />} />
+        <Route path="/pending-nagad" element={<PendingNagad />} />
         <Route path="/balance-adjustment" element={<BalanceAdjustment />} />
 
         <Route path="/credit-plans" element={<CreditPlans />} />

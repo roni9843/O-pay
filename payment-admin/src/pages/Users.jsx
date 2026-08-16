@@ -23,7 +23,7 @@ export default function Users() {
       setLoading(true)
       setError('')
       try {
-        const res = await listUsers(token, { page: 1, limit: 20 })
+        const res = await listUsers(token, { page: 1, limit: 5000 })
         if (!ignore) setItems(res.data || [])
       } catch (e) {
         if (!ignore) setError(e.message || 'Failed to load users')
@@ -55,7 +55,7 @@ export default function Users() {
       setCreating(false)
 
       // reload
-      const res = await listUsers(token, { page: 1, limit: 20 })
+      const res = await listUsers(token, { page: 1, limit: 5000 })
       setItems(res.data || [])
     } catch (err) {
       setCreateError(err.message || 'Failed to create user')

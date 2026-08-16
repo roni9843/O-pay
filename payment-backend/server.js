@@ -1,4 +1,8 @@
 require("dotenv").config();
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
@@ -31,6 +35,7 @@ connectDB();
 
 // Seed default admin if none exists
 const User = require('./models/User');
+const OpayBusinessPackage = require('./models/OpayBusinessPackage');
 const bcrypt = require('bcryptjs');
 (async () => {
   try {
@@ -47,6 +52,28 @@ const bcrypt = require('bcryptjs');
     }
   } catch (e) {
     console.error('[seed] Admin creation failed:', e.message);
+  }
+
+  try {
+    const packageExists = await OpayBusinessPackage.findOne();
+    if (!packageExists) {
+      await OpayBusinessPackage.create({
+        name: 'Lifetime Activation Package',
+        amount: 5000,
+        offerDetails: 'এককালীন ফি প্রদান করে আজীবন আনলিমিটেড পেমেন্ট লিংক তৈরি করুন।',
+        features: [
+          'লাইফটাইম আনলিমিটেড পেমেন্ট লিংক তৈরি',
+          '০% অতিরিক্ত হিডেন চার্জ',
+          'রিয়েল-টাইম ট্রানজ্যাকশন মনিটরিং ড্যাশবোর্ড',
+          'গ্রাহকদের জন্য প্রিমিয়াম সাকসেস ল্যান্ডিং পেইজ',
+          '২৪/৭ মার্চেন্ট ও কাস্টমার সাপোর্ট সার্ভিস'
+        ],
+        isActive: true
+      });
+      console.log('[seed] Default OpayBusinessPackage created');
+    }
+  } catch (e) {
+    console.error('[seed] Package creation failed:', e.message);
   }
 })();
 
@@ -73,6 +100,7 @@ app.use('/api/external', externalRouter);
 app.use('/api/opay-business', opayBusinessExternalRouter);
 app.use('/api/opay-business/auth', require('./routes/opayBusinessAuth'));
 app.use('/api/opay-business/kyc', require('./routes/opayBusinessKYC'));
+app.use('/api/auto-withdrawal', require('./routes/autoWithdrawal'));
 app.use('/uploads', express.static('uploads'));
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/admin/auth', require('./routes/adminAuth'));

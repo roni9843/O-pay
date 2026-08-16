@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OraclePay (OPay) API Documentation</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
+            --accent-success: #10b981;
+            --border-color: #334155;
+            --code-bg: #090d16;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(180deg, rgba(3, 105, 161, 0.2) 0%, rgba(15, 23, 42, 0) 100%);
+            padding: 4rem 2rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 150px;
+            background: var(--accent-color);
+            filter: blur(100px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .logo-text {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: #475569;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 0.75rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .endpoint-badge {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        .method {
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .method.get {
+            background-color: rgba(56, 189, 248, 0.15);
+            color: var(--accent-color);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .method.post {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .method.socket {
+            background-color: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .tab-container {
+            margin-top: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-color);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        code {
+            color: #e2e8f0;
+        }
+
+        ul {
+            list-style-type: none;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 1.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .param-table th, .param-table td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .param-table th {
+            background-color: rgba(255,255,255,0.02);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .param-table td {
+            color: var(--text-secondary);
+        }
+
+        .required {
+            color: #ef4444;
+            font-weight: 500;
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 4rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-text">OraclePay (OPay) API Docs</div>
+        <p>সহজ, রিয়েলটাইম এবং প্রিমিয়াম পেমেন্ট ইন্টিগ্রেশন গেটওয়ে ডকুমেন্টেশন</p>
+    </header>
+
+    <main>
+        <!-- Main API Base URL / Keypoint Card -->
+        <div class="card" style="border: 2px solid var(--accent-color); background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%);">
+            <h2 style="border-left-color: var(--accent-color);">🔗 মূল API বেস ইউআরএল (Main API Base URL)</h2>
+            <p>আপনার সমস্ত API রিকোয়েস্ট এবং কনেকশনের জন্য নিচের মূল বেস ইউআরএল (Base URL) ব্যবহার করুন:</p>
+            <div style="background-color: var(--code-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; font-family: 'Fira Code', monospace; font-size: 1.2rem; color: var(--accent-color); display: flex; justify-content: space-between; align-items: center; gap: 1rem; position: relative;">
+                <span id="base-url-text" style="font-weight: bold; word-break: break-all;">https://api.oraclepay.org</span>
+                <button class="copy-btn" onclick="copyBaseUrl(this)" style="position: static; font-size: 0.85rem; padding: 0.5rem 1rem;">ইউআরএল কপি করুন</button>
+            </div>
+        </div>
+
+        <script>
+            function copyBaseUrl(btn) {
+                const urlText = document.getElementById('base-url-text').innerText;
+                navigator.clipboard.writeText(urlText).then(() => {
+                    const originalText = btn.innerText;
+                    btn.innerText = 'কপি হয়েছে!';
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                    }, 2000);
+                });
+            }
+        </script>
+
+        <!-- Pre-requisite Setup Guide Card -->
+        <div class="card" style="border: 1px solid #e11d48; background: linear-gradient(145deg, rgba(225, 29, 72, 0.05) 0%, rgba(15, 23, 42, 0.9) 100%);">
+            <h2 style="border-left-color: #e11d48;">⚠️ ইন্টিগ্রেশন শুরু করার আগের প্রস্তুতি (Personal OPay Panel Setup Guide)</h2>
+            <p>আপনার ওয়েবসাইটে বা অ্যাপে API ইন্টিগ্রেশন করার পূর্বে আপনাকে অবশ্যই <strong>OraclePay (OPay) Mobile App</strong> অথবা ওপে পার্সোনাল ওয়েব পোর্টালে লগইন করে নিচের কাজগুলো সম্পন্ন করতে হবে:</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid var(--accent-color);">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">১. লগইন এবং প্রোফাইল চেক (Login & Profile)</strong>
+                    প্রথমে OPay মোবাইল অ্যাপ বা পার্সোনাল প্যানেলে লগইন করুন। <strong>Account & Support -> My Profile</strong>-এ গিয়ে আপনার নাম এবং প্রোফাইলের তথ্য সঠিক আছে কিনা নিশ্চিত হয়ে Save Changes দিন। প্রয়োজনে পাসওয়ার্ড পরিবর্তন করে নিন।
+                </div>
+
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid #a78bfa;">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">২. ডিভাইস যুক্ত করা (Device Management)</strong>
+                    প্যানেলের <strong>Device Management -> My Devices</strong> মেন্যুতে যান। এরপর <strong>Add Device</strong> বাটনে ক্লিক করে আপনার ডিভাইসের একটি সুন্দর নাম দিয়ে ডিভাইসটি যুক্ত (Add) করুন।
+                </div>
+
+
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid var(--accent-success);">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">৩. পেমেন্ট নম্বর যুক্ত করা (Payment Methods Setup)</strong>
+                    এবার <strong>Integration -> Payment Methods</strong> মেন্যুতে গিয়ে আপনার ডিভাইসটি সিলেক্ট করুন। তারপর আপনার বিকাশ (bKash), নগদ (Nagad), রকেট (Rocket) অথবা উপায় (Upay) নম্বরগুলো পার্সোনাল নাকি এজেন্ট সিলেক্ট করে অ্যাড করুন।
+                </div>
+
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid #06b6d4;">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">৪. পেমেন্ট পেজ তৈরি করা (Payment Pages Setup)</strong>
+                    <strong>Integration -> Payment Pages</strong> মেন্যুতে যান। আপনার যুক্ত করা নম্বরগুলোর জন্য একটি পেমেন্ট পেজ তৈরি করুন। এখানে মেথডের নাম, ডিপোজিট মেথড, কাস্টমার নোট, নগদ/বিকাশ/রকেটের ব্র্যান্ড ইমেজ, গুরুত্বপূর্ণ নোটিশ, থিম কালার (যেমন ব্যাকগ্রাউন্ড কালার, টেক্সট কালার, বাটন কালার) এবং পেমেন্টের বিস্তারিত বিবরণ (যেমন: প্রথমে বিকাশ অ্যাপ ওপেন করুন ইত্যাদি) লিখে পেমেন্ট পেজটি তৈরি করুন।
+                </div>
+
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid #ef4444;">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">৫. কাস্টমার সাপোর্ট নম্বর সেটআপ (Support Ticket Setting)</strong>
+                    <strong>Account & Support -> Support Ticket</strong> মেন্যুতে যান। সেখানে <strong>Add Support Number</strong> বাটনে ক্লিক করে আপনার হেল্পলাইন বা সাপোর্ট নম্বরটি যুক্ত করুন। এই নম্বরটিই ডিভাইস অফলাইন থাকলে কাস্টমারকে দেখানো হবে।
+                </div>
+
+                <div style="padding: 1rem 1.25rem; background: var(--code-bg); border-radius: 10px; border-left: 3px solid #f59e0b;">
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;">৬. API Key ও সাবস্ক্রিপশন জেনারেট (Generate API Key)</strong>
+                    সর্বশেষে, <strong>Integration -> API Key</strong> মেন্যুতে গিয়ে আপনার active প্ল্যান/প্যাকেজ এবং ডিভাইসটি সিলেক্ট করুন। আপনার নিজস্ব সার্ভারের <strong>Webhook Callback URL</strong> (যা অবশ্যই <code>https://</code> হতে হবে) দিন এবং <strong>Generate API Key</strong> বাটনে ক্লিক করে আপনার সিকিউর API Key তৈরি করে নিন।
+                </div>
+            </div>
+        </div>
+
+        <!-- integration workflow card -->
+        <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.3); background: linear-gradient(145deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);">
+            <h2 style="border-left-color: #818cf8;">🔄 ডেভেলপার ইন্টিগ্রেশন ফ্লো (Interactive Steps & Visual Flow)</h2>
+            <p style="margin-bottom: 2rem;">OraclePay API ইন্টিগ্রেশনের সময় কোন এন্ডপয়েন্টের পর কোনটি কল করবেন, তা নিচে অ্যানিমেটেড ভিজ্যুয়াল ডায়াগ্রাম এবং বিস্তারিত গাইডের মাধ্যমে দেখানো হলো:</p>
+            
+            <!-- Animated Flowchart Diagram -->
+            <style>
+                .flowchart-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 1.5rem;
+                    margin: 2.5rem 0;
+                    padding: 1.5rem;
+                    background: rgba(9, 13, 22, 0.6);
+                    border-radius: 16px;
+                    border: 1px solid var(--border-color);
+                    position: relative;
+                }
+                .flow-node {
+                    background: var(--bg-secondary);
+                    border: 2px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 1rem 1.5rem;
+                    text-align: center;
+                    min-width: 250px;
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    position: relative;
+                    z-index: 2;
+                    transition: all 0.3s ease;
+                }
+                .flow-node:hover {
+                    transform: translateY(-2px);
+                }
+                .flow-node.active-1 {
+                    border-color: var(--accent-color);
+                    box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+                    animation: pulseNodeBlue 2.5s infinite;
+                }
+                .flow-node.active-2 {
+                    border-color: #a78bfa;
+                    box-shadow: 0 0 15px rgba(167, 139, 250, 0.3);
+                    animation: pulseNodePurple 2.5s infinite;
+                }
+                .flow-node.active-3 {
+                    border-color: var(--accent-success);
+                    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+                    animation: pulseNodeGreen 2.5s infinite;
+                }
+                .flow-node.active-4 {
+                    border-color: #f59e0b;
+                    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+                    animation: pulseNodeOrange 2.5s infinite;
+                }
+                .flow-node.active-offline {
+                    border-color: #ef4444;
+                    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+                    animation: pulseNodeRed 2.5s infinite;
+                }
+                .flow-arrow {
+                    font-size: 1.5rem;
+                    color: var(--accent-color);
+                    animation: arrowSlideDown 1.5s infinite linear;
+                    z-index: 1;
+                    font-weight: bold;
+                }
+                .flow-split {
+                    display: flex;
+                    justify-content: space-around;
+                    width: 100%;
+                    gap: 1.5rem;
+                    margin: 0.5rem 0;
+                }
+                .split-col {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 1rem;
+                    flex: 1;
+                }
+                .node-title {
+                    font-size: 0.8rem;
+                    text-transform: uppercase;
+                    color: var(--text-secondary);
+                    margin-bottom: 0.25rem;
+                    display: block;
+                    letter-spacing: 0.5px;
+                }
+                @keyframes pulseNodeBlue {
+                    0%, 100% { box-shadow: 0 0 8px rgba(56, 189, 248, 0.2); }
+                    50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+                }
+                @keyframes pulseNodePurple {
+                    0%, 100% { box-shadow: 0 0 8px rgba(167, 139, 250, 0.2); }
+                    50% { box-shadow: 0 0 20px rgba(167, 139, 250, 0.5); }
+                }
+                @keyframes pulseNodeGreen {
+                    0%, 100% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.2); }
+                    50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+                }
+                @keyframes pulseNodeRed {
+                    0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+                    50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+                }
+                @keyframes pulseNodeOrange {
+                    0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.2); }
+                    50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+                }
+                @keyframes arrowSlideDown {
+                    0% { transform: translateY(-3px); opacity: 0.5; }
+                    50% { transform: translateY(3px); opacity: 1; }
+                    100% { transform: translateY(-3px); opacity: 0.5; }
+                }
+            </style>
+
+
+            <div class="flowchart-container">
+                <!-- Step 1 -->
+                <div class="flow-node active-1" style="cursor: pointer;" onclick="document.getElementById('key-validate-section').scrollIntoView({behavior: 'smooth'})">
+                    <span class="node-title">Step 1: ভ্যালিডেশন</span>
+                    🔑 API Key ভ্যালিড করুন
+                </div>
+                
+                <div class="flow-arrow">↓</div>
+
+                <!-- Step 2 -->
+                <div class="flow-node active-2" style="cursor: pointer;" onclick="document.getElementById('device-presence-section').scrollIntoView({behavior: 'smooth'})">
+                    <span class="node-title">Step 2: ডিভাইস চেকিং</span>
+                    📱 ডিভাইস অনলাইন নাকি অফলাইন?
+                </div>
+
+                <!-- Split Flow based on status -->
+                <div class="flow-split">
+                    <!-- Left: Offline Flow -->
+                    <div class="split-col">
+                        <div style="color: #ef4444; font-size: 0.85rem; font-weight: bold; margin-bottom: -0.25rem;">🔴 অফলাইন হলে</div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-node active-offline" style="min-width: 200px; cursor: pointer;" onclick="document.getElementById('support-number-section').scrollIntoView({behavior: 'smooth'})">
+                            <span class="node-title">Step 2.1: কাস্টমার সাপোর্ট</span>
+                            📞 সাপোর্ট নম্বর দেখান
+                        </div>
+                    </div>
+
+                    <!-- Right: Online Flow -->
+                    <div class="split-col">
+                        <div style="color: #10b981; font-size: 0.85rem; font-weight: bold; margin-bottom: -0.25rem;">🟢 অনলাইন হলে</div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-node active-3" style="min-width: 200px; cursor: pointer;" onclick="document.getElementById('payment-generate-section').scrollIntoView({behavior: 'smooth'})">
+                            <span class="node-title">Step 3: পেমেন্ট পেজ</span>
+                            💳 পেমেন্ট পেজ জেনারেট করুন
+                        </div>
+                        
+                        <div class="flow-arrow">↓</div>
+                        
+                        <div class="flow-node active-4" style="min-width: 200px; cursor: pointer;" onclick="document.getElementById('webhook-section').scrollIntoView({behavior: 'smooth'})">
+                            <span class="node-title">Step 4: সাকসেস নোটিফিকেশন</span>
+                            🔔 Webhook কলব্যাক রিসিভ
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin: 1.5rem 0 0 0; display: flex; flex-direction: column; gap: 1.5rem;">
+                <div style="padding: 1.25rem; background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h3 style="font-size: 1.05rem; color: var(--accent-color); margin-bottom: 0.5rem;">🎯 ১. API Key ভ্যালিডেশন</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">সিস্টেম সচল করার সময় <code>/api/external/key/validate</code> কল করে API Key ও সাবস্ক্রিপশন সচল আছে কিনা চেক করে নিন।</p>
+                </div>
+
+                <div style="padding: 1.25rem; background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h3 style="font-size: 1.05rem; color: #a78bfa; margin-bottom: 0.5rem;">📱 ২. ডিভাইস অনলাইন/অফলাইন চেক</h3>
+                    <p style="margin: 0; font-size: 0.95rem;"><code>Socket.IO</code> দিয়ে ডিভাইস স্ট্যাটাস রিয়েলটাইমে পর্যবেক্ষণ করুন। 
+                        ডিভাইস অফলাইন হলে গ্রাহককে মার্চেন্টের সাপোর্ট নম্বর দেখানোর জন্য <code>/api/external/support-number</code> এন্ডপয়েন্টটি ব্যবহার করুন। ডিভাইস অনলাইন থাকলে পেমেন্ট গেটওয়েতে যান।</p>
+                </div>
+
+                <div style="padding: 1.25rem; background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h3 style="font-size: 1.05rem; color: var(--accent-success); margin-bottom: 0.5rem;">💳 ৩. পেমেন্ট পেজ জেনারেট</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">ডিভাইস অনলাইন থাকলে <code>/api/external/generate</code> এন্ডপয়েন্ট ব্যবহার করে পেমেন্ট পেজ জেনারেট লিংকে কাস্টমারকে নিয়ে যান।</p>
+                </div>
+
+                <div style="padding: 1.25rem; background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+
+                    <h3 style="font-size: 1.05rem; color: #f59e0b; margin-bottom: 0.5rem;">🔔 ৪. Webhook কলব্যাক</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">পেমেন্ট সম্পূর্ণ হওয়ার পর ওপে সার্ভার স্বয়ংক্রিয়ভাবে মার্চেন্ট কলব্যাক ইউআরএলে পেমেন্ট সফলতার নোটিফিকেশন পাঠাবে ও ডাটাবেজ আপডেট হবে।</p>
+                </div>
+            </div>
+        </div>
+        <!-- Auth Card -->
+        <div id="auth-section" class="card">
+            <h2>১. অথেন্টিকেশন (Authentication)</h2>
+            <p>OraclePay-এর এন্ডপয়েন্টগুলোতে রিকোয়েস্ট করতে HTTP হেডারে আপনার API Key সংযুক্ত করুন:</p>
+            <pre>
+<button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>X-API-Key: YOUR_API_KEY_HERE</code></pre>
+        </div>
+
+        <!-- Key Validate Card -->
+        <div id="key-validate-section" class="card">
+            <h2>২. API Key ভ্যালিডেশন (Key Validate)</h2>
+            <p>আপনার API Key, সাবস্ক্রিপশন প্ল্যান, এবং পেমেন্ট নম্বরগুলোর স্ট্যাটাস চেক করুন।</p>
+            
+            <div class="endpoint-badge">
+                <span class="method get">GET</span>
+                <span>/api/external/key/validate</span>
+            </div>
+
+            <div class="tab-container" data-group="validate">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab(this, 'node', 'validate')">Node.js (Axios)</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'vanilla', 'validate')">Vanilla JS</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'php', 'validate')">PHP</button>
+                </div>
+                <div class="tab-content active" data-tab="node">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>const axios = require('axios');
+
+async function validateApiKey() {
+  try {
+    const response = await axios.get('https://api.oraclepay.org/api/external/key/validate', {
+      headers: { 'X-API-Key': 'YOUR_API_KEY' }
+    });
+    console.log("Success:", response.data);
+  } catch (error) {
+    console.error("Error:", error.response ? error.response.data : error.message);
+  }
+}
+validateApiKey();</code></pre>
+                </div>
+                <div class="tab-content" data-tab="vanilla">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>async function validateApiKey() {
+  try {
+    const res = await fetch('https://api.oraclepay.org/api/external/key/validate', {
+      method: 'GET',
+      headers: { 'X-API-Key': 'YOUR_API_KEY' }
+    });
+    const data = await res.json();
+    console.log(data);
+  } catch (err) {
+    console.error(err);
+  }
+}
+validateApiKey();</code></pre>
+                </div>
+                <div class="tab-content" data-tab="php">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>&lt;?php
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, "https://api.oraclepay.org/api/external/key/validate");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "X-API-Key: YOUR_API_KEY"
+]);
+
+$response = curl_exec($ch);
+if(curl_errno($ch)){
+    echo 'Curl error: ' . curl_error($ch);
+} else {
+    $data = json_decode($response, true);
+    print_r($data);
+}
+curl_close($ch);
+?&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate Payment Card -->
+        <div id="payment-generate-section" class="card">
+            <h2>৩. পেমেন্ট পেজ জেনারেট (Generate Payment Page)</h2>
+            <p>কাস্টমারের জন্য পেমেন্ট পেজ তৈরি করতে এই API কল করুন।</p>
+            
+            <div class="endpoint-badge">
+                <span class="method get">GET / POST</span>
+                <span>/api/external/generate</span>
+            </div>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>method</td>
+                        <td>String</td>
+                        <td><span class="required">Required</span></td>
+                        <td>পেমেন্ট মেথড যেমন: <code>যেকোনো একটি (যেমন: bkash, nagad, rocket, upay)</code></td>
+                    </tr>
+                    <tr>
+                        <td>amount</td>
+                        <td>Number</td>
+                        <td><span class="required">Required</span></td>
+                        <td>পেমেন্টের পরিমাণ (অবশ্যই > ০)</td>
+                    </tr>
+                    <tr>
+                        <td>userIdentifyAddress</td>
+                        <td>String</td>
+                        <td><span class="required">Required</span></td>
+                        <td>মার্চেন্ট অর্ডার আইডি বা ট্র্যাকিং এড্রেস</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="tab-container" data-group="generate">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab(this, 'node', 'generate')">Node.js (Axios)</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'vanilla', 'generate')">Vanilla JS</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'php', 'generate')">PHP</button>
+                </div>
+                <div class="tab-content active" data-tab="node">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>const axios = require('axios');
+
+async function generatePayment() {
+  try {
+    const response = await axios.get('https://api.oraclepay.org/api/external/generate', {
+      params: {
+        methods: 'bkash',
+        amount: 350,
+        userIdentifyAddress: 'ORDER-2025-0001'
+      },
+      headers: { 'X-API-Key': 'YOUR_API_KEY' }
+    });
+    console.log("Payment Page URL:", response.data.payment_page_url);
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+  }
+}
+generatePayment();</code></pre>
+                </div>
+                <div class="tab-content" data-tab="vanilla">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>async function generatePayment() {
+  const url = 'https://api.oraclepay.org/api/external/generate?method=bkash&amount=350&userIdentifyAddress=ORDER-2025-0001';
+  const res = await fetch(url, {
+    headers: { 'X-API-Key': 'YOUR_API_KEY' }
+  });
+  const data = await res.json();
+  console.log(data.payment_page_url);
+}
+generatePayment();</code></pre>
+                </div>
+                <div class="tab-content" data-tab="php">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>&lt;?php
+$queryParams = http_build_query([
+    'methods' => 'bkash',
+    'amount' => 350,
+    'userIdentifyAddress' => 'ORDER-2025-0001'
+]);
+$url = "https://api.oraclepay.org/api/external/generate?" . $queryParams;
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "X-API-Key: YOUR_API_KEY"
+]);
+
+$response = curl_exec($ch);
+$data = json_decode($response, true);
+echo "Payment URL: " . $data['payment_page_url'];
+curl_close($ch);
+?&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Presence Card -->
+        <div id="device-presence-section" class="card">
+            <h2>৪. রিয়েলটাইম ডিভাইস ট্র্যাকিং (Device Presence)</h2>
+            <p>আপনার ডিভাইসগুলো অনলাইন/অফলাইন কিনা তা Socket.IO এর মাধ্যমে ট্র্যাক করুন।</p>
+
+            <div class="endpoint-badge">
+                <span class="method socket">SOCKET.IO</span>
+                <span>https://api.oraclepay.org (Transports: ['websocket'])</span>
+            </div>
+
+            <div class="tab-container" data-group="socket">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab(this, 'node', 'socket')">Node.js (Socket Client)</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'vanilla', 'socket')">HTML/Vanilla JS</button>
+                </div>
+                <div class="tab-content active" data-tab="node">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>const { io } = require("socket.io-client");
+
+const socket = io("https://api.oraclepay.org", {
+  transports: ["websocket"]
+});
+
+socket.on("connect", () => {
+  socket.emit("viewer:registerApiKey", { apiKey: "YOUR_API_KEY" });
+});
+
+socket.on("viewer:devices", (devicesList) => {
+  console.log("Snapshot Devices:", devicesList);
+});
+
+socket.on("viewer:device", (device) => {
+  console.log(`Device updated: ${device.deviceId} is ${device.active ? 'Online' : 'Offline'}`);
+});
+
+socket.on("viewer:error", (err) => console.error(err));</code></pre>
+                </div>
+                <div class="tab-content" data-tab="vanilla">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>&lt;script src="https://cdn.socket.io/4.7.2/socket.io.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const socket = io("https://api.oraclepay.org", { transports: ["websocket"] });
+
+  socket.on("connect", () => {
+    socket.emit("viewer:registerApiKey", { apiKey: "YOUR_API_KEY" });
+  });
+
+  socket.on("viewer:devices", (list) => {
+    console.log("Snapshot", list);
+  });
+
+  socket.on("viewer:device", (d) => {
+    console.log("Device update", d.deviceId, d.active ? "Online" : "Offline");
+  });
+&lt;/script&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support Number Card -->
+        <div id="support-number-section" class="card">
+            <h2>৫. সাপোর্ট নম্বর পুনরুদ্ধার (Support Number)</h2>
+            <p>আপনার মার্চেন্ট অ্যাকাউন্টের অফিশিয়াল সাপোর্ট নম্বর ফেরত দেয়।</p>
+            
+            <div class="endpoint-badge">
+                <span class="method get">GET</span>
+                <span>/api/external/support-number</span>
+            </div>
+
+            <div class="tab-container" data-group="support">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab(this, 'node', 'support')">Node.js (Axios)</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'php', 'support')">PHP</button>
+                </div>
+                <div class="tab-content active" data-tab="node">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>const axios = require('axios');
+axios.get('https://api.oraclepay.org/api/external/support-number', {
+  headers: { 'X-API-Key': 'YOUR_API_KEY' }
+}).then(res => console.log("Support Number:", res.data.supportNumber))
+  .catch(err => console.error(err));</code></pre>
+                </div>
+                <div class="tab-content" data-tab="php">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>&lt;?php
+$ch = curl_init("https://api.oraclepay.org/api/external/support-number");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-Key: YOUR_API_KEY"]);
+$res = curl_exec($ch);
+$data = json_decode($res, true);
+echo "Support Number: " . $data['supportNumber'];
+curl_close($ch);
+?&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook Callback Card -->
+        <div id="webhook-section" class="card">
+            <h2>৬. পেমেন্ট সাকসেস ওয়েবহুক (Payment Webhook)</h2>
+            <p>পেমেন্ট সফল হলে আপনার সিস্টেমে পাঠানো JSON ডাটা রিসিভ করুন।</p>
+            
+            <div class="endpoint-badge">
+                <span class="method post">POST</span>
+                <span>YOUR_CALLBACK_URL</span>
+            </div>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab(this, 'node', 'webhook')">Node.js (Express)</button>
+                    <button class="tab-btn" onclick="switchTab(this, 'php', 'webhook')">PHP</button>
+                </div>
+                <div class="tab-content active" data-tab="node">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>const express = require('express');
+const app = express();
+app.use(express.json());
+
+app.post('/webhook/payment-verified', (req, res) => {
+  const paymentData = req.body;
+  if (paymentData.success) {
+    console.log(`Payment success: Order ${paymentData.userIdentifyAddress}, Amount ${paymentData.amount}`);
+    // সফল পেমেন্ট অনুযায়ী আপনার ডাটাবেজ আপডেট করুন
+  }
+  res.status(200).send('OK');
+});
+
+app.listen(3000, () => console.log('Listening for Webhooks'));</code></pre>
+                </div>
+                <div class="tab-content" data-tab="php">
+                    <pre><button class="copy-btn" onclick="copyCode(this)">কপি করুন</button><code>&lt;?php
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $json = file_get_contents('php://input');
+    $paymentData = json_decode($json, true);
+
+    if ($paymentData && $paymentData['success']) {
+        $orderId = $paymentData['userIdentifyAddress'];
+        $amount = $paymentData['amount'];
+        $trxId = $paymentData['trxid'];
+        
+        // এখানে ডাটাবেজ সফল করার কুয়েরি রান করুন
+        
+        http_response_code(200);
+        echo "OK";
+    }
+}
+?&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 OraclePay. All rights reserved.</p>
+    </footer>
+
+    <script>
+        function switchTab(btn, tabId, groupName) {
+            const container = btn.closest('.tab-container');
+            
+            // Remove active classes in buttons
+            const buttons = container.querySelectorAll('.tab-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Show current tab content
+            const contents = container.querySelectorAll('.tab-content');
+            contents.forEach(c => {
+                if (c.getAttribute('data-tab') === tabId) {
+                    c.classList.add('active');
+                } else {
+                    c.classList.remove('active');
+                }
+            });
+        }
+
+        function copyCode(btn) {
+            const code = btn.nextElementSibling.innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = 'কপি হয়েছে!';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

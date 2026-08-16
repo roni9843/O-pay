@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs, getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig } from '../lib/api';
-import { Landmark, Search, Filter, CheckCircle, XCircle, Clock, Eye, X, AlertCircle, Upload, Image as ImageIcon } from 'lucide-react';
+import { Landmark, Search, Filter, CheckCircle, XCircle, Clock, Eye, X, AlertCircle, Upload, Image as ImageIcon, Copy } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -115,6 +115,32 @@ export default function MerchantWithdraws() {
             case 'pending':
             default: return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20"><Clock className="w-3 h-3"/> Pending</span>;
         }
+    };
+
+    const handleCopyDetails = () => {
+        if (!selectedRequest) return;
+        
+        let text = `============= WITHDRAWAL REQUEST =============\n\n`;
+        text += `Withdrawal ID: ${selectedRequest._id}\n`;
+        text += `Date: ${new Date(selectedRequest.createdAt).toLocaleString()}\n`;
+        text += `Merchant Name: ${selectedRequest.merchantId?.name || 'Unknown'}\n`;
+        text += `Merchant Email: ${selectedRequest.merchantId?.email || 'N/A'}\n`;
+        text += `Amount to send: BDT ${Number((selectedRequest.receiveAmount ?? selectedRequest.amount) || 0)}\n\n`;
+        
+        text += `--- Destination Details ---\n`;
+        if (selectedRequest.method?.bankName) {
+            text += `Bank Name: ${selectedRequest.method.bankName}\n`;
+            text += `Account No: ${selectedRequest.method.accountNo}\n`;
+            if (selectedRequest.method.branchName) text += `Branch: ${selectedRequest.method.branchName}\n`;
+            if (selectedRequest.method.routingNo) text += `Routing No: ${selectedRequest.method.routingNo}\n`;
+        } else {
+            text += `Provider: ${(selectedRequest.method?.provider || '').toUpperCase()}\n`;
+            text += `Type: ${(selectedRequest.method?.type || '').toUpperCase()}\n`;
+            text += `Number: ${selectedRequest.method?.number}\n`;
+        }
+        
+        navigator.clipboard.writeText(text);
+        alert('Payout details copied to clipboard!');
     };
 
     return (
@@ -302,7 +328,15 @@ export default function MerchantWithdraws() {
                             </div>
 
                             <div className="p-5 rounded-3xl bg-white/5 border border-white/5 space-y-4">
-                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Designated Payout Data</h3>
+                                <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Designated Payout Data</h3>
+                                    <button 
+                                        onClick={handleCopyDetails}
+                                        className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest border border-white/10"
+                                    >
+                                        <Copy size={12} /> Copy Details
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                                     {selectedRequest.method?.bankName ? (
                                         <>

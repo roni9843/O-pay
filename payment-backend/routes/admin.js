@@ -16,6 +16,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const MerchantWithdrawal = require('../models/MerchantWithdrawal');
+const MerchantTopupRecord = require('../models/MerchantTopupRecord');
+const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
+const PushLog = require('../models/PushLog');
+const OpayBusinessPackage = require('../models/OpayBusinessPackage');
 
 const router = express.Router();
 
@@ -82,7 +86,8 @@ router.get('/stats', auth, async (req, res) => {
       pendingBalanceTopUps, 
       pendingWithdrawals,
       pendingCreditTopUps,
-      pendingAgentApplications
+      pendingAgentApplications,
+      pendingNagad
     ] = await Promise.all([
       User.countDocuments(),
       Device.countDocuments(),
@@ -90,7 +95,8 @@ router.get('/stats', auth, async (req, res) => {
       require('../models/BalanceTopUp').countDocuments({ status: 'pending' }),
       MerchantWithdrawal.countDocuments({ status: 'pending' }),
       require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
-      require('../models/AgentApplication').countDocuments({ status: 'pending' })
+      require('../models/AgentApplication').countDocuments({ status: 'pending' }),
+      OpayBusinessPaymentSession.countDocuments({ status: 'pending_nagad' })
     ]);
 
     statsCache = {
@@ -100,7 +106,8 @@ router.get('/stats', auth, async (req, res) => {
       pendingBalanceTopUps, 
       pendingWithdrawals,
       pendingCreditTopUps,
-      pendingAgentApplications
+      pendingAgentApplications,
+      pendingNagad
     };
     statsCacheTime = now;
 
@@ -116,8 +123,7 @@ router.get('/today-stats', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = require('moment-timezone')().tz('Asia/Dhaka').startOf('day').toDate();
 
     // Use same aggregation as today-user-list to get consistent grouping by resolved owner
     const agg = await PaymentMessage.aggregate([
@@ -225,8 +231,7 @@ router.get('/today-user-list', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = require('moment-timezone')().tz('Asia/Dhaka').startOf('day').toDate();
 
     const agg = await PaymentMessage.aggregate([
       { $match: { verify: true, createdAt: { $gte: startOfToday } } },
@@ -333,7 +338,7 @@ router.get('/users', auth, async (req, res) => {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const { page = 1, limit = 20 } = req.query;
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
-    const lim = Math.max(1, Math.min(100, Number(limit)));
+    const lim = Math.max(1, Math.min(5000, Number(limit)));
 
     const users = await User.find().sort({ createdAt: -1 }).skip(skip).limit(lim).select('-password').lean();
     const userIds = users.map(u => u._id);
@@ -483,8 +488,20 @@ router.get('/devices/online-status', auth, async (req, res) => {
     });
 
     const data = devices.map((d) => {
-      const presenceKey = d.deviceCode ? String(d.deviceCode) : null;
-      const presence = presenceKey ? presenceMap.get(presenceKey) : null;
+      let presence = null;
+      const keysToCheck = [
+        d.deviceCode ? String(d.deviceCode) : null,
+        d._id ? String(d._id) : null,
+        d.deviceUserName ? String(d.deviceUserName) : null,
+        d.deviceName ? String(d.deviceName) : null
+      ].filter(Boolean);
+
+      for (const key of keysToCheck) {
+        if (presenceMap.has(key)) {
+          presence = presenceMap.get(key);
+          break;
+        }
+      }
 
       const deviceOnline = Boolean(presence?.active);
       const lastSeen = presence?.lastSeen || null;
@@ -758,6 +775,98 @@ router.post('/users/:id/balance', auth, async (req, res) => {
     }
   } catch (err) {
     console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Send Push Notification (Admin Only)
+router.post('/push-notification', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { deviceId, title, body, isAlarm } = req.body;
+    
+    if (!title && !body && !isAlarm) {
+      return res.status(400).json({ success: false, message: 'Title/body or isAlarm flag is required' });
+    }
+
+    const { admin: firebaseAdmin, isFirebaseInitialized } = require('../firebase');
+    if (!isFirebaseInitialized) {
+      return res.status(500).json({ success: false, message: 'Firebase Admin SDK not initialized on server' });
+    }
+
+    let payload = {};
+    if (isAlarm) {
+      payload = {
+        data: {
+          type: "alarm",
+          message: body || "Emergency Alarm!"
+        },
+        android: {
+          priority: "high"
+        }
+      };
+    } else {
+      payload = {
+        data: {
+          type: "notification",
+          title: title,
+          message: body
+        },
+        android: {
+          priority: "high"
+        }
+      };
+    }
+
+    let targetDevices = [];
+    let targetTokens = [];
+
+    if (deviceId === 'all') {
+      targetDevices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
+      targetTokens = targetDevices.map(d => d.fcmToken).filter(Boolean);
+    } else {
+      const device = await Device.findById(deviceId).select('_id fcmToken').lean();
+      if (!device || !device.fcmToken) {
+        return res.status(404).json({ success: false, message: 'Device not found or missing FCM token' });
+      }
+      targetDevices = [device];
+      targetTokens = [device.fcmToken];
+    }
+
+    if (targetTokens.length === 0) {
+      return res.status(404).json({ success: false, message: 'No FCM tokens found to send notifications' });
+    }
+
+    const response = await firebaseAdmin.messaging().sendEachForMulticast({
+      tokens: targetTokens,
+      ...payload
+    });
+
+    if (response.successCount > 0) {
+      const logsToInsert = [];
+      response.responses.forEach((resp, index) => {
+        if (resp.success) {
+           logsToInsert.push({
+             device: targetDevices[index]._id,
+             type: isAlarm ? 'alarm' : 'notification',
+             title: title || 'Emergency Alarm!',
+             message: body || 'Emergency Alarm!',
+             status: 'sent'
+           });
+        }
+      });
+      if (logsToInsert.length > 0) {
+        await PushLog.insertMany(logsToInsert);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Notifications sent successfully. Success: ${response.successCount}, Failure: ${response.failureCount}`,
+      details: response
+    });
+  } catch (err) {
+    console.error('[Firebase] Send Notification Error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 });
@@ -1074,7 +1183,10 @@ router.get('/balance-adjustments', auth, async (req, res) => {
       BalanceAdjustmentLog.countDocuments(query),
     ]);
 
-    const merchantIds = Array.from(new Set(items.map((it) => String(it.merchant?._id || it.merchant)).filter(Boolean)));
+    const merchantIds = Array.from(new Set(items.map((it) => {
+      const val = it.merchant?._id || it.merchant;
+      return val ? String(val) : null;
+    }).filter(v => v && v !== 'undefined' && v !== 'null')));
 
     let merchantBaseMap = new Map();
     if (merchantIds.length > 0) {
@@ -1679,80 +1791,6 @@ router.get('/payment-sessions', auth, async (req, res) => {
 
     const total = totalBusiness + totalPersonal;
 
-    const failedSessionQuery = {
-      ...businessQuery,
-    };
-    
-    if (businessQuery.$and) {
-      failedSessionQuery.$and = [...businessQuery.$and];
-    } else {
-      failedSessionQuery.$and = [];
-    }
-
-    const failureConditionsOr = [
-      { status: { $in: ['expired', 'cancelled'] } },
-      { 'lastVerificationFailure.code': { $exists: true, $ne: null } },
-      { 'lastVerificationFailure.message': { $exists: true, $ne: null } }
-    ];
-
-    const failureConditionsTrxIdExist = {
-      $or: [
-        { 'lastVerificationFailure.trxid': { $exists: true, $nin: [null, ''] } },
-        { 'verificationAttempts.trxid': { $exists: true, $nin: [null, ''] } },
-        { 'events.meta.txid': { $exists: true, $nin: [null, ''] } },
-        { 'events.meta.trxid': { $exists: true, $nin: [null, ''] } },
-      ]
-    };
-
-    failedSessionQuery.$and.push({ $or: failureConditionsOr });
-    failedSessionQuery.$and.push(failureConditionsTrxIdExist);
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-    const yesterdayStart = new Date(todayStart);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-
-    const failedTimeExpr = {
-      $let: {
-        vars: {
-          failureAt: '$lastVerificationFailure.at',
-          attemptAt: { $arrayElemAt: ['$verificationAttempts.at', 0] },
-          eventAt: { $arrayElemAt: ['$events.at', 0] },
-        },
-        in: {
-          $ifNull: [
-            '$$failureAt',
-            { $ifNull: [ '$$attemptAt', { $ifNull: [ '$$eventAt', { $ifNull: [ '$updatedAt', '$createdAt' ] } ] } ] }
-          ]
-        }
-      }
-    };
-
-    const [failedTotalAgg, failedTodayAgg, failedYesterdayAgg] = await Promise.all([
-      OpayBusinessPaymentSession.aggregate([
-        { $match: failedSessionQuery },
-        { $count: 'count' }
-      ]),
-      OpayBusinessPaymentSession.aggregate([
-        { $match: failedSessionQuery },
-        { $addFields: { failAt: failedTimeExpr } },
-        { $match: { failAt: { $gte: todayStart, $lt: tomorrowStart } } },
-        { $count: 'count' }
-      ]),
-      OpayBusinessPaymentSession.aggregate([
-        { $match: failedSessionQuery },
-        { $addFields: { failAt: failedTimeExpr } },
-        { $match: { failAt: { $gte: yesterdayStart, $lt: todayStart } } },
-        { $count: 'count' }
-      ]),
-    ]);
-
-    const failedTotal = failedTotalAgg[0]?.count || 0;
-    const failedToday = failedTodayAgg[0]?.count || 0;
-    const failedYesterday = failedYesterdayAgg[0]?.count || 0;
-
 
     const Device = require('../models/Device');
     const PaymentMessage = require('../models/PaymentMessage');
@@ -1806,6 +1844,7 @@ router.get('/payment-sessions', auth, async (req, res) => {
 
       return {
         ...s,
+        events: undefined,
         resolvedDevice,
         resolvedMethod,
         attemptedTrxId,
@@ -1851,16 +1890,100 @@ router.get('/payment-sessions', auth, async (req, res) => {
       success: true,
       data: finalData,
       page: pageNum,
-      total,
-      summary: {
-        failedTotal,
-        failedToday,
-        failedYesterday,
-      }
+      total
     });
   } catch (err) {
     console.error('admin get global payment-sessions error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading payment sessions' });
+  }
+});
+
+// Get a single payment link session by ID (with full events data)
+router.get('/payment-sessions/:id', auth, async (req, res) => {
+  const ApiAccessToken = require('../models/ApiAccessToken');
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    
+    const { id } = req.params;
+    
+    // Check if it's a business session
+    let session = await OpayBusinessPaymentSession.findById(id)
+      .populate('business', 'name domain email')
+      .populate('paymentMessage')
+      .lean();
+      
+    let isBusiness = true;
+
+    // If not found, check personal token
+    if (!session) {
+      session = await ApiAccessToken.findById(id)
+        .populate('owner', 'name email phone')
+        .lean();
+      isBusiness = false;
+    }
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Payment session not found' });
+    }
+
+    const Device = require('../models/Device');
+    const PaymentMethod = require('../models/PaymentMethod');
+    
+    const devId = session.verificationFootprint?.deviceId || session.paymentMessage?.deviceId;
+    const resolvedDevice = devId ? await Device.findOne({ deviceCode: devId }).populate('owner', 'name email phone').lean() : null;
+
+    let tNum = null;
+    if (session.events && Array.isArray(session.events)) {
+      tNum = session.events.find(e => e.type === 'pay_click')?.meta?.method?.accountNumber;
+    }
+    tNum = tNum || session.paymentMessage?.from || session.paymentMessage?.masking;
+
+    const resolvedMethod = tNum ? await PaymentMethod.findOne({ accountNumber: tNum }).populate('owner', 'name email phone').lean() : null;
+
+    let attemptedTrxId = null;
+    if (session.lastVerificationFailure?.trxid) {
+      attemptedTrxId = String(session.lastVerificationFailure.trxid).trim();
+    } else if (Array.isArray(session.verificationAttempts)) {
+      for (let i = session.verificationAttempts.length - 1; i >= 0; i -= 1) {
+        if (session.verificationAttempts[i]?.trxid) {
+          attemptedTrxId = String(session.verificationAttempts[i].trxid).trim();
+          break;
+        }
+      }
+    }
+    
+    if (!attemptedTrxId && Array.isArray(session.events)) {
+      for (let i = session.events.length - 1; i >= 0; i -= 1) {
+        const evId = session.events[i]?.meta?.txid || session.events[i]?.meta?.trxid;
+        if (evId) {
+          attemptedTrxId = String(evId).trim();
+          break;
+        }
+      }
+    }
+
+    const PaymentMessageModel = require('../models/PaymentMessage');
+    const attemptedPaymentMessage = attemptedTrxId 
+      ? await PaymentMessageModel.findOne({ trxID: new RegExp(`^${attemptedTrxId}$`, 'i') }).lean() 
+      : null;
+
+    const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
+    
+    const returnData = {
+      ...session,
+      resolvedDevice,
+      resolvedMethod,
+      attemptedTrxId,
+      attemptedPaymentMessage,
+      payment_page_url: isBusiness ? `${baseUrl}/payment/${session.code}` : `${baseUrl}/payment/${session.token}`,
+      footprintUrl: isBusiness ? (session.footprintUrl || `${baseUrl}/payment/${session.code}/mask/footprint`) : undefined,
+      footprintUrlNonMask: isBusiness ? (session.footprintUrlNonMask || `${baseUrl}/payment/${session.code}/footprint`) : undefined,
+    };
+
+    res.json({ success: true, data: returnData });
+  } catch (err) {
+    console.error('admin get payment-session detail error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -1897,10 +2020,9 @@ router.get('/opay-businesses', auth, async (req, res) => {
     // 4. Map the aggregated data back to businesses with accurate financial & performance stats
     const data = await Promise.all(businesses.map(async (b) => {
         const busId = new mongoose.Types.ObjectId(b._id);
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
+        const startOfToday = require('moment-timezone')().tz('Asia/Dhaka').startOf('day').toDate();
         
-        const [paidStats, withStats, todayStats] = await Promise.all([
+        const [paidStats, withStats, todayStats, autoWithStats] = await Promise.all([
             OpayBusinessPaymentSession.aggregate([
                 { $match: { business: busId, status: 'paid' } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -1919,12 +2041,17 @@ router.get('/opay-businesses', auth, async (req, res) => {
                         amountToday: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } }
                     }
                 }
+            ]),
+            AutoWithdrawalRequest.aggregate([
+                { $match: { merchant: busId, status: { $in: ['pending', 'booked', 'completed'] } } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
             ])
         ]);
 
         const totalSuccessAmount = (paidStats[0]?.total) || 0;
         const totalWithdrawalAmount = (withStats[0]?.total) || 0;
-        const availableBalance = totalSuccessAmount - totalWithdrawalAmount + (b.balanceAdjustment || 0);
+        const totalAutoWithdrawalAmount = (autoWithStats[0]?.total) || 0;
+        const availableBalance = totalSuccessAmount - totalWithdrawalAmount - totalAutoWithdrawalAmount + (b.balanceAdjustment || 0);
         
         const today = todayStats[0] || { generatedToday: 0, successToday: 0, amountToday: 0 };
 
@@ -2003,6 +2130,12 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
     ]);
     const totalWithdrawalAmount = withdrawals[0]?.total || 0;
 
+    const autoWithdrawals = await AutoWithdrawalRequest.aggregate([
+        { $match: { merchant: businessId, status: { $in: ['pending', 'booked', 'completed'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalAutoWithdrawalAmount = autoWithdrawals[0]?.total || 0;
+
     const summary = stats[0] || {
       totalAmount: 0,
       successAmount: 0,
@@ -2014,7 +2147,7 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
     const business = await OpayBusiness.findById(id).select('balanceAdjustment').lean();
     const balanceAdjustment = business?.balanceAdjustment || 0;
     summary.balanceAdjustment = balanceAdjustment;
-    summary.availableBalance = summary.successAmount - totalWithdrawalAmount + balanceAdjustment;
+    summary.availableBalance = summary.successAmount - totalWithdrawalAmount - totalAutoWithdrawalAmount + balanceAdjustment;
 
     const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
 
@@ -2049,7 +2182,7 @@ router.get('/opay-businesses/:id/dashboard-overview', auth, async (req, res) => 
     const { id } = req.params;
     const businessId = new mongoose.Types.ObjectId(id);
 
-    const [totalsRes, withdrawalRes, graphRes] = await Promise.all([
+    const [totalsRes, withdrawalRes, autoWithRes, graphRes] = await Promise.all([
       OpayBusinessPaymentSession.aggregate([
         { $match: { business: businessId } },
         {
@@ -2063,6 +2196,10 @@ router.get('/opay-businesses/:id/dashboard-overview', auth, async (req, res) => 
       ]),
       MerchantWithdrawal.aggregate([
         { $match: { merchantId: businessId, status: { $in: ['approved', 'pending'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      AutoWithdrawalRequest.aggregate([
+        { $match: { merchant: businessId, status: { $in: ['pending', 'booked', 'completed'] } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       OpayBusinessPaymentSession.aggregate([
@@ -2086,10 +2223,11 @@ router.get('/opay-businesses/:id/dashboard-overview', auth, async (req, res) => 
 
     const resTotals = totalsRes[0] || { totalGenerated: 0, totalSuccess: 0, totalSuccessAmount: 0 };
     const totalWithdrawalAmount = withdrawalRes[0]?.total || 0;
+    const totalAutoWithdrawalAmount = autoWithRes[0]?.total || 0;
     const business = await OpayBusiness.findById(id).select('balanceAdjustment').lean();
     const balanceAdjustment = business?.balanceAdjustment || 0;
     resTotals.balanceAdjustment = balanceAdjustment;
-    resTotals.availableBalance = resTotals.totalSuccessAmount - totalWithdrawalAmount + balanceAdjustment;
+    resTotals.availableBalance = resTotals.totalSuccessAmount - totalWithdrawalAmount - totalAutoWithdrawalAmount + balanceAdjustment;
 
     const daily = [];
     const now = new Date();
@@ -2125,7 +2263,13 @@ router.get('/opay-businesses/:id', auth, async (req, res) => {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const item = await OpayBusiness.findById(req.params.id).lean();
     if (!item) return res.status(404).json({ success: false, message: 'Business not found' });
-    return res.json({ success: true, data: item });
+
+    // Find the activation payment session (if any)
+    const activationSession = await OpayBusinessPaymentSession.findOne({
+      'checkoutItems.merchantIdToActivate': req.params.id
+    }).populate('paymentMessage').lean();
+
+    return res.json({ success: true, data: { ...item, activationSession } });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -2227,6 +2371,27 @@ router.post('/opay-businesses/:id/toggle', auth, async (req, res) => {
         await business.save();
         
         return res.json({ success: true, message: `Business is now ${business.enabled ? 'Active' : 'Inactive'}`, data: business });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: err.message || 'Server error' });
+    }
+});
+
+// Admin: Toggle Lifetime Payment (Manual Activation)
+router.post('/opay-businesses/:id/toggle-lifetime-payment', auth, async (req, res) => {
+    try {
+        if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+        const business = await OpayBusiness.findById(req.params.id);
+        if (!business) return res.status(404).json({ message: "Business not found" });
+
+        business.isLifetimePaid = !business.isLifetimePaid;
+        await business.save();
+        
+        return res.json({ 
+            success: true, 
+            message: `Lifetime Payment status is now ${business.isLifetimePaid ? 'PAID' : 'UNPAID'}`, 
+            data: business 
+        });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -2480,6 +2645,480 @@ router.post('/merchant-withdrawal-config', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Get push notification history
+router.get('/push-logs', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    
+    // Fetch last 100 logs
+    const logs = await PushLog.find()
+      .populate('device', 'deviceName deviceCode deviceUserName')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    return res.json({ success: true, logs });
+  } catch (err) {
+    console.error('Error fetching push logs:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get dynamic OpayBusinessPackage settings
+router.get('/opay-business-package', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    let pkg = await OpayBusinessPackage.findOne();
+    if (!pkg) {
+      // Return default values in-memory if none exists yet
+      pkg = {
+        name: 'Lifetime Activation Package',
+        amount: 5000,
+        offerDetails: 'এককালীন ফি প্রদান করে আজীবন আনলিমিটেড পেমেন্ট লিংক তৈরি করুন।',
+        features: [
+          'লাইফটাইম আনলিমিটেড পেমেন্ট লিংক তৈরি',
+          '০% অতিরিক্ত হিডেন চার্জ',
+          'রিয়েল-টাইম ট্রানজ্যাকশন মনিটরিং ড্যাশবোর্ড',
+          'গ্রাহকদের জন্য প্রিমিয়াম সাকসেস ল্যান্ডিং পেইজ',
+          '২৪/৭ মার্চেন্ট ও কাস্টমার সাপোর্ট সার্ভিস'
+        ],
+        isActive: true
+      };
+    }
+    return res.json({ success: true, data: pkg });
+  } catch (err) {
+    console.error('Error fetching business package config:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Update dynamic OpayBusinessPackage settings
+router.post('/opay-business-package', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { amount, offerDetails, features, isActive } = req.body || {};
+
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid activation fee amount' });
+    }
+
+    if (!Array.isArray(features)) {
+      return res.status(400).json({ success: false, message: 'Features list must be an array' });
+    }
+
+    let pkg = await OpayBusinessPackage.findOne();
+    if (!pkg) {
+      pkg = new OpayBusinessPackage({
+        amount: amountNum,
+        offerDetails: String(offerDetails || '').trim(),
+        features: features.map(f => String(f).trim()),
+        isActive: typeof isActive === 'boolean' ? isActive : true
+      });
+    } else {
+      pkg.amount = amountNum;
+      pkg.offerDetails = String(offerDetails || '').trim();
+      pkg.features = features.map(f => String(f).trim());
+      if (typeof isActive === 'boolean') pkg.isActive = isActive;
+    }
+
+    await pkg.save();
+    return res.json({ success: true, message: 'Lifetime activation package updated successfully', data: pkg });
+  } catch (err) {
+    console.error('Error updating business package config:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== PENDING NAGAD VERIFICATION ====================
+
+// Get pending nagad sessions
+router.get('/pending-nagad', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+    const skip = (pageNum - 1) * lim;
+
+    const query = { status: 'pending_nagad' };
+    const [items, total] = await Promise.all([
+      OpayBusinessPaymentSession.find(query)
+        .populate('business')
+        .populate('paymentMessage')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .lean(),
+      OpayBusinessPaymentSession.countDocuments(query),
+    ]);
+
+    return res.json({ success: true, data: items, page: pageNum, total });
+  } catch (err) {
+    console.error('Error fetching pending nagad sessions:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Approve a pending Nagad session
+router.post('/pending-nagad/accept', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Code is required' });
+    }
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_nagad' }).populate('business');
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending session not found' });
+    }
+
+    const matchedMessage = await PaymentMessage.findById(session.paymentMessage);
+    if (!matchedMessage) {
+      return res.status(404).json({ success: false, message: 'Transaction message not found' });
+    }
+
+    if (matchedMessage.verify) {
+      return res.status(400).json({ success: false, message: 'Transaction ID already used' });
+    }
+
+    // Mark verified
+    matchedMessage.verify = true;
+    await matchedMessage.save();
+
+    session.status = 'paid';
+    session.paymentMessage = matchedMessage._id;
+
+    // Resolve PaymentMethod to find wallet agent
+    const attempts = Array.isArray(session.verificationAttempts) ? session.verificationAttempts : [];
+    const agentAccountNumber = attempts[attempts.length - 1]?.agentAccountNumber;
+
+    let method = null;
+    if (agentAccountNumber) {
+      method = await PaymentMethod.findOne({ accountNumber: agentAccountNumber, provider: 'nagad', status: 'active' });
+    }
+
+    if (!method) {
+      const deviceIdentifier = matchedMessage.deviceId || matchedMessage.deviceName;
+      method = await PaymentMethod.findOne({ device: deviceIdentifier, provider: 'nagad', status: 'active' });
+    }
+
+    if (method) {
+      // ── Wallet Agent Credit Deduction ──
+      const paymentAmount = Number(session.amount) || 0;
+      let walletAgentSnapshot = null;
+
+      try {
+        const agentUser = await User.findById(method.owner).select('name credit minimumCredit');
+        if (agentUser) {
+          const creditBefore = agentUser.credit || 0;
+          const creditAfter = Math.max(0, creditBefore - paymentAmount);
+          agentUser.credit = creditAfter;
+          await agentUser.save();
+
+          walletAgentSnapshot = {
+            agentId: agentUser._id,
+            agentName: agentUser.name || 'Unknown Agent',
+            creditBefore,
+            creditAfter,
+            creditDeducted: paymentAmount,
+          };
+
+          session.walletAgentSnapshot = walletAgentSnapshot;
+          console.log(`[CREDIT DEDUCTED - ADMIN NAGAD] Agent: ${agentUser.name}, Before: ৳${creditBefore}, After: ৳${creditAfter}, Deducted: ৳${paymentAmount}`);
+          
+          await updateAgentMethodsStatus(agentUser._id);
+        }
+      } catch (creditErr) {
+        console.error('[CREDIT DEDUCTION ERROR - ADMIN NAGAD]', creditErr.message);
+      }
+    }
+
+    // ── Merchant Balance Snapshot ──
+    try {
+      const business = await OpayBusiness.findById(session.business._id || session.business).select('name balanceAdjustment');
+      if (business) {
+        const paymentAmount = Number(session.amount) || 0;
+        const previousPaidTotal = await OpayBusinessPaymentSession.aggregate([
+          { $match: { business: business._id, status: 'paid', _id: { $ne: session._id } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const balanceBefore = (previousPaidTotal[0]?.total || 0) + (business.balanceAdjustment || 0);
+        const balanceAfter = balanceBefore + paymentAmount;
+
+        const merchantSnapshot = {
+          businessId: business._id,
+          businessName: business.name || 'Unknown Merchant',
+          balanceBefore,
+          balanceAfter,
+          balanceAdded: paymentAmount,
+        };
+
+        session.merchantSnapshot = merchantSnapshot;
+        console.log(`[MERCHANT SNAPSHOT - ADMIN NAGAD] ${business.name}: Before ৳${balanceBefore} → After ৳${balanceAfter} (+৳${paymentAmount})`);
+      }
+    } catch (balErr) {
+      console.error('[MERCHANT SNAPSHOT ERROR - ADMIN NAGAD]', balErr.message);
+    }
+
+    await session.save();
+    console.log(`[VERIFY SUCCESS - ADMIN NAGAD] Nagad session ${code} verified by admin and marked as paid`);
+
+    // If activation payment, activate merchant
+    if (session.checkoutItems && session.checkoutItems.type === 'Activation Payment' && session.checkoutItems.merchantIdToActivate) {
+      try {
+        const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
+        if (merchantToActivate) {
+          merchantToActivate.isLifetimePaid = true;
+          await merchantToActivate.save();
+          console.log(`[ACTIVATION SUCCESS - ADMIN NAGAD] Activated merchant ${merchantToActivate.email} (ID: ${merchantToActivate._id})`);
+        }
+      } catch (activationErr) {
+        console.error('[ACTIVATION ERROR - ADMIN NAGAD]', activationErr.message);
+      }
+    }
+
+    // Webhook callback
+    try {
+      const callbackUrl = session.callbackUrl;
+      if (callbackUrl && /^https?:\/\//i.test(callbackUrl)) {
+        const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
+        const footprintUrlMasked = session.footprintUrl || `${baseUrl}/payment/${session.code}/mask/footprint`;
+        
+        const payload = {
+          status: 'COMPLETED',
+          amount: Number(matchedMessage.amount),
+          transaction_id: matchedMessage.trxID,
+          invoice_number: session.invoiceNumber || null,
+          session_code: session.code,
+          user_identity: session.userIdentityAddress || null,
+          checkout_items: session.checkoutItems || null,
+          bank: 'nagad',
+          footprint: footprintUrlMasked
+        };
+        const axios = require('axios');
+        axios.post(callbackUrl, payload, { timeout: 5000 })
+          .then(async (res) => {
+            session.callbackResult = {
+              success: true,
+              statusCode: res.status,
+              payloadSent: payload,
+              responseReceived: res.data
+            };
+            await session.save();
+          })
+          .catch(async (err) => {
+            session.callbackResult = {
+              success: false,
+              error: err?.message || 'Unknown error',
+              payloadSent: payload,
+              responseReceived: err?.response?.data || null
+            };
+            await session.save();
+            console.warn('OpayBusiness Callback POST failed:', err?.message || err);
+          });
+      }
+    } catch (cbErr) {
+      console.warn('OpayBusiness Callback handling error:', cbErr?.message || cbErr);
+    }
+
+    // Send SMS
+    try {
+      const notifyPhone = session.checkoutItems?.customSuccess?.notifyPhone || session.checkoutItems?.notifyPhone;
+      if (notifyPhone && typeof notifyPhone === 'string' && notifyPhone.trim()) {
+        const raw = notifyPhone.trim();
+        const formattedNotify = raw.startsWith('88') ? raw : (raw.startsWith('0') ? '88' + raw : '880' + raw);
+        const notifyMsg = `Payment received. Invoice: ${session.invoiceNumber || session.code} Amount: ${Number(session.amount || 0).toLocaleString()} BDT. Thank you!`;
+
+        await fetch("https://api.o-sms.com/api/service/send-single", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recipient: formattedNotify, message: notifyMsg })
+        }).catch(e => console.error("Failed to send payment SMS to notify number:", e.message));
+      }
+    } catch (smsErr) {
+      console.error('Payment notify SMS error:', smsErr?.message || smsErr);
+    }
+
+    return res.json({ success: true, message: 'Payment approved successfully' });
+  } catch (err) {
+    console.error('Error approving pending Nagad session:', err);
+    return res.status(500).json({ success: false, message: 'Server error during approval' });
+  }
+});
+
+// Reject/cancel a pending Nagad session
+router.post('/pending-nagad/reject', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Code is required' });
+    }
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_nagad' });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending session not found' });
+    }
+
+    session.status = 'cancelled';
+    await session.save();
+
+    console.log(`[VERIFY REJECTED - ADMIN NAGAD] Nagad session ${code} cancelled by admin`);
+    return res.json({ success: true, message: 'Payment session cancelled successfully' });
+  } catch (err) {
+    console.error('Error rejecting pending Nagad session:', err);
+    return res.status(500).json({ success: false, message: 'Server error during rejection' });
+  }
+});
+
+// Admin Reject Auto Withdrawal
+router.post('/auto-withdrawals/:id/reject', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
+    const axios = require('axios');
+    
+    const request = await AutoWithdrawalRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Auto withdrawal request not found' });
+    }
+    
+    if (request.status === 'completed') {
+      return res.status(400).json({ success: false, message: 'Cannot reject an already completed request' });
+    }
+    if (request.status === 'rejected') {
+      return res.status(400).json({ success: false, message: 'Request is already rejected' });
+    }
+    
+    request.status = 'rejected';
+    if (reason) {
+      request.rejectReason = reason.trim();
+    }
+    
+    // Send callback to merchant notifying rejection
+    if (request.callbackUrl) {
+      try {
+        const payload = {
+          status: 'REJECTED',
+          amount: request.amount,
+          payment_method: request.paymentMethod,
+          user_identity_address: request.userIdentityAddress,
+          checkout_items: request.checkoutItems,
+          reason: request.rejectReason || 'Rejected by administrator'
+        };
+        const cbRes = await axios.post(request.callbackUrl, payload, { timeout: 10000 });
+        request.callbackResult = {
+          success: true,
+          statusCode: cbRes.status,
+          data: cbRes.data,
+          note: 'Rejected callback sent'
+        };
+      } catch (cbErr) {
+        request.callbackResult = {
+          success: false,
+          error: cbErr.message,
+          note: 'Failed to send rejected callback'
+        };
+      }
+    }
+    
+    // Add admin ID to rejectedBy
+    if (!request.rejectedBy) request.rejectedBy = [];
+    if (!request.rejectedBy.includes(req.user.id)) {
+      request.rejectedBy.push(req.user.id);
+    }
+    
+    await request.save();
+    
+    // Emit socket to update wallet agents who might be looking at it
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('auto_withdrawal_rejected', { id: request._id, merchant: request.merchant });
+    }
+    
+    return res.json({ success: true, message: 'Request rejected and merchant notified' });
+  } catch (err) {
+    console.error('Admin auto-withdrawal reject error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get all auto withdrawals
+router.get('/auto-withdrawals', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { status, page = 1, limit = 50 } = req.query;
+    
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
+    const lim = Math.max(1, Math.min(100, Number(limit)));
+
+    const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
+    
+    const total = await AutoWithdrawalRequest.countDocuments(query);
+    const withdrawals = await AutoWithdrawalRequest.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(lim)
+      .populate('merchant', 'name email company')
+      .populate('bookedBy', 'name email phone')
+      .populate('rejectedBy', 'name email phone')
+      .lean();
+
+    return res.json({ success: true, data: withdrawals, total });
+  } catch (err) {
+    console.error('Admin auto-withdrawals error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/admin/merchant-topup-history
+router.get('/merchant-topup-history', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+    const skip = (pageNum - 1) * lim;
+
+    const [items, total] = await Promise.all([
+      MerchantTopupRecord.find({})
+        .populate('merchantId', 'businessName ownerName phone email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .lean(),
+      MerchantTopupRecord.countDocuments({})
+    ]);
+
+    return res.json({
+      success: true,
+      data: items,
+      pagination: {
+        total,
+        page: pageNum,
+        pages: Math.ceil(total / lim)
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching merchant topup history:', err);
+    return res.status(500).json({ success: false, message: 'Server error fetching topup history' });
   }
 });
 

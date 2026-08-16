@@ -50,6 +50,16 @@ export async function getPaymentPageHistory(params = {}) {
   return res.data
 }
 
+export async function deletePaymentPageHistory(code) {
+  const res = await api.delete(`/opay-business/payment-page-history/${code}`)
+  return res.data
+}
+
+export async function expirePaymentPageHistory(code) {
+  const res = await api.post(`/opay-business/payment-page-history/${code}/expire`)
+  return res.data
+}
+
 export async function getDashboardOverview(params = {}) {
   const res = await api.get('/opay-business/dashboard-overview', { params })
   return res.data
@@ -62,5 +72,51 @@ export async function fetchMerchantWithdrawals() {
 
 export async function getWithdrawalConfig() {
   const res = await api.get('/opay-business/withdrawal-config')
+  return res.data
+}
+
+export async function uploadPaymentPageImage(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  const res = await api.post('/uploads/payment-page-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  return res.data
+}
+
+export async function getActivationPackage() {
+  const res = await api.get('/opay-business/activation-package')
+  return res.data
+}
+
+export async function createActivationCheckout() {
+  const res = await api.post('/opay-business/create-activation-checkout')
+  return res.data
+}
+
+export async function getPendingNagad() {
+  const res = await api.get('/opay-business/pending-nagad')
+  return res.data
+}
+
+export async function getAutoWithdrawalHistory(params = {}) {
+  const res = await api.get('/opay-business/auto-withdraw/history', { params })
+  return res.data
+}
+
+export async function cancelAutoWithdrawal(id) {
+  const res = await api.post(`/opay-business/auto-withdraw/${id}/cancel`)
+  return res.data
+}
+
+export async function initTopup(amount) {
+  const res = await api.post('/opay-business/topup-init', { amount })
+  return res.data
+}
+
+export async function getTopupHistory(params = {}) {
+  const res = await api.get('/opay-business/topup-history', { params })
   return res.data
 }

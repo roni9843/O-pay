@@ -70,7 +70,7 @@ router.post(
       console.log(`[DeviceAPI] Activate Request: ID ${activationId}, Code ${deviceCode}, Name ${deviceName}`);
 
       // find device by activationId and populate subscription -> plan
-      const device = await Device.findOne({ activationId  }).populate({
+      const device = await Device.findOne({ activationId }).populate({
         path: 'subscription',
         populate: { path: 'plan' }
       });
@@ -103,9 +103,9 @@ router.post(
       device.deviceName = deviceName;
       device.state = true;
       device.activationTime = now;
-      device.activationId = null; 
-      device.endActivationTime = null; 
-      
+      device.activationId = null;
+      device.endActivationTime = null;
+
       await device.save();
       console.log(`[DeviceAPI] Activate Success: ID ${activationId} activated for ${deviceName}`);
 
@@ -124,38 +124,38 @@ router.post(
 router.post(
   '/send-sms',
   async (req, res) => {
-  const { mobile, message } = req.body;
-const payload = {
-    UserName: "abirhassandurjoy31@gmail.com",    // MiMSMS ইউজারনেম (ইমেইল)
-    Apikey: "8M89BOTYKW4LJN3",         // আপনার API Key
-    MobileNumber: mobile,           // প্রাপকের মোবাইল নম্বর
-    SenderName: "8809601004896",     // আপনার রেজিস্টারকৃত Sender ID
-    TransactionType: "T",           // 'T' (Transactional)
-    Message: `OPay
+    const { mobile, message } = req.body;
+    const payload = {
+      UserName: "abirhassandurjoy31@gmail.com",    // MiMSMS ইউজারনেম (ইমেইল)
+      Apikey: "8M89BOTYKW4LJN3",         // আপনার API Key
+      MobileNumber: mobile,           // প্রাপকের মোবাইল নম্বর
+      SenderName: "8809601004896",     // আপনার রেজিস্টারকৃত Sender ID
+      TransactionType: "T",           // 'T' (Transactional)
+      Message: `OPay
 Your One-Time Password (OTP) is 544641.
 
 Account: 01874374269
 SIM: 1 (rocket- merchant)
 Device ID: 69145b06525049ecb64541b6
-This code is valid for 5 minutes. Please do not share it with anyone for your security.`              
-  };
+This code is valid for 5 minutes. Please do not share it with anyone for your security.`
+    };
 
-  try {
-    const response = await axios.post("https://api.mimsms.com/api/SmsSending/SMS", payload);
-    const data = response.data;
-    if (data.statusCode === "200" && data.status === "Success") {
-      // সফল হলে
-      res.json({ success: true, result: data });
-    } else {
-      // এপিআই ত্রুটি হলে
-      res.status(400).json({ success: false, error: data.responseResult });
+    try {
+      const response = await axios.post("https://api.mimsms.com/api/SmsSending/SMS", payload);
+      const data = response.data;
+      if (data.statusCode === "200" && data.status === "Success") {
+        // সফল হলে
+        res.json({ success: true, result: data });
+      } else {
+        // এপিআই ত্রুটি হলে
+        res.status(400).json({ success: false, error: data.responseResult });
+      }
+    } catch (error) {
+      // নেটওয়ার্ক/সার্ভার ইরর
+      console.error(error);
+      res.status(500).json({ success: false, error: error.message });
     }
-  } catch (error) {
-    // নেটওয়ার্ক/সার্ভার ইরর
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+  });
 
 
 
@@ -179,28 +179,39 @@ const verifyOtpUsingSms = async ({
     if (!device)
       return { success: false, error: "Active device not found" };
 
-    const key = `${provider}-${accountNumber}-${simIndex}`;
-    const stored = otpStore.get(key);
+    const OtpLog = require('../models/OtpLog');
+    console.log("🔍 Checking DB for OTP:", { provider, accountNumber, simIndex });
+    
+    const stored = await OtpLog.findOne({ provider, accountNumber, simIndex });
+    console.log("📂 Found OTP in DB:", stored);
 
-    if (!stored || stored.expiresAt < Date.now()) {
-      return { success: false, error: "OTP expired or not found. Send new OTP." };
+    if (!stored) {
+      return { success: false, error: "OTP not found in DB." };
+    }
+
+    if (stored.expiresAt < new Date()) {
+      return { success: false, error: "OTP expired in DB." };
     }
 
     if (stored.otp !== otp) {
+      console.log(`❌ Invalid OTP: Expected ${stored.otp}, Got ${otp}`);
       return { success: false, error: "Invalid OTP. Try again." };
     }
 
 
 
     // Check duplicate
+    console.log("🔍 Checking if Number already linked:", { deviceId, owner: device.owner, provider, accountNumber });
     const exists = await PaymentMethod.findOne({
-      device:deviceId,
+      device: deviceId,
       owner: device.owner,
       provider,
       accountNumber,
     });
-    if (exists)
+    if (exists) {
+      console.log("❌ Number already linked!");
       return { success: false, error: "Number already linked" };
+    }
 
     // Determine initial status based on owner role (wallet_agent => inactive)
     let initialStatus = "active";
@@ -210,9 +221,10 @@ const verifyOtpUsingSms = async ({
     }
 
     // Save
+    console.log("✅ Creating new PaymentMethod:", { owner: device.owner, deviceId, provider, accountNumber, gateway, simIndex, status: initialStatus });
     const pm = new PaymentMethod({
       owner: device.owner,
-      device:deviceId,
+      device: deviceId,
       provider,
       accountNumber,
       gateway,
@@ -220,14 +232,16 @@ const verifyOtpUsingSms = async ({
       status: initialStatus,
     });
 
- 
+
 
 
     await pm.save();
-    otpStore.delete(key); // Clear OTP
+    console.log("✅ PaymentMethod successfully saved. Now deleting from OtpLog.");
+    await OtpLog.deleteOne({ _id: stored._id }); // Clear OTP
 
     return { success: true, data: pm };
   } catch (err) {
+    console.error("🔥 Error in verifyOtpUsingSms:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -333,157 +347,160 @@ let writeLock = false; // 🔒 simple in-memory lock
 
 // ====================== ROUTE ======================
 router.post('/send-payment-message', async (req, res, next) => {
-    const messages = Array.isArray(req.body) ? req.body : [req.body];
-    const processedResults = [];
+  const messages = Array.isArray(req.body) ? req.body : [req.body];
+  const processedResults = [];
 
-    console.log(`Processing ${messages.length} message(s)`);
+  console.log(`Processing ${messages.length} message(s)`);
 
-    // Bangladesh date (YYYY-MM-DD)
-    const bdNow = new Date().toLocaleString("en-BD", { 
-        timeZone: "Asia/Dhaka", 
-        hour12: false 
-    });
-    const bdDate = new Date(bdNow).toISOString().split("T")[0];
+  // Bangladesh date (YYYY-MM-DD)
+  const bdNow = new Date().toLocaleString("en-BD", {
+    timeZone: "Asia/Dhaka",
+    hour12: false
+  });
+  const bdDate = new Date(bdNow).toISOString().split("T")[0];
 
-    const dirPath = path.join(__dirname, "../messages");
-    const filePath = path.join(dirPath, `${bdDate}.json`);
-    const tempPath = `${filePath}.${Date.now()}-${Math.round(Math.random() * 10000)}.tmp`;   // Atomic write এর জন্য
+  const dirPath = path.join(__dirname, "../messages");
+  const filePath = path.join(dirPath, `${bdDate}.json`);
+  const tempPath = `${filePath}.${Date.now()}-${Math.round(Math.random() * 10000)}.tmp`;   // Atomic write এর জন্য
 
-    let lockAcquired = false;
+  let lockAcquired = false;
 
-    try {
-        // Strong Lock with timeout
-        const startTime = Date.now();
-        while (writeLock) {
-            if (Date.now() - startTime > 20000) {  // 20 seconds timeout
-                throw new Error("File write lock timeout");
-            }
-            await new Promise(r => setTimeout(r, 30));
-        }
-        writeLock = true;
-        lockAcquired = true;
-
-        await fs.mkdir(dirPath, { recursive: true });
-
-        // Read existing data safely
-        let existingData = [];
-        try {
-            const fileContent = await fs.readFile(filePath, "utf-8");
-            existingData = JSON.parse(fileContent || "[]");
-            if (!Array.isArray(existingData)) existingData = [];
-        } catch (err) {
-            if (err.code === "ENOENT") {
-                // File doesn't exist - first time today
-                existingData = [];
-            } else if (err instanceof SyntaxError) {
-                console.error(`❌ Corrupted JSON detected on ${bdDate}. Backing up...`);
-                await fs.rename(filePath, `${filePath}.corrupted.${Date.now()}`).catch(() => {});
-                existingData = [];
-            } else {
-                throw err;
-            }
-        }
-
-        const bdDateAndTimeZone = new Date().toLocaleString("en-BD", {
-            timeZone: "Asia/Dhaka",
-            hour12: false
-        });
-
-        for (const body of messages) {
-            const newData = {
-                type: body.type || "notification",
-                title: body.title || "Unknown",
-                text: body.text || "",
-                deviceTimezone: body.timestamp || null,
-                timestamp: new Date().toISOString().replace("T", " ").split(".")[0],
-                bdDateAndTimeZone,
-                device_id: body.device_id || "unknown_device",
-                device_name: body.device_name || "unknown_device",
-            };
-
-            existingData.push(newData);
-            processedResults.push(newData);
-
-            // ==================== MongoDB + Special Logic ====================
-            const parsedData = parseTransactionText(newData.text);
-
-            // OTP SMS from oPay
-            if (newData.title === "+8809601004896" || newData.title === "09601-004896") {
-                try {
-                    const oPayData = await oPayOtpChecker(newData.text);
-                    console.log("oPayData -> ", oPayData);
-
-                    await verifyOtpUsingSms({
-                        provider: oPayData.provider,
-                        accountNumber: oPayData.accountNumber,
-                        deviceId: oPayData.deviceId,
-                        simIndex: parseInt(oPayData.simIndex, 10),
-                        otp: oPayData?.otp,
-                        gateway: oPayData.gateway,
-                    });
-                    console.log("✅ OTP processed for:", newData.title);
-                } catch (otpErr) {
-                    console.error("❌ OTP processing failed:", otpErr.message);
-                }
-                continue;
-            }
-
-            // bKash, Nagad, upay etc.
-            if (["16216", "NAGAD", "bKash", "upay"].includes(newData.title)) {
-                console.log("parsedData -> ", parsedData);
-
-                if (parsedData.amount && parsedData.trxID) {
-                    try {
-                        const transaction = new PaymentMessage({
-                            amount: parsedData.amount,
-                            from: parsedData.from,
-                            fullMessage: newData.text,
-                            trxID: parsedData.trxID,
-                            date: parsedData.date,
-                            time: parsedData.time,
-                            deviceName: newData.device_name,
-                            deviceId: newData.device_id,
-                            type: newData.type,
-                            title: newData.title,
-                            masking: newData.title,
-                            bdDateAndTimeZone: newData.bdDateAndTimeZone,
-                            deviceTime: body.timestamp
-                        });
-
-                        await transaction.save();
-                        console.log("✅ Transaction saved to MongoDB:", parsedData.trxID);
-                    } catch (mongoErr) {
-                        console.error("❌ MongoDB Save Error:", mongoErr.message);
-                    }
-                } else {
-                    console.log("❌ Parsed data incomplete, skipping MongoDB save");
-                }
-            }
-        }
-
-        // ==================== ATOMIC WRITE ====================
-        await fs.writeFile(tempPath, JSON.stringify(existingData, null, 2), "utf-8");
-        await fs.rename(tempPath, filePath);
-
-        console.log(`✅ Successfully saved ${messages.length} message(s) to ${bdDate}.json`);
-
-        res.status(200).json({
-            success: true,
-            message: `${messages.length} message(s) processed`,
-            count: messages.length,
-            data: processedResults.length === 1 ? processedResults[0] : processedResults
-        });
-
-    } catch (err) {
-        console.error("❌ Error in /send-payment-message:", err.message);
-        next(err);
-    } finally {
-        if (lockAcquired) {
-            writeLock = false;
-        }
-        // Cleanup temp file
-        fs.unlink(tempPath).catch(() => {});
+  try {
+    // Strong Lock with timeout
+    const startTime = Date.now();
+    while (writeLock) {
+      if (Date.now() - startTime > 20000) {  // 20 seconds timeout
+        throw new Error("File write lock timeout");
+      }
+      await new Promise(r => setTimeout(r, 30));
     }
+    writeLock = true;
+    lockAcquired = true;
+
+    await fs.mkdir(dirPath, { recursive: true });
+
+    // Read existing data safely
+    let existingData = [];
+    try {
+      const fileContent = await fs.readFile(filePath, "utf-8");
+      existingData = JSON.parse(fileContent || "[]");
+      if (!Array.isArray(existingData)) existingData = [];
+    } catch (err) {
+      if (err.code === "ENOENT") {
+        // File doesn't exist - first time today
+        existingData = [];
+      } else if (err instanceof SyntaxError) {
+        console.error(`❌ Corrupted JSON detected on ${bdDate}. Backing up...`);
+        await fs.rename(filePath, `${filePath}.corrupted.${Date.now()}`).catch(() => { });
+        existingData = [];
+      } else {
+        throw err;
+      }
+    }
+
+    const bdDateAndTimeZone = new Date().toLocaleString("en-BD", {
+      timeZone: "Asia/Dhaka",
+      hour12: false
+    });
+
+    for (const body of messages) {
+      const newData = {
+        type: body.type || "notification",
+        title: body.title || "Unknown",
+        text: body.text || "",
+        deviceTimezone: body.timestamp || null,
+        timestamp: new Date().toISOString().replace("T", " ").split(".")[0],
+        bdDateAndTimeZone,
+        device_id: body.device_id || "unknown_device",
+        device_name: body.device_name || "unknown_device",
+      };
+
+      existingData.push(newData);
+      processedResults.push(newData);
+
+      // ==================== MongoDB + Special Logic ====================
+      const parsedData = parseTransactionText(newData.text);
+
+      // OTP SMS from oPay
+      if (newData.title === "+8809601004896" || newData.title === "09601-004896") {
+        try {
+          const oPayData = await oPayOtpChecker(newData.text);
+          console.log("oPayData -> ", oPayData);
+
+
+
+
+          await verifyOtpUsingSms({
+            provider: oPayData.provider,
+            accountNumber: oPayData.accountNumber,
+            deviceId: oPayData.deviceId,
+            simIndex: parseInt(oPayData.simIndex, 10),
+            otp: oPayData?.otp,
+            gateway: oPayData.gateway,
+          });
+          console.log("✅ OTP processed for:", newData.title);
+        } catch (otpErr) {
+          console.error("❌ OTP processing failed:", otpErr.message);
+        }
+        continue;
+      }
+
+      // bKash, Nagad, upay etc.
+      if (["16216", "NAGAD", "bKash", "upay"].includes(newData.title)) {
+        console.log("parsedData -> ", parsedData);
+
+        if (parsedData.amount && parsedData.trxID) {
+          try {
+            const transaction = new PaymentMessage({
+              amount: parsedData.amount,
+              from: parsedData.from,
+              fullMessage: newData.text,
+              trxID: parsedData.trxID,
+              date: parsedData.date,
+              time: parsedData.time,
+              deviceName: newData.device_name,
+              deviceId: newData.device_id,
+              type: newData.type,
+              title: newData.title,
+              masking: newData.title,
+              bdDateAndTimeZone: newData.bdDateAndTimeZone,
+              deviceTime: body.timestamp
+            });
+
+            await transaction.save();
+            console.log("✅ Transaction saved to MongoDB:", parsedData.trxID);
+          } catch (mongoErr) {
+            console.error("❌ MongoDB Save Error:", mongoErr.message);
+          }
+        } else {
+          console.log("❌ Parsed data incomplete, skipping MongoDB save");
+        }
+      }
+    }
+
+    // ==================== ATOMIC WRITE ====================
+    await fs.writeFile(tempPath, JSON.stringify(existingData, null, 2), "utf-8");
+    await fs.rename(tempPath, filePath);
+
+    console.log(`✅ Successfully saved ${messages.length} message(s) to ${bdDate}.json`);
+
+    res.status(200).json({
+      success: true,
+      message: `${messages.length} message(s) processed`,
+      count: messages.length,
+      data: processedResults.length === 1 ? processedResults[0] : processedResults
+    });
+
+  } catch (err) {
+    console.error("❌ Error in /send-payment-message:", err.message);
+    next(err);
+  } finally {
+    if (lockAcquired) {
+      writeLock = false;
+    }
+    // Cleanup temp file
+    fs.unlink(tempPath).catch(() => { });
+  }
 });
 
 
@@ -594,7 +611,7 @@ router.post(
       });
 
       await device.save();
-      
+
       // populate subscription -> plan before returning so client has plan details
       await device.populate({ path: 'subscription', populate: { path: 'plan' } });
 
@@ -644,9 +661,9 @@ router.post(
       });
 
       if (!device) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Device not found' 
+        return res.status(404).json({
+          success: false,
+          message: 'Device not found'
         });
       }
 
@@ -701,9 +718,9 @@ router.patch(
       });
 
       if (!device) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Device not found' 
+        return res.status(404).json({
+          success: false,
+          message: 'Device not found'
         });
       }
 
@@ -743,9 +760,9 @@ router.delete(
       });
 
       if (!device) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Device not found' 
+        return res.status(404).json({
+          success: false,
+          message: 'Device not found'
         });
       }
 
@@ -794,9 +811,9 @@ router.get(
       });
 
       if (!device) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Device not found' 
+        return res.status(404).json({
+          success: false,
+          message: 'Device not found'
         });
       }
 
@@ -826,12 +843,45 @@ router.get(
           select: 'plan startDate endDate duration',
           populate: { path: 'plan' }
         });
-      
+
       return res.json({ success: true, data: devices });
     } catch (err) {
       next(err);
     }
   }
 );
+
+// Acknowledge push notification receipt from mobile app
+router.post('/ack-notification', async (req, res) => {
+  try {
+    const { deviceId, type } = req.body;
+    if (!deviceId) return res.status(400).json({ success: false, message: 'Missing deviceId' });
+
+    const device = await Device.findOne({ deviceCode: deviceId }).lean();
+    if (device) {
+      const io = req.app.get('io');
+      if (io) {
+        // Emit event that admin panel can listen to
+        io.emit('notification_delivered', {
+          deviceName: device.deviceName || device.deviceUserName || deviceId,
+          deviceId: device._id,
+          type: type || 'notification',
+          time: new Date().toISOString()
+        });
+      }
+
+      // Mark PushLog as delivered
+      const PushLog = require('../models/PushLog');
+      await PushLog.updateMany(
+        { device: device._id, type: type || 'notification', status: 'sent' },
+        { $set: { status: 'delivered', deliveredAt: new Date() } }
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Ack Notification Error:', err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+});
 
 module.exports = router;

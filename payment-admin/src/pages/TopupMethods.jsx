@@ -63,7 +63,7 @@ export default function TopupMethods() {
     const payload = { name, image, details, fields };
     try {
       if (editingId) {
-        alert("Edit not implemented yet, please delete and recreate for now.");
+        await api.updateCreditTopupMethod(token, editingId, payload);
       } else {
         await api.createCreditTopupMethod(token, payload);
       }
@@ -93,6 +93,15 @@ export default function TopupMethods() {
     setDetails('');
     setFields([{ label: 'Transaction ID', inputType: 'text', required: true }]);
     setEditingId(null);
+  };
+
+  const handleEdit = (m) => {
+    setEditingId(m._id);
+    setName(m.name || '');
+    setImage(m.image || '');
+    setDetails(m.details || '');
+    setFields(m.fields?.length ? [...m.fields] : [{ label: 'Transaction ID', inputType: 'text', required: true }]);
+    setShowModal(true);
   };
 
   const addField = () => {
@@ -155,12 +164,20 @@ export default function TopupMethods() {
                           <div className="text-[10px] text-slate-400 font-mono">ID: {m._id.slice(-4)}</div>
                        </div>
                     </div>
-                    <button 
-                       onClick={() => handleDelete(m._id)}
-                       className="p-2 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                       <Trash2 size={18} />
-                    </button>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button 
+                          onClick={() => handleEdit(m)}
+                          className="p-2 rounded-xl text-slate-500 hover:bg-violet-500/10 hover:text-violet-400 transition-colors"
+                       >
+                          <Edit size={18} />
+                       </button>
+                       <button 
+                          onClick={() => handleDelete(m._id)}
+                          className="p-2 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+                       >
+                          <Trash2 size={18} />
+                       </button>
+                    </div>
                  </div>
 
                  <div className="bg-black/20 rounded-xl p-3 mb-4">
@@ -322,7 +339,7 @@ export default function TopupMethods() {
                    disabled={uploading}
                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed text-xs uppercase tracking-wider"
                  >
-                   {uploading ? 'Uploading...' : 'Create Method'}
+                   {uploading ? 'Uploading...' : editingId ? 'Save Changes' : 'Create Method'}
                  </button>
                </div>
              </form>

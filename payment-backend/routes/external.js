@@ -114,20 +114,20 @@ router.get('/resolve/:provider/:token', async (req, res) => {
     return res.json({
       success: true,
       provider: primaryMethod,
-    //   providerDisplay: PROVIDER_DISPLAY[primaryMethod] || primaryMethod,
-    //   token,
+      //   providerDisplay: PROVIDER_DISPLAY[primaryMethod] || primaryMethod,
+      //   token,
       amount: tokenDoc.meta?.amount ?? null,
       accountNumber: pm.accountNumber,
       gateway: pm.gateway,
       expiresAt: tokenDoc.expiresAt,
-    //   meta: { callbackUrl: tokenDoc.meta?.callbackUrl || null },
-    //   paymentMethod: {
-    //     id: pm._id,
-    //     provider: pm.provider,
-    //     accountNumber: pm.accountNumber,
-    //     gateway: pm.gateway,
-    //     simIndex: pm.simIndex,
-    //   },
+      //   meta: { callbackUrl: tokenDoc.meta?.callbackUrl || null },
+      //   paymentMethod: {
+      //     id: pm._id,
+      //     provider: pm.provider,
+      //     accountNumber: pm.accountNumber,
+      //     gateway: pm.gateway,
+      //     simIndex: pm.simIndex,
+      //   },
       pageContent: {
         details: content.details || [],
         note: content.note || '',
@@ -148,29 +148,34 @@ router.get('/resolve/:provider/:token', async (req, res) => {
   }
 });
 
-// GET /api/external/generate?methods=bkash,nagad&amount=200
+// POST or GET /api/external/generate
 // Header: X-API-Key: <subscription api key>
-router.get('/generate', async (req, res) => {
+router.all('/generate', async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
 
   try {
     const apiKey = req.header('X-API-Key');
     if (!apiKey) return res.status(400).json({ success: false, message: 'Missing X-API-Key header' });
 
-    const methods = parseMethods(req.query.methods);
-    if (!methods.length) return res.status(400).json({ success: false, message: 'methods query required (comma separated)' });
-    if (!methods.every(m => VALID_METHODS.includes(m))) {
-      return res.status(400).json({ success: false, message: 'Invalid method in list' });
+    const methodRaw = req.query.method || req.body.method;
+    const method = String(methodRaw || '').trim().toLowerCase();
+
+    if (!method) return res.status(400).json({ success: false, message: 'method required' });
+    if (!VALID_METHODS.includes(method)) {
+      return res.status(400).json({ success: false, message: 'Invalid method. Allowed: bkash, rocket, nagad, upay' });
     }
 
     // amount validation
-    const amountRaw = req.query.amount;
+    const amountRaw = req.query.amount || req.body.amount;
     const amount = Number(amountRaw);
     if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
       return res.status(400).json({ success: false, message: 'amount query required and must be > 0' });
     }
 
     // userIdentifyAddress validation (required string)
-    const userIdentifyAddressRaw = req.query.userIdentifyAddress;
+    const userIdentifyAddressRaw = req.query.userIdentifyAddress || req.body.userIdentifyAddress;
     const userIdentifyAddress = typeof userIdentifyAddressRaw === 'string' ? userIdentifyAddressRaw.trim() : '';
     if (!userIdentifyAddress) {
       return res.status(400).json({ success: false, message: 'userIdentifyAddress query required' });
@@ -198,22 +203,18 @@ router.get('/generate', async (req, res) => {
     const activePaymentMethods = await PaymentMethod.find({ device: { $in: deviceIds }, status: 'active' });
     if (!activePaymentMethods.length) return res.status(400).json({ success: false, message: 'No active payment methods on devices' });
 
-    // Check at least one requested provider exists among active payment methods
+    // Check if the requested provider exists among active payment methods
     const providersAvailable = new Set(activePaymentMethods.map(pm => pm.provider.toLowerCase()));
-    const hasAtLeastOne = methods.some(m => providersAvailable.has(m));
-    if (!hasAtLeastOne) {
-      return res.status(400).json({ success: false, message: 'None of requested providers have active payment method' });
+    if (!providersAvailable.has(method)) {
+      return res.status(400).json({ success: false, message: 'The requested provider does not have an active payment method' });
     }
 
-    // (Optional) restrict methods to plan allowed list if present
+    // (Optional) restrict method to plan allowed list if present
     const allowedPlanProviders = Array.isArray(subscription.featuresSnapshot?.paymentMethods)
       ? subscription.featuresSnapshot.paymentMethods.map(p => p.toLowerCase())
       : null;
-    if (allowedPlanProviders) {
-      const disallowed = methods.filter(m => !allowedPlanProviders.includes(m));
-      if (disallowed.length) {
-        return res.status(400).json({ success: false, message: 'Requested providers not allowed by plan', disallowed });
-      }
+    if (allowedPlanProviders && !allowedPlanProviders.includes(method)) {
+      return res.status(400).json({ success: false, message: 'Requested provider not allowed by your plan' });
     }
 
     // Ensure subscription has a callback URL configured
@@ -230,12 +231,12 @@ router.get('/generate', async (req, res) => {
     const tokenDoc = new ApiAccessToken({
       owner: subscription.user,
       subscription: subscription._id,
-      methods,
+      methods: [method], // Store as array to maintain backwards compatibility with DB Schema
       token: shortHash,
       expiresAt,
       userIdentifyAddress,
-      meta: { 
-        generatedFrom: 'external/generate', 
+      meta: {
+        generatedFrom: 'external/generate',
         rawTokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'),
         amount,
         callbackUrl: subscription.apiCallbackUrl,
@@ -245,7 +246,7 @@ router.get('/generate', async (req, res) => {
     await tokenDoc.save();
 
     const domain = "secure.oraclepay.org" || req.get('host') || 'localhost';
-    const link = `https://${domain}/${methods.join(',')}/${shortHash}`;
+    const link = `https://${domain}/${method}/${shortHash}`;
 
     return res.json({
       success: true,
@@ -254,7 +255,7 @@ router.get('/generate', async (req, res) => {
       userIdentifyAddress,
       expiresAt,
       expiresInSeconds: 20 * 60,
-      methods,
+      method,
       callbackUrl: subscription.apiCallbackUrl
     });
   } catch (err) {
@@ -448,7 +449,7 @@ router.post('/verify/:provider/:token', async (req, res) => {
           ? 'This transaction is already verified.'
           : 'This transaction was verified with a different token and cannot be verified again.',
         data: {
-        //   existingToken: msg.apiAccessToken || null,
+          //   existingToken: msg.apiAccessToken || null,
         }
       });
     }
@@ -511,13 +512,13 @@ router.post('/verify/:provider/:token', async (req, res) => {
       return res.status(200).json({ success: false, code: 'AMOUNT_MISMATCH', message: 'Amount does not match' });
     }
 
-    // Time window check: createdAt within last 5 minutes
+    // Time window check: createdAt within last 30 minutes
     const createdAt = new Date(msg.createdAt);
     const now = new Date();
     const diffMs = now - createdAt;
-    const within5m = diffMs >= 0 && diffMs <= 5 * 60 * 1000;
-    if (!within5m) {
-      return res.status(200).json({ success: false, code: 'TIME_WINDOW_EXCEEDED', message: 'Transaction found but outside 5 minute window' });
+    const within30m = diffMs >= -60000 && diffMs <= 30 * 60 * 1000; // allow 1 min clock skew
+    if (!within30m) {
+      return res.status(200).json({ success: false, code: 'TIME_WINDOW_EXCEEDED', message: 'Transaction found but outside 30 minute window' });
     }
 
     // All checks passed -> mark verified and link apiAccessToken

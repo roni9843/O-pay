@@ -6,6 +6,42 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// Flexible auth middleware to allow both standard users (admin/wallet agents) and merchants (OpayBusiness)
+const flexibleAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: "No token" });
+  
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2) return res.status(401).json({ message: "Invalid token" });
+  const token = parts[1];
+
+  try {
+    const jwt = require("jsonwebtoken");
+    const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Try User
+    const User = require("../models/User");
+    let user = await User.findById(decoded.id).select("-password");
+    if (user) {
+      req.user = user;
+      return next();
+    }
+
+    // Try OpayBusiness
+    const OpayBusiness = require("../models/OpayBusiness");
+    let business = await OpayBusiness.findById(decoded.id).select("-passwordHash");
+    if (business) {
+      req.user = business;
+      return next();
+    }
+
+    return res.status(401).json({ message: "User not found" });
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -43,7 +79,7 @@ const upload = multer({
 
 // POST /api/uploads/payment-page-image
 // Upload a single image file; returns its public URL
-router.post('/payment-page-image', auth, upload.single('image'), async (req, res) => {
+router.post('/payment-page-image', flexibleAuth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

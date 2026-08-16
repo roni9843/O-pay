@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertCircle,
   Sparkles,
+  Play,
   CreditCard,
   LayoutDashboard,
   User,
@@ -21,9 +22,16 @@ import {
   Wifi,
   PhoneCall,
   RefreshCw,
+  Download,
+  History,
+  Copy,
+  XCircle
 } from "lucide-react";
 import opayLogo from "../../assets/appstore.png";
 import CreditTopup from "./CreditTopup";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function formatAmount(value) {
   if (value == null) return "0.00";
@@ -40,6 +48,33 @@ function formatDate(value) {
   });
 }
 
+function CountdownTimer({ bookedAt }) {
+  const [timeLeft, setTimeLeft] = React.useState('');
+
+  React.useEffect(() => {
+    if (!bookedAt) return;
+    const expiry = new Date(bookedAt).getTime() + 10 * 60 * 1000;
+    
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const diff = expiry - now;
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        return;
+      }
+      const minutes = Math.floor(diff / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [bookedAt]);
+
+  return <>{timeLeft || '10:00'} Min</>;
+}
+
 export default function Overview() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
@@ -52,6 +87,36 @@ export default function Overview() {
   const [walletSubActive, setWalletSubActive] = React.useState(false);
   const [toggleModal, setToggleModal] = React.useState(null); // { id, currentStatus, provider, number }
   const [pendingTopup, setPendingTopup] = React.useState(null);
+  const [copyState, setCopyState] = React.useState('');
+  const [pendingNagadList, setPendingNagadList] = React.useState([]);
+  const [pendingAutoWithdrawals, setPendingAutoWithdrawals] = React.useState([]);
+  const [activeAutoWithdrawal, setActiveAutoWithdrawal] = React.useState(null); // The one currently booked by this agent
+  const [completionFiles, setCompletionFiles] = React.useState([]);
+  const [completingWithdrawal, setCompletingWithdrawal] = React.useState(false);
+
+  async function acceptPendingNagad(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to approve this Nagad payment? Webhook callback and credit deduction will run.')) return;
+    try {
+      await api.acceptPendingNagad(token, code);
+      setPendingNagadList(prev => prev.filter(p => p.code !== code));
+      alert('Nagad payment approved successfully.');
+    } catch (e) {
+      alert(e.message || 'Accept failed');
+    }
+  }
+
+  async function rejectPendingNagad(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to REJECT and CANCEL this Nagad payment session?')) return;
+    try {
+      await api.rejectPendingNagad(token, code);
+      setPendingNagadList(prev => prev.filter(p => p.code !== code));
+      alert('Nagad payment rejected successfully.');
+    } catch (e) {
+      alert(e.message || 'Reject failed');
+    }
+  }
 
 
   const handleToggleStatus = async () => {
@@ -99,12 +164,14 @@ export default function Overview() {
     async function load() {
       try {
         setLoading(true);
-        const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes] = await Promise.all([
+        const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingWithdrawalsRes] = await Promise.all([
           api.getDashboardOverview(token),
           api.getMyPaymentMethods(token).catch(() => []),
           api.getPaymentMethodPages(token).catch(() => []),
           api.getMySubscriptions(token).catch(() => []),
-          api.getMyCreditTopupRequests(token).catch(() => [])
+          api.getMyCreditTopupRequests(token).catch(() => []),
+          api.getAgentPendingNagad(token).catch(() => ({ data: [] })),
+          api.getPendingAutoWithdrawals(token).catch(() => ({ data: [] }))
         ]);
 
         if (!cancelled) {
@@ -124,6 +191,14 @@ export default function Overview() {
           const requests = topupRes?.data || [];
           const pending = requests.find(r => r.status === 'pending');
           setPendingTopup(pending || null);
+
+          setPendingNagadList(pendingNagadRes?.data || []);
+          
+          const pendingWithdrawalsList = pendingWithdrawalsRes?.pending || [];
+          const activeBooking = pendingWithdrawalsRes?.active || null;
+          
+          setActiveAutoWithdrawal(activeBooking);
+          setPendingAutoWithdrawals(pendingWithdrawalsList);
 
           // Subscription Warning Logic (Expired or < 10 days left)
           const now = new Date();
@@ -177,6 +252,101 @@ export default function Overview() {
       cancelled = true;
     };
   }, [token, user?.role]);
+
+  // Socket for Auto Withdrawals
+  React.useEffect(() => {
+    if (!token || user?.role !== "wallet_agent") return;
+    const socket = io(SOCKET_URL, { transports: ["websocket"] });
+    
+    socket.on("connect", () => {
+      console.log("Socket connected for auto-withdrawals");
+    });
+
+    socket.on("new_auto_withdrawal", (data) => {
+      // Add to pending if it's pending
+      if (data.status === 'pending') {
+        setPendingAutoWithdrawals(prev => {
+          if (prev.find(p => p._id === data._id)) return prev;
+          return [data, ...prev];
+        });
+      }
+    });
+
+    socket.on("auto_withdrawal_updated", (data) => {
+      if (data.status !== 'pending') {
+        // Remove from pending list
+        setPendingAutoWithdrawals(prev => prev.filter(p => p._id !== data._id));
+      } else {
+        // Add back to pending list
+        setPendingAutoWithdrawals(prev => {
+          if (prev.find(p => p._id === data._id)) return prev;
+          return [data, ...prev];
+        });
+      }
+      
+      // If it's my active one and it got rejected/completed elsewhere (timeout)
+      setActiveAutoWithdrawal(prev => {
+        if (prev && prev._id === data._id && data.status !== 'booked') {
+          return null; // Timer expired or cancelled
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, user?.role]);
+
+  const handleBookWithdrawal = async (id) => {
+    try {
+      const res = await api.bookAutoWithdrawal(token, id);
+      setActiveAutoWithdrawal(res.data);
+      setPendingAutoWithdrawals(prev => prev.filter(p => p._id !== id));
+      alert("Withdrawal booked successfully. You have 10 minutes to complete it.");
+    } catch (err) {
+      alert(err.message || "Failed to book");
+    }
+  };
+
+  const handleRejectWithdrawal = async (id, isActive = false) => {
+    const reason = window.prompt("Please enter a reason for cancelling this transfer:");
+    if (reason === null) return;
+    if (reason.trim() === "") {
+      alert("A reason is required to cancel.");
+      return;
+    }
+    
+    try {
+      await api.rejectAutoWithdrawal(token, id, reason);
+      if (isActive) {
+        setActiveAutoWithdrawal(null);
+      } else {
+        setPendingAutoWithdrawals(prev => prev.filter(p => p._id !== id));
+      }
+    } catch (err) {
+      alert(err.message || "Failed to reject");
+    }
+  };
+
+  const handleCompleteWithdrawal = async () => {
+    if (!activeAutoWithdrawal) return;
+    if (completionFiles.length === 0) {
+      return alert("Please select at least one screenshot proof.");
+    }
+    setCompletingWithdrawal(true);
+    try {
+      await api.completeAutoWithdrawal(token, activeAutoWithdrawal._id, completionFiles);
+      alert("Withdrawal completed successfully! Credit added to your balance.");
+      setActiveAutoWithdrawal(null);
+      setCompletionFiles([]);
+      handleRefreshCredit(); // Refresh credit
+    } catch (err) {
+      alert(err.message || "Failed to complete");
+    } finally {
+      setCompletingWithdrawal(false);
+    }
+  };
 
   const SubscriptionAlert = () => {
     if (expiringSubs.length === 0) return null;
@@ -257,6 +427,7 @@ if (user?.role === "wallet_agent") {
     { to: "/dashboard/devices-presence", label: "Devices Presence", icon: Wifi },
     { to: "/dashboard/add-payment-method", label: "Add Payment Method", icon: CreditCard },
     { to: "/dashboard/number-status", label: "Number Status", icon: PhoneCall },
+    { to: "/dashboard/auto-withdrawal-history", label: "Auto Withdrawals History", icon: History },
   ];
 
   const isCardActive = walletSubActive && new Date(walletSubEnd) > new Date();
@@ -296,6 +467,247 @@ if (user?.role === "wallet_agent") {
       )}
 
       <SubscriptionAlert />
+
+      {/* --- AUTO WITHDRAWAL AGENT ALERTS (BIG) --- */}
+      <div className="w-full max-w-md lg:max-w-lg mb-6 space-y-4">
+        {activeAutoWithdrawal && (
+          <Link to="/dashboard/auto-withdrawal-history" className="block relative overflow-hidden rounded-3xl backdrop-blur-2xl bg-blue-500/90 border-2 border-blue-400/50 shadow-2xl hover:shadow-blue-500/40 transform hover:scale-[1.02] transition-all duration-300 p-6 group">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/30 to-cyan-500/30 animate-pulse" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/20 text-white flex items-center justify-center shadow-lg shadow-blue-500/50 group-hover:scale-110 transition-transform">
+                  <Play className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white">Active Transfer Waiting!</h2>
+                  <p className="text-blue-100 text-sm mt-1 font-medium">You have a booked withdrawal of ৳{activeAutoWithdrawal.amount}.</p>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-white text-blue-600 rounded-xl font-bold flex items-center gap-1 group-hover:bg-blue-50 transition-colors text-xs whitespace-nowrap">
+                Complete <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {!activeAutoWithdrawal && pendingAutoWithdrawals && pendingAutoWithdrawals.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider px-2">Available Withdrawals ({pendingAutoWithdrawals.length})</h3>
+            {pendingAutoWithdrawals.map(w => (
+              <div key={w._id} className="relative overflow-hidden rounded-3xl backdrop-blur-2xl bg-gradient-to-r from-amber-500 to-orange-500 border-2 border-amber-400/50 shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 p-6 group animate-in slide-in-from-top-4">
+                <div className="absolute inset-0 bg-white/10 animate-pulse-slow pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="flex flex-col items-center justify-center mb-6 pt-4 border-b border-white/10 pb-6">
+                    <div className="text-amber-100 text-xs uppercase tracking-widest font-bold mb-2 px-3 py-1 bg-white/10 rounded-full">{w.paymentMethod}</div>
+                    <div className="text-[10px] text-amber-100/70 uppercase tracking-widest font-bold mb-1">Transfer Amount</div>
+                    <div className="text-5xl font-black text-white drop-shadow-md">৳{w.amount}</div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <span className="text-[10px] text-amber-100/70 font-mono tracking-widest bg-black/10 px-2 py-1 rounded">ID: {w._id}</span>
+                  </div>
+
+                  
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => handleBookWithdrawal(w._id)}
+                      className="flex-1 bg-white text-orange-600 hover:bg-orange-50 hover:scale-[1.02] text-sm font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider flex justify-center items-center gap-2"
+                    >
+                      Accept Transfer <ArrowUpRight className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => handleRejectWithdrawal(w._id, false)}
+                      className="px-6 bg-black/10 hover:bg-black/20 text-white rounded-xl transition-colors font-bold text-xs"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* --- END AUTO WITHDRAWAL AGENT ALERTS --- */}
+
+      {/* Pending Nagad Alerts for Wallet Agent */}
+      {pendingNagadList && pendingNagadList.length > 0 && (
+        <div className="w-full max-w-md lg:max-w-lg mb-6 animate-in slide-in-from-top-4 duration-500 space-y-4">
+          {pendingNagadList.map(session => (
+            <div key={session.code} className="bg-gradient-to-br from-orange-500 to-amber-600 p-6 rounded-3xl shadow-xl border border-orange-400 text-white relative overflow-hidden">
+              <div className="absolute top-[-20%] right-[-10%] w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Clock className="w-6 h-6 text-white animate-pulse" />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-lg leading-tight uppercase tracking-wide">Nagad Verification Pending</h3>
+                    <span className="text-[9px] bg-white text-orange-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                      Awaiting Admin
+                    </span>
+                  </div>
+                  
+                  {/* Highlighted Amount */}
+                  <div className="text-3xl font-black tracking-tight">
+                    ৳{Number(session.amount || 0).toLocaleString()} <span className="text-sm font-medium opacity-80">BDT</span>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/20 space-y-1 text-xs font-medium">
+                    <div>
+                      <span className="opacity-75">Target Number:</span> <strong className="font-mono text-sm">{session.paymentMessage?.accountNumber || session.verificationAttempts?.[session.verificationAttempts.length - 1]?.agentAccountNumber || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span className="opacity-75">Transaction Code:</span> <strong className="font-mono">{session.code}</strong>
+                    </div>
+                    {session.paymentMessage?.fullMessage && (
+                      <div className="mt-2 bg-black/20 p-3 rounded-xl border border-white/10 font-mono text-[11px] leading-relaxed break-all">
+                        <span className="opacity-75 block text-[9px] font-black uppercase mb-1">Incoming SMS:</span>
+                        "{session.paymentMessage.fullMessage}"
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-3 border-t border-white/20 mt-3">
+                    <button
+                      onClick={() => acceptPendingNagad(session.code)}
+                      className="flex-1 px-4 py-2 bg-green-500/90 hover:bg-green-500 text-white font-bold text-xs uppercase tracking-wide rounded-xl shadow-lg transition-all flex items-center justify-center gap-1"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Accept
+                    </button>
+                    <button
+                      onClick={() => rejectPendingNagad(session.code)}
+                      className="flex-1 px-4 py-2 bg-rose-500/90 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wide rounded-xl shadow-lg transition-all flex items-center justify-center gap-1"
+                    >
+                      <AlertCircle className="w-4 h-4" /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Active Auto Withdrawal (Booked by Me) */}
+      {activeAutoWithdrawal && (
+        <div className="w-full max-w-md lg:max-w-lg mb-6 animate-in slide-in-from-top-4 duration-500">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 rounded-3xl shadow-xl border border-indigo-400 text-white relative overflow-hidden">
+            <div className="absolute top-[-20%] right-[-10%] w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <h3 className="font-black text-lg uppercase tracking-wide flex items-center gap-2">
+                <Clock className="w-5 h-5 text-indigo-200 animate-spin-slow" /> Active Withdrawal
+              </h3>
+              <span className="text-[10px] bg-white text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase">
+                <CountdownTimer bookedAt={activeAutoWithdrawal.bookedAt} />
+              </span>
+            </div>
+
+            <div className="space-y-3 relative z-10">
+              <div className="flex justify-between items-end border-b border-white/20 pb-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider opacity-80 mb-1">Send To ({activeAutoWithdrawal.paymentMethod})</div>
+                  <div className="text-xl font-mono font-bold tracking-widest">{activeAutoWithdrawal.userIdentityAddress}</div>
+                  {activeAutoWithdrawal.accountNumber && (
+                    <div className="flex items-center gap-2 mt-2 bg-black/20 p-2 rounded-lg border border-white/10">
+                      <div className="font-mono text-sm text-white font-bold flex-1">Acc: {activeAutoWithdrawal.accountNumber}</div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(activeAutoWithdrawal.accountNumber);
+                          setCopyState(`active-${activeAutoWithdrawal._id}`);
+                          setTimeout(() => setCopyState(''), 2000);
+                        }}
+                        className="p-1 hover:bg-white/20 rounded transition-colors text-white flex items-center gap-1 text-[10px] font-bold uppercase"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        {copyState === `active-${activeAutoWithdrawal._id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider opacity-80 mb-1">Amount</div>
+                  <div className="text-3xl font-black text-emerald-300">৳{activeAutoWithdrawal.amount}</div>
+                </div>
+              </div>
+              
+              {activeAutoWithdrawal.checkoutItems && activeAutoWithdrawal.checkoutItems.length > 0 && (
+                <div className="bg-black/10 p-3 rounded-xl border border-white/10 mt-2 mb-2">
+                  <p className="text-[10px] text-white/70 font-bold uppercase mb-2">Checkout Items</p>
+                  <div className="space-y-1">
+                    {activeAutoWithdrawal.checkoutItems.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 text-xs font-mono text-white/90">
+                        {Object.entries(item).map(([k, v]) => (
+                          <span key={k}><span className="font-bold text-white/50">{k}:</span> {v}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <label className="block text-xs font-medium opacity-90 mb-2">Upload Payment Screenshot (Max 5)</label>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*"
+                  onChange={(e) => setCompletionFiles(Array.from(e.target.files))}
+                  className="block w-full text-xs text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white file:text-indigo-700 hover:file:bg-indigo-50"
+                />
+                {completionFiles.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {completionFiles.map((file, index) => (
+                      <div key={index} className="relative group rounded-lg overflow-hidden border border-white/20 shadow-sm">
+                        <img 
+                          src={URL.createObjectURL(file)} 
+                          alt="proof preview" 
+                          className="w-12 h-12 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                        />
+                        <button
+                          onClick={() => {
+                            const newFiles = [...completionFiles];
+                            newFiles.splice(index, 1);
+                            setCompletionFiles(newFiles);
+                          }}
+                          className="absolute top-0.5 right-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 shadow transition-colors"
+                          title="Remove image"
+                        >
+                          <XCircle className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 mt-2 border-t border-white/20">
+                <button
+                  onClick={handleCompleteWithdrawal}
+                  disabled={completingWithdrawal}
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {completingWithdrawal ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                  Confirm Payment
+                </button>
+                <button
+                  onClick={() => handleRejectWithdrawal(activeAutoWithdrawal._id, true)}
+                  disabled={completingWithdrawal}
+                  className="px-4 py-3 bg-rose-500 hover:bg-rose-600 shadow-lg text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  title="Cancel & Release"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  Cancel & Release
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       <div className="w-full max-w-md lg:max-w-lg space-y-8 md:space-y-10">
 
@@ -767,6 +1179,8 @@ if (user?.role === "wallet_agent") {
             <Sparkles className="w-5 h-5 animate-twinkle" />
           </p>
         </div>
+
+
 
         {/* Loading State */}
         {loading && (

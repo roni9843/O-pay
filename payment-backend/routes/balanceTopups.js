@@ -172,4 +172,41 @@ router.post('/approve/:id', auth, async (req, res) => {
   }
 });
 
+// Reject a top-up (admin)
+router.post('/reject/:id', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const doc = await BalanceTopUp.findById(req.params.id);
+    if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
+    if (doc.status !== 'pending') return res.status(400).json({ success: false, message: 'Already processed' });
+    
+    doc.status = 'rejected';
+    await doc.save();
+
+    // Send SMS to Merchant (Optional but good UX)
+    try {
+      const user = await User.findById(doc.user);
+      if (user && user.phone) {
+        const msgText = `Hello ${user.name},\nYour Balance Topup Request for ${doc.amount} BDT has been REJECTED.\nPlease contact support for details.`;
+        const formattedPhone = user.phone.startsWith("88") ? user.phone : (user.phone.startsWith("0") ? "88" + user.phone : "880" + user.phone);
+        await fetch("https://api.o-sms.com/api/service/send-single", {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recipient: formattedPhone, message: msgText })
+        }).catch(e => console.error("Failed to send merchant reject notification:", e.message));
+      }
+    } catch (notifyErr) {
+      console.error("Merchant SMS Reject Error:", notifyErr.message);
+    }
+
+    return res.json({ success: true, message: 'Rejected' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
 module.exports = router;

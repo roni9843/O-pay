@@ -59,6 +59,10 @@ const DeviceSchema = new mongoose.Schema(
       ref: 'UserSubscription',
       required: true
     },
+    fcmToken: {
+      type: String,
+      default: null
+    }
   },
   { timestamps: true }
 );

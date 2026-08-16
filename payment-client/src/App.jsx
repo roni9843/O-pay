@@ -24,9 +24,11 @@ import ApiKeyPage from "./pages/dashboard/ApiKey";
 import AddSupport from "./pages/dashboard/AddSupport";
 import NumberStatus from "./pages/dashboard/NumberStatus";
 import PaymentMessages from "./pages/dashboard/PaymentMessages";
+import PendingNagad from "./pages/dashboard/PendingNagad";
 
 import CreditTopup from "./pages/dashboard/CreditTopup";
 import CreditHistory from "./pages/dashboard/CreditHistory";
+import AutoWithdrawalHistory from "./pages/dashboard/AutoWithdrawalHistory";
 
 export default function App() {
   const token = useAuthStore((state) => state.token);
@@ -84,8 +86,10 @@ export default function App() {
             <Route path="api-key" element={<ApiKeyPage />} />
             <Route path="add-support" element={<AddSupport />} />
             <Route path="number-status" element={<NumberStatus />} />
+            <Route path="pending-nagad" element={<PendingNagad />} />
             <Route path="credit-topup" element={<CreditTopup />} />
             <Route path="credit-history" element={<CreditHistory />} />
+            <Route path="auto-withdrawal-history" element={<AutoWithdrawalHistory />} />
           </Route>
 
           <Route

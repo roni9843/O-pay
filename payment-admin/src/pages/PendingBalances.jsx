@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { Check, ExternalLink, Clock, AlertTriangle, Wallet } from 'lucide-react'
+import { Check, XCircle, ExternalLink, Clock, AlertTriangle, Wallet } from 'lucide-react'
 
 export default function PendingBalances(){
   const token = useAuthStore(s=>s.token)
@@ -37,6 +37,23 @@ export default function PendingBalances(){
       const data = await res.json()
       if (res.status === 401 || res.status === 403) { useAuthStore.getState().logout(); window.location.href = '/login'; }
       if (!res.ok) throw new Error(data?.message || 'Approve failed')
+      await load()
+    } catch(e){
+      alert(e.message)
+    }
+  }
+
+  async function reject(id){
+    if (!token) return
+    if (!confirm('Are you sure you want to REJECT this balance request?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/balance-topups/reject/${id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (res.status === 401 || res.status === 403) { useAuthStore.getState().logout(); window.location.href = '/login'; }
+      if (!res.ok) throw new Error(data?.message || 'Reject failed')
       await load()
     } catch(e){
       alert(e.message)
@@ -121,12 +138,20 @@ export default function PendingBalances(){
                        {it.createdAt ? new Date(it.createdAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                         className="px-4 py-2 rounded-xl bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2 ml-auto hover:shadow-lg hover:shadow-emerald-900/20"
-                         onClick={()=>approve(it._id)}
-                      >
-                         <Check className="w-4 h-4" /> Approve
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                           className="px-4 py-2 rounded-xl bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:shadow-lg hover:shadow-emerald-900/20"
+                           onClick={()=>approve(it._id)}
+                        >
+                           <Check className="w-4 h-4" /> Approve
+                        </button>
+                        <button 
+                           className="px-4 py-2 rounded-xl bg-rose-600/10 text-rose-400 border border-rose-500/20 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:shadow-lg hover:shadow-rose-900/20"
+                           onClick={()=>reject(it._id)}
+                        >
+                           <XCircle className="w-4 h-4" /> Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

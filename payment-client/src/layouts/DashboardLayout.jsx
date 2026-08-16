@@ -44,6 +44,8 @@ const navGroups = [
       { to: "/dashboard/add-balance", label: "Add Balance", icon: Wallet },
       { to: "/dashboard/pending-balance", label: "Pending Balance", icon: Clock },
       { to: "/dashboard/payment", label: "Payment History", icon: CreditCard },
+      { to: "/dashboard/pending-nagad", label: "Pending Nagad", icon: Clock, roles: ["wallet_agent"] },
+      { to: "/dashboard/auto-withdrawal-history", label: "Auto Withdrawals", icon: Clock, roles: ["wallet_agent"] },
     ]
   },
   {

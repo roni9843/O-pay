@@ -8,6 +8,8 @@ const OpayBusinessSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     enabled: { type: Boolean, default: false },
     apiToken: { type: String, required: true, unique: true },
+    isLifetimePaid: { type: Boolean, default: false },
+    lifetimePaymentCode: { type: String, default: null },
     balanceAdjustment: { type: Number, default: 0 },
     kycStatus: { 
       type: String, 

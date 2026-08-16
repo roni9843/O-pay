@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { getOpayBusiness, listOpayBusinesses, api } from '../lib/api';
+import { getOpayBusiness, listOpayBusinesses, api, toggleOpayBusinessLifetimePayment } from '../lib/api';
 import {
     Loader2, ArrowLeft, FileText, Check, X, ShieldCheck, Lock,
-    Building2, MapPin, Phone, CreditCard, Globe2, ExternalLink, Copy
+    Building2, MapPin, Phone, CreditCard, Globe2, ExternalLink, Copy, Mail
 } from 'lucide-react';
 
 export default function OpayBusinessDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const location = useLocation();
     const token = useAuthStore((s) => s.token);
 
-    const [business, setBusiness] = useState(location.state?.business || null);
-    const [loading, setLoading] = useState(!business);
+    const [business, setBusiness] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [kycEditOpen, setKycEditOpen] = useState(false);
@@ -29,13 +28,17 @@ export default function OpayBusinessDetail() {
 
     const loadBusiness = async () => {
         if (!token || !id) return;
-        if (business) return;
+        // ← NO 'if (business) return' — always fetch fresh from server
 
         setLoading(true);
         setError('');
         try {
             const res = await getOpayBusiness(token, id);
-            setBusiness(res.data);
+            if (res?.data) {
+                setBusiness(res.data);
+            } else {
+                throw new Error('No data received');
+            }
         } catch (e) {
             console.error("Direct fetch failed, trying fallback list...", e);
             try {
@@ -55,15 +58,15 @@ export default function OpayBusinessDetail() {
     };
 
     useEffect(() => {
-        if (!business) {
-            loadBusiness();
-        }
+        loadBusiness();
     }, [id, token]);
 
     const refreshBusiness = async () => {
         try {
             const res = await getOpayBusiness(token, id);
-            setBusiness(res.data);
+            if (res?.data) {
+                setBusiness(res.data);
+            }
         } catch (e) {
             console.error('Refresh failed', e);
         }
@@ -124,6 +127,25 @@ export default function OpayBusinessDetail() {
             await refreshBusiness();
         } catch (e) {
             alert('Failed to update status: ' + (e.response?.data?.message || e.message));
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const toggleLifetimePayment = async () => {
+        if (!token || !business) return;
+        if (!window.confirm(`Are you sure you want to mark this merchant as ${business.isLifetimePaid ? 'UNPAID' : 'PAID'}?`)) return;
+        setActionLoading(true);
+        try {
+            const result = await toggleOpayBusinessLifetimePayment(token, business._id);
+            console.log('[toggleLifetimePayment] success:', result);
+            // Optimistically update the UI immediately
+            setBusiness(prev => ({ ...prev, isLifetimePaid: !prev.isLifetimePaid }));
+            // Then refresh from server to get fresh data
+            await refreshBusiness();
+        } catch (e) {
+            console.error('[toggleLifetimePayment] error:', e);
+            alert('Failed to update activation status: ' + (e.data?.message || e.message || 'Unknown error'));
         } finally {
             setActionLoading(false);
         }
@@ -278,6 +300,10 @@ export default function OpayBusinessDetail() {
                                 <Globe2 className="w-4 h-4 text-violet-400" />
                                 {business.domain}
                             </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 border-l-2 border-l-sky-500">
+                                <Mail className="w-4 h-4 text-sky-400" />
+                                {business.email}
+                            </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5">
                                 <FileText className="w-4 h-4 text-sky-400" />
                                 KYC Status: 
@@ -285,6 +311,13 @@ export default function OpayBusinessDetail() {
                                     business.kycStatus === 'pending' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-slate-400 bg-slate-500/10 border-slate-500/20'
                                     }`}>
                                     {business.kycStatus || 'None'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5">
+                                <CreditCard className="w-4 h-4 text-emerald-400" />
+                                Lifetime Paid: 
+                                <span className={`uppercase tracking-widest text-[10px] font-black px-2 py-0.5 rounded border ${business.isLifetimePaid ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>
+                                    {business.isLifetimePaid ? 'PAID' : 'UNPAID'}
                                 </span>
                             </div>
                         </div>
@@ -340,6 +373,17 @@ export default function OpayBusinessDetail() {
                         </button>
 
                         <button
+                            onClick={toggleLifetimePayment}
+                            disabled={actionLoading}
+                            className={`px-6 py-2.5 rounded-xl border font-bold transition-colors disabled:opacity-50 ${business.isLifetimePaid
+                                ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
+                                : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
+                                }`}
+                        >
+                            {business.isLifetimePaid ? 'Mark as Unpaid' : 'Mark as Paid / Activated'}
+                        </button>
+
+                        <button
                             onClick={handleDelete}
                             disabled={actionLoading}
                             className="px-6 py-2.5 rounded-xl border border-red-600/30 text-red-500 hover:bg-red-600/10 font-bold transition-colors disabled:opacity-50"
@@ -360,6 +404,58 @@ export default function OpayBusinessDetail() {
                     <div>
                         <p className="text-xs font-black uppercase tracking-widest text-amber-400 mb-1">Re-verification Request Sent</p>
                         <p className="text-sm text-amber-200 font-medium leading-relaxed">{business.kycMessage}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Activation Payment Details Banner */}
+            {business.activationSession ? (
+                <div className="flex flex-col gap-4 p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/5 to-black/40 backdrop-blur-xl shadow-2xl">
+                    <h3 className="text-xl font-bold text-violet-300 flex items-center gap-3 pb-4 border-b border-white/5">
+                        <div className="p-2 bg-violet-500/20 rounded-xl border border-violet-500/30">
+                            <CreditCard className="w-5 h-5 text-violet-400" />
+                        </div>
+                        Lifetime Package Payment Details
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <DetailRow label="Checkout Code" value={business.activationSession.code || "N/A"} />
+                            <DetailRow label="Invoice Number" value={business.activationSession.invoiceNumber || "N/A"} />
+                            <DetailRow label="Session Amount" value={business.activationSession.amount ? `${business.activationSession.amount} BDT` : "N/A"} />
+                        </div>
+                        <div className="space-y-2">
+                            <DetailRow label="Session Status" value={
+                                <span className={`uppercase font-black px-2 py-0.5 rounded text-[10px] border ${
+                                    business.activationSession.status === 'paid' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                }`}>
+                                    {business.activationSession.status}
+                                </span>
+                            } />
+                            <DetailRow label="Created Date" value={business.activationSession.createdAt ? new Date(business.activationSession.createdAt).toLocaleString() : "N/A"} />
+                            <DetailRow label="Paid Transaction ID" value={business.activationSession.paymentMessage?.trxID || "N/A"} />
+                        </div>
+                        {business.activationSession.paymentMessage && (
+                            <div className="md:col-span-3 bg-black/40 border border-white/5 p-4 rounded-2xl space-y-1.5">
+                                <span className="block text-[10px] font-black tracking-widest text-slate-500 uppercase">Received SMS Message Context</span>
+                                <p className="text-xs font-mono font-medium text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                    {business.activationSession.paymentMessage.fullMessage}
+                                </p>
+                                <span className="block text-[9px] text-slate-500">SMS Gateway BD Time: {business.activationSession.paymentMessage.bdDateAndTimeZone || new Date(business.activationSession.paymentMessage.createdAt).toLocaleString()}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-start gap-4 p-5 rounded-2xl border border-white/5 bg-slate-500/5 backdrop-blur-sm shadow-md">
+                    <div className="p-2 bg-slate-500/10 rounded-xl flex-shrink-0 border border-white/5">
+                        <CreditCard className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Activation Payment Session</p>
+                        <p className="text-sm text-slate-400 font-semibold leading-relaxed">
+                            No payment checkout session has been generated by this merchant yet.
+                        </p>
                     </div>
                 </div>
             )}
