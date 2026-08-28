@@ -423,7 +423,7 @@ export async function rejectPendingBankPayment(token, code) {
 
 export default {
   login,
-  getMe,
+  me,
   register,
   getMyDevices,
   getSubscriptionApiKey,
