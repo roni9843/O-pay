@@ -88,6 +88,7 @@ router.get('/stats', auth, async (req, res) => {
       pendingCreditTopUps,
       pendingAgentApplications,
       pendingNagad,
+      pendingBank,
       pendingAutoWithdrawals
     ] = await Promise.all([
       User.countDocuments(),
@@ -98,6 +99,7 @@ router.get('/stats', auth, async (req, res) => {
       require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
       require('../models/AgentApplication').countDocuments({ status: 'pending' }),
       OpayBusinessPaymentSession.countDocuments({ status: 'pending_nagad' }),
+      OpayBusinessPaymentSession.countDocuments({ status: 'pending_bank' }),
       AutoWithdrawalRequest.countDocuments({ status: { $in: ['pending', 'booked'] } })
     ]);
 
@@ -110,6 +112,7 @@ router.get('/stats', auth, async (req, res) => {
       pendingCreditTopUps,
       pendingAgentApplications,
       pendingNagad,
+      pendingBank,
       pendingAutoWithdrawals
     };
     statsCacheTime = now;

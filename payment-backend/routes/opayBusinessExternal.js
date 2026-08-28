@@ -1976,6 +1976,64 @@ router.post('/verify-bank-payment', async (req, res) => {
       io.emit('pending_bank_payment_created', session);
     }
 
+    // ── Send FCM Mobile Push Notification ──
+    try {
+      const firebaseAdmin = require('../config/firebase');
+      const Device = require('../models/Device');
+      const PushLog = require('../models/PushLog');
+
+      const bankName = session.bankDetails?.bankName || 'Bank';
+      const amountFormatted = Number(session.amount || 0).toLocaleString();
+
+      const devices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
+      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+
+      if (firebaseAdmin && tokens.length > 0) {
+        const payload = {
+          notification: {
+            title: `🏦 নতুন ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
+            body: `${bankName} ব্যাংক পেমেন্ট প্রুফ সাবমিট করা হয়েছে। অনুগ্রহ করে যাচাই করুন।`
+          },
+          data: {
+            type: "bank_payment_proof",
+            code: session.code,
+            amount: String(session.amount),
+            bankName: bankName,
+            title: `🏦 নতুন ব্যাংক পেমেন্ট প্রuফ (৳${amountFormatted})`,
+            message: `${bankName} ব্যাংক পেমেন্ট প্রুফ সাবমিট করা হয়েছে।`
+          },
+          android: {
+            priority: "high"
+          }
+        };
+
+        const response = await firebaseAdmin.messaging().sendEachForMulticast({
+          tokens,
+          ...payload
+        });
+
+        if (response.successCount > 0) {
+          const logsToInsert = [];
+          response.responses.forEach((resp, index) => {
+            if (resp.success) {
+              logsToInsert.push({
+                device: devices[index]._id,
+                type: 'notification',
+                title: `🏦 নতুন ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
+                message: `${bankName} ব্যাংক পement প্রুফ সাবমিট করা হয়েছে।`,
+                status: 'sent'
+              });
+            }
+          });
+          if (logsToInsert.length > 0) {
+            await PushLog.insertMany(logsToInsert);
+          }
+        }
+      }
+    } catch (pushErr) {
+      console.error('[BANK PROOF PUSH ERROR]', pushErr.message);
+    }
+
     return res.json({
       success: true,
       status: 'pending_bank',

@@ -20,7 +20,8 @@ import {
   Shield,
   Signal,
   TrendingUp,
-  Crown
+  Crown,
+  Building
 } from 'lucide-react'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -197,7 +198,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <AnimatedSummaryCard
           custom={0}
           title="Total Users"
@@ -206,6 +207,14 @@ export default function Dashboard() {
           color="from-blue-500 to-indigo-600"
         />
         
+        <AnimatedSummaryCard
+          custom={1}
+          title="Pending Bank Proofs"
+          value={stats?.pendingBank ?? '--'}
+          icon={Building}
+          color="from-emerald-500 to-teal-600"
+        />
+
         <AnimatedSummaryCard
           custom={2}
           title="Verified Vol"
@@ -233,7 +242,7 @@ export default function Dashboard() {
         <AnimatedSummaryCard
           custom={5}
           title="Today's Volume"
-               value={todayStats.totalAmount || 0}
+          value={todayStats.totalAmount || 0}
           prefix="৳"
           icon={TrendingUp}
           color="from-cyan-500 to-blue-600"

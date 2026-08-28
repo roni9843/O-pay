@@ -449,26 +449,27 @@ export default function SimplePaymentPage() {
     return (
       <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8 text-center flex flex-col items-center">
-          <div className="w-20 h-20 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl mb-6 shadow-sm">
-            🏦
+          <div className="w-20 h-20 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-4xl mb-6 shadow-sm">
+            ✅
           </div>
           
-          <h2 className="text-2xl font-bold mb-3 text-indigo-950">
-            ব্যাংক ট্রান্সফার প্রুফ সাবমিট করা হয়েছে
+          <h2 className="text-2xl font-bold mb-3 text-emerald-950">
+            ধন্যবাদ, প্রুফ সাবমিট সফল হয়েছে!
           </h2>
-          <p className="text-sm text-gray-600 leading-relaxed mb-8">
-            আপনার ব্যাংক ট্রান্সফারের প্রুফ স্ক্রিনশটটি জমা হয়েছে এবং তা এজেন্ট/এডমিন অনুমোদনের জন্য অপেক্ষমান (Pending) রয়েছে। অনুমোদন হওয়ার সাথে সাথে পেজটি অটো রিডাইরেক্ট হবে।
+          <p className="text-sm text-gray-600 leading-relaxed mb-6">
+            এখন ৫ মিনিট থেকে ৪ ঘণ্টার মধ্যে আপনার পেমেন্টটি পেন্ডিং থাকবে এবং এই সময়ের মধ্যে আপনার পেমেন্টটি অনুমোদন হয়ে ব্যাংকে প্রসেস হয়ে যাবে। ধন্যবাদ।
           </p>
 
-          <div className="relative w-16 h-16 mb-8 flex items-center justify-center">
-            <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div className="w-full p-4 bg-emerald-50 rounded-2xl border border-emerald-200/80 mb-6 text-xs text-emerald-800 font-medium">
+            ⏳ স্ট্যাটাস: পেন্ডিং (৫ মিনিট - ৪ ঘণ্টা)
           </div>
 
-          <div className="px-4 py-2.5 rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-700 uppercase tracking-wider animate-pulse flex items-center gap-1.5 border border-indigo-200">
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
-            Awaiting Agent Confirmation...
-          </div>
+          <button
+            onClick={() => window.close()}
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm shadow-md transition-colors"
+          >
+            উইন্ডো বন্ধ করুন
+          </button>
         </div>
       </div>
     );
