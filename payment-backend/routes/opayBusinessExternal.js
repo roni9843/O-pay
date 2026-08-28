@@ -657,7 +657,22 @@ router.get('/random-payment-method', async (req, res) => {
     let requiredAmount = 0;
     if (code) {
       const session = await OpayBusinessPaymentSession.findOne({ code });
-      if (session) requiredAmount = session.amount || 0;
+      if (!session) {
+        return res.status(404).json({ success: false, message: 'Payment session not found' });
+      }
+      if (session.status === 'paid') {
+        return res.status(400).json({ success: false, message: 'Payment has already been completed for this session.' });
+      }
+      if (session.status === 'cancelled' || session.status === 'expired' || (session.expiresAt && session.expiresAt < new Date())) {
+        return res.status(410).json({ success: false, message: 'Payment session expired' });
+      }
+      if (session.firstOpenedAt) {
+        const timeSinceFirstOpen = new Date() - new Date(session.firstOpenedAt);
+        if (timeSinceFirstOpen > 30 * 1000) {
+          return res.status(410).json({ success: false, message: 'This payment link has already been used and is no longer valid.' });
+        }
+      }
+      requiredAmount = session.amount || 0;
     }
 
     if (providerRaw === 'bank') {
