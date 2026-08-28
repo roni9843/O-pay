@@ -3251,8 +3251,22 @@ router.get('/banks', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const banks = await BankList.find({}).sort({ name: 1 }).lean();
-    return res.json({ success: true, data: banks });
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    
+    const banks = await BankList.find({}).sort({ sortOrder: 1, name: 1 }).lean();
+
+    // Aggregate how many agent bank accounts exist for each bank name
+    const counts = await AgentBankAccount.aggregate([
+      { $group: { _id: '$bankName', totalAccounts: { $sum: 1 } } }
+    ]);
+    const countMap = new Map(counts.map(c => [c._id, c.totalAccounts]));
+
+    const result = banks.map(b => ({
+      ...b,
+      agentAccountCount: countMap.get(b.name) || 0
+    }));
+
+    return res.json({ success: true, data: result });
   } catch (err) {
     console.error('Error fetching bank list:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -3263,7 +3277,7 @@ router.post('/banks', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const { name, code, logo, status } = req.body;
+    const { name, code, logo, status, sortOrder } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Bank name is required' });
     }
@@ -3271,7 +3285,8 @@ router.post('/banks', auth, async (req, res) => {
       name: name.trim(),
       code: code ? code.trim() : '',
       logo: logo ? logo.trim() : '',
-      status: status === 'inactive' ? 'inactive' : 'active'
+      status: status === 'inactive' ? 'inactive' : 'active',
+      sortOrder: Number(sortOrder) || 0,
     });
     return res.json({ success: true, data: bank });
   } catch (err) {
@@ -3279,6 +3294,29 @@ router.post('/banks', auth, async (req, res) => {
     if (err.code === 11000) {
       return res.status(400).json({ success: false, message: 'Bank name already exists' });
     }
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/banks/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const BankList = require('../models/BankList');
+    const { name, code, logo, status, sortOrder } = req.body;
+    
+    const bank = await BankList.findById(req.params.id);
+    if (!bank) return res.status(404).json({ success: false, message: 'Bank not found' });
+
+    if (name) bank.name = name.trim();
+    if (code !== undefined) bank.code = code.trim();
+    if (logo !== undefined) bank.logo = logo.trim();
+    if (status) bank.status = status === 'inactive' ? 'inactive' : 'active';
+    if (sortOrder !== undefined) bank.sortOrder = Number(sortOrder) || 0;
+
+    await bank.save();
+    return res.json({ success: true, data: bank });
+  } catch (err) {
+    console.error('Error updating bank:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });

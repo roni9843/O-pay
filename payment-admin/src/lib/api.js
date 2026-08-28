@@ -819,6 +819,14 @@ export async function createBank(token, payload) {
   })
 }
 
+export async function updateBank(token, id, payload) {
+  return request(`/api/admin/banks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
 export async function deleteBank(token, id) {
   return request(`/api/admin/banks/${id}`, {
     method: 'DELETE',
@@ -873,7 +881,7 @@ export default {
   toggleOpayBusinessLifetimePayment, assignOpayBusinessPackage,
   getMerchantTopupHistory,
   listAutoWithdrawals, rejectAutoWithdrawal,
-  getBankList, createBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment
+  getBankList, createBank, updateBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment
 }
 
 

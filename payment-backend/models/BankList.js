@@ -6,6 +6,7 @@ const BankListSchema = new mongoose.Schema(
     code: { type: String, trim: true },
     logo: { type: String, trim: true, default: '' },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
