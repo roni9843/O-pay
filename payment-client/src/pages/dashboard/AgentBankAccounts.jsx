@@ -86,8 +86,9 @@ export default function AgentBankAccounts() {
     fetch(`https://bdapis.com/api/v1.2/district/${selectedDist}`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.data && data.data[0] && data.data[0].upazilas) {
-          setUpazilas(data.data[0].upazilas);
+        if (data && data.data && data.data[0]) {
+          const list = data.data[0].upazillas || data.data[0].upazilas || [];
+          setUpazilas(list);
         }
       })
       .catch(err => console.error('Failed to load upazilas:', err));
