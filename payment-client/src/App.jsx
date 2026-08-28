@@ -30,6 +30,9 @@ import CreditTopup from "./pages/dashboard/CreditTopup";
 import CreditHistory from "./pages/dashboard/CreditHistory";
 import AutoWithdrawalHistory from "./pages/dashboard/AutoWithdrawalHistory";
 
+import AgentBankAccounts from "./pages/dashboard/AgentBankAccounts";
+import AgentPendingBank from "./pages/dashboard/AgentPendingBank";
+
 export default function App() {
   const token = useAuthStore((state) => state.token);
   const logout = useAuthStore((state) => state.logout);
@@ -87,6 +90,8 @@ export default function App() {
             <Route path="add-support" element={<AddSupport />} />
             <Route path="number-status" element={<NumberStatus />} />
             <Route path="pending-nagad" element={<PendingNagad />} />
+            <Route path="pending-bank" element={<AgentPendingBank />} />
+            <Route path="bank-accounts" element={<AgentBankAccounts />} />
             <Route path="credit-topup" element={<CreditTopup />} />
             <Route path="credit-history" element={<CreditHistory />} />
             <Route path="auto-withdrawal-history" element={<AutoWithdrawalHistory />} />

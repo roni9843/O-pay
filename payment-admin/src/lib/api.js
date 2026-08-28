@@ -805,6 +805,50 @@ export async function rejectAutoWithdrawal(token, id, data) {
   })
 }
 
+export async function getBankList(token) {
+  return request('/api/admin/banks', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function createBank(token, payload) {
+  return request('/api/admin/banks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteBank(token, id) {
+  return request(`/api/admin/banks/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function getPendingBankPayments(token, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  return request(`/api/admin/pending-bank-payments?${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function acceptPendingBankPayment(token, code) {
+  return request('/api/admin/pending-bank-payments/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  })
+}
+
+export async function rejectPendingBankPayment(token, code) {
+  return request('/api/admin/pending-bank-payments/reject', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  })
+}
+
 export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
@@ -828,7 +872,8 @@ export default {
   getOpayBusinessPackages, createOpayBusinessPackage, updateOpayBusinessPackage, deleteOpayBusinessPackage,
   toggleOpayBusinessLifetimePayment, assignOpayBusinessPackage,
   getMerchantTopupHistory,
-  listAutoWithdrawals, rejectAutoWithdrawal
+  listAutoWithdrawals, rejectAutoWithdrawal,
+  getBankList, createBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment
 }
 
 

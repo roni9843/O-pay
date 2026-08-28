@@ -38,6 +38,9 @@ import PrivateRoute from './components/PrivateRoute'
 import AdminLayout from './layouts/AdminLayout'
 import { Toaster } from 'react-hot-toast'
 
+import BankManagement from './pages/BankManagement'
+import PendingBankPayments from './pages/PendingBankPayments'
+
 export default function App() {
   return (
     <>
@@ -68,6 +71,8 @@ export default function App() {
         <Route path="/payment-messages" element={<PaymentMessages />} />
         <Route path="/pending-balances" element={<PendingBalances />} />
         <Route path="/pending-nagad" element={<PendingNagad />} />
+        <Route path="/pending-bank-payments" element={<PendingBankPayments />} />
+        <Route path="/bank-management" element={<BankManagement />} />
         <Route path="/balance-adjustment" element={<BalanceAdjustment />} />
 
         <Route path="/credit-plans" element={<CreditPlans />} />

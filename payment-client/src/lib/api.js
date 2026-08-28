@@ -377,6 +377,53 @@ export default {
   addBalance, 
   purchaseSubscription, 
   getMySubscriptions,
+export async function getAgentBankAccounts(token) {
+  return request('/api/dashboard/bank-accounts', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function addAgentBankAccount(token, payload) {
+  return request('/api/dashboard/bank-accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAgentBankAccount(token, id) {
+  return request(`/api/dashboard/bank-accounts/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function getAgentPendingBankPayments(token) {
+  return request('/api/dashboard/pending-bank-payments', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function acceptPendingBankPayment(token, code) {
+  return request('/api/dashboard/pending-bank-payments/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
+export async function rejectPendingBankPayment(token, code) {
+  return request('/api/dashboard/pending-bank-payments/reject', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
+export default {
+  login,
+  getMe,
+  register,
   getMyDevices,
   getSubscriptionApiKey,
   generateSubscriptionApiKey,
@@ -409,5 +456,11 @@ export default {
   completeAutoWithdrawal,
   getAgentPendingNagad,
   acceptPendingNagad,
-  rejectPendingNagad
+  rejectPendingNagad,
+  getAgentBankAccounts,
+  addAgentBankAccount,
+  deleteAgentBankAccount,
+  getAgentPendingBankPayments,
+  acceptPendingBankPayment,
+  rejectPendingBankPayment
 };

@@ -9,6 +9,8 @@ import instapayLogo from "./assets/instapay.png";
 import bypitLogo from "./assets/Bypit.png";
 import binanceLogo from "./assets/binance.png";
 
+import BankTransferModal from "./BankTransferModal";
+
 const mobileWallets = [
   { name: "bKash", providerKey: "bkash" },
   { name: "Nagad", providerKey: "nagad" },
@@ -65,10 +67,12 @@ export default function SimplePaymentPage() {
   const [failMessage, setFailMessage] = useState('');
   const [pendingCountdown, setPendingCountdown] = useState(20);
   const [isPendingNagad, setIsPendingNagad] = useState(false);
+  const [isPendingBank, setIsPendingBank] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
 
   useEffect(() => {
     let timer;
-    if (isPendingNagad && code) {
+    if ((isPendingNagad || isPendingBank) && code) {
       const poll = async () => {
         try {
           const res = await fetch(`${API_URL}/api/opay-business/payment-page/${code}`);
@@ -76,11 +80,15 @@ export default function SimplePaymentPage() {
           if (res.ok && data.success) {
             if (data.status === 'paid') {
               setIsPendingNagad(false);
+              setIsPendingBank(false);
               setRedirectTarget(data.success_redirect_url || data.successRedirectUrl);
               setShowBkashPayment(false);
+              setShowBankModal(false);
               setPaymentSuccess(true);
             } else if (data.status === 'cancelled' || data.status === 'expired') {
               setIsPendingNagad(false);
+              setIsPendingBank(false);
+              setShowBankModal(false);
               setFailMessage('পেমেন্টটি বাতিল বা মেয়াদোত্তীর্ণ করা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন বা সাহায্য চাইতে মার্চেন্টের সাথে যোগাযোগ করুন।');
               setVerificationFailed(true);
             }
@@ -95,7 +103,7 @@ export default function SimplePaymentPage() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPendingNagad, code, API_URL]);
+  }, [isPendingNagad, isPendingBank, code]);
 
   useEffect(() => {
     let interval;
@@ -387,6 +395,67 @@ export default function SimplePaymentPage() {
     );
   }
 
+  if (showBankModal && selectedAccount) {
+    return (
+      <BankTransferModal
+        account={selectedAccount}
+        amount={payableAmount}
+        onBack={() => setShowBankModal(false)}
+        onSubmitProof={async (proofUrl, bankDetails) => {
+          try {
+            const res = await fetch(`${API_URL}/api/opay-business/verify-bank-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code: sessionCode,
+                proofUrl,
+                bankDetails
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              setShowBankModal(false);
+              setIsPendingBank(true);
+            } else {
+              alert(data.message || 'Failed to submit proof.');
+            }
+          } catch (err) {
+            alert('Server error during proof submission: ' + err.message);
+          }
+        }}
+      />
+    );
+  }
+
+  if (isPendingBank) {
+    return (
+      <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8 text-center flex flex-col items-center">
+          <div className="w-20 h-20 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl mb-6 shadow-sm">
+            🏦
+          </div>
+          
+          <h2 className="text-2xl font-bold mb-3 text-indigo-950">
+            ব্যাংক ট্রান্সফার প্রুফ সাবমিট করা হয়েছে
+          </h2>
+          <p className="text-sm text-gray-600 leading-relaxed mb-8">
+            আপনার ব্যাংক ট্রান্সফারের প্রুফ স্ক্রিনশটটি জমা হয়েছে এবং তা এজেন্ট/এডমিন অনুমোদনের জন্য অপেক্ষমান (Pending) রয়েছে। অনুমোদন হওয়ার সাথে সাথে পেজটি অটো রিডাইরেক্ট হবে।
+          </p>
+
+          <div className="relative w-16 h-16 mb-8 flex items-center justify-center">
+            <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin"></div>
+          </div>
+
+          <div className="px-4 py-2.5 rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-700 uppercase tracking-wider animate-pulse flex items-center gap-1.5 border border-indigo-200">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+            Awaiting Agent Confirmation...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isPendingNagad) {
     return (
       <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
@@ -639,10 +708,26 @@ export default function SimplePaymentPage() {
             <>
               <div className="grid grid-cols-3 gap-6">
                 {bankWallets.map((wallet) => {
+                  const handleBankClick = async () => {
+                    try {
+                      const env = import.meta.env.VITE_APP_ENV || 'local';
+                      const res = await fetch(`${API_URL}/api/opay-business/random-payment-method?provider=bank&code=${sessionCode || ''}&env=${env}`);
+                      const data = await res.json();
+                      if (res.ok && data.success && data.method) {
+                        setSelectedAccount(data.method);
+                        setShowBankModal(true);
+                      } else {
+                        handleUnavailableClick(wallet.name);
+                      }
+                    } catch (e) {
+                      handleUnavailableClick(wallet.name);
+                    }
+                  };
+
                   return (
                     <button
                       key={wallet.name}
-                      onClick={() => handleUnavailableClick(wallet.name)}
+                      onClick={handleBankClick}
                       className="flex flex-col items-center gap-2 group relative"
                     >
                       <div
@@ -658,6 +743,19 @@ export default function SimplePaymentPage() {
                           alt={wallet.name}
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
+
+                        {activeProviders.bank && (
+                          <div
+                            className="
+                              absolute -top-1 -right-1
+                              px-2 py-0.5 text-[9px] font-bold
+                              bg-green-100 text-green-800
+                              rounded-full shadow-md border border-green-300
+                            "
+                          >
+                            Active
+                          </div>
+                        )}
                       </div>
 
                       <span

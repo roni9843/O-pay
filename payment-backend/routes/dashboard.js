@@ -718,4 +718,199 @@ router.post('/pending-nagad/reject', auth, async (req, res) => {
   }
 });
 
+// --- WALLET AGENT BANK ACCOUNTS MANAGEMENT ---
+router.get('/bank-accounts', auth, async (req, res) => {
+  try {
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const accounts = await AgentBankAccount.find({ owner: req.user._id }).sort({ createdAt: -1 }).lean();
+    return res.json({ success: true, data: accounts });
+  } catch (err) {
+    console.error('Error fetching agent bank accounts:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/bank-accounts', auth, async (req, res) => {
+  try {
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const {
+      bankName,
+      accountHolderName,
+      accountNumber,
+      branchName,
+      division,
+      district,
+      upazilaThana,
+      routingNumber,
+      status,
+    } = req.body;
+
+    if (!bankName || !accountHolderName || !accountNumber || !branchName || !division || !district || !upazilaThana || !routingNumber) {
+      return res.status(400).json({ success: false, message: 'All bank details fields are required' });
+    }
+
+    const newAcc = await AgentBankAccount.create({
+      owner: req.user._id,
+      bankName: bankName.trim(),
+      accountHolderName: accountHolderName.trim(),
+      accountNumber: accountNumber.trim(),
+      branchName: branchName.trim(),
+      division: division.trim(),
+      district: district.trim(),
+      upazilaThana: upazilaThana.trim(),
+      routingNumber: routingNumber.trim(),
+      status: status === 'inactive' ? 'inactive' : 'active',
+    });
+
+    return res.json({ success: true, data: newAcc });
+  } catch (err) {
+    console.error('Error adding agent bank account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/bank-accounts/:id', auth, async (req, res) => {
+  try {
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    await AgentBankAccount.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+    return res.json({ success: true, message: 'Bank account deleted' });
+  } catch (err) {
+    console.error('Error deleting agent bank account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- WALLET AGENT PENDING BANK PAYMENTS ---
+router.get('/pending-bank-payments', auth, async (req, res) => {
+  try {
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+
+    // 1. Get bank account IDs / numbers of this agent
+    const bankAccounts = await AgentBankAccount.find({ owner: req.user._id }).select('_id accountNumber').lean();
+    const bankAccIds = bankAccounts.map(b => String(b._id));
+
+    // 2. Fetch all sessions with status 'pending_bank'
+    const sessions = await OpayBusinessPaymentSession.find({ status: 'pending_bank' })
+      .populate('business')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // 3. Filter sessions matching this agent's bank accounts
+    const filtered = sessions.filter(session => {
+      const targetAgentId = session.bankDetails?.agentId || session.bankDetails?.bankAccountId;
+      return targetAgentId && (String(targetAgentId) === String(req.user._id) || bankAccIds.includes(String(targetAgentId)));
+    });
+
+    return res.json({ success: true, data: filtered });
+  } catch (err) {
+    console.error('Error fetching agent pending bank payments:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-bank-payments/accept', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const User = require('../models/User');
+    const OpayBusiness = require('../models/OpayBusiness');
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_bank' }).populate('business');
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending bank session not found' });
+    }
+
+    session.status = 'paid';
+    session.lastVerificationSuccessAt = new Date();
+
+    // Deduct Agent Credit
+    const agentUser = await User.findById(req.user._id).select('name credit minimumCredit');
+    const paymentAmount = Number(session.amount) || 0;
+
+    if (agentUser) {
+      const creditBefore = agentUser.credit || 0;
+      const creditAfter = Math.max(0, creditBefore - paymentAmount);
+      agentUser.credit = creditAfter;
+      await agentUser.save();
+
+      session.walletAgentSnapshot = {
+        agentId: agentUser._id,
+        agentName: agentUser.name || 'Unknown Agent',
+        creditBefore,
+        creditAfter,
+        creditDeducted: paymentAmount,
+      };
+    }
+
+    // Merchant Balance Snapshot
+    try {
+      const business = await OpayBusiness.findById(session.business._id || session.business).select('name balanceAdjustment');
+      if (business) {
+        const previousPaidTotal = await OpayBusinessPaymentSession.aggregate([
+          { $match: { business: business._id, status: 'paid', _id: { $ne: session._id } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const balanceBefore = (previousPaidTotal[0]?.total || 0) + (business.balanceAdjustment || 0);
+        const balanceAfter = balanceBefore + paymentAmount;
+
+        session.merchantSnapshot = {
+          businessId: business._id,
+          businessName: business.name || 'Unknown Merchant',
+          balanceBefore,
+          balanceAfter,
+          balanceAdded: paymentAmount,
+        };
+      }
+    } catch (balErr) {}
+
+    await session.save();
+
+    // Trigger Callback URL
+    const payload = {
+      status: 'COMPLETED',
+      amount: Number(session.amount),
+      transaction_id: session.bankDetails?.trxid || session.code,
+      invoice_number: session.invoiceNumber || null,
+      session_code: session.code,
+      user_identity: session.userIdentityAddress || null,
+      checkout_items: session.checkoutItems || null,
+      bank: 'bank_transfer',
+    };
+
+    if (session.callbackUrl) {
+      const axios = require('axios');
+      axios.post(session.callbackUrl, payload, { timeout: 5000 }).catch(e => console.warn('Callback error:', e.message));
+    }
+
+    return res.json({ success: true, message: 'Bank payment approved successfully' });
+  } catch (err) {
+    console.error('Error approving bank payment (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-bank-payments/reject', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_bank' });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending bank session not found' });
+    }
+
+    session.status = 'cancelled';
+    await session.save();
+
+    return res.json({ success: true, message: 'Bank payment rejected' });
+  } catch (err) {
+    console.error('Error rejecting bank payment (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

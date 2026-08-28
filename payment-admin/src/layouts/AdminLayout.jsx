@@ -46,6 +46,8 @@ const navItems = [
   { to: '/payments', label: 'Payments', icon: CreditCard, accent: 'from-emerald-500 to-lime-500' },
   { to: '/pending-balances', label: 'Pending Balances', icon: Clock, accent: 'from-cyan-500 to-blue-500', badgeKey: 'pendingBalanceTopUps' },
   { to: '/pending-nagad', label: 'Pending Nagad', icon: Clock, accent: 'from-orange-500 to-rose-500', badgeKey: 'pendingNagad' },
+  { to: '/pending-bank-payments', label: 'Pending Bank', icon: Landmark, accent: 'from-indigo-500 to-purple-500', badgeKey: 'pendingBank' },
+  { to: '/bank-management', label: 'Bank Management', icon: Landmark, accent: 'from-cyan-500 to-blue-500' },
   { to: '/balance-adjustment', label: 'Balance Adjustment', icon: Coins, accent: 'from-teal-500 to-emerald-500' },
   { to: '/binance-address', label: 'Binance Address', icon: Coins, accent: 'from-yellow-400 to-orange-500' },
   { to: '/credit-plans', label: 'Credit Panel', icon: CreditCard, accent: 'from-violet-500 to-fuchsia-500' },

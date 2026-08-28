@@ -3246,4 +3246,140 @@ router.get('/merchant-topup-history', auth, async (req, res) => {
   }
 });
 
+// --- BANK LIST MANAGEMENT (ADMIN) ---
+router.get('/banks', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const BankList = require('../models/BankList');
+    const banks = await BankList.find({}).sort({ name: 1 }).lean();
+    return res.json({ success: true, data: banks });
+  } catch (err) {
+    console.error('Error fetching bank list:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/banks', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const BankList = require('../models/BankList');
+    const { name, code, logo, status } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank name is required' });
+    }
+    const bank = await BankList.create({
+      name: name.trim(),
+      code: code ? code.trim() : '',
+      logo: logo ? logo.trim() : '',
+      status: status === 'inactive' ? 'inactive' : 'active'
+    });
+    return res.json({ success: true, data: bank });
+  } catch (err) {
+    console.error('Error creating bank:', err);
+    if (err.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Bank name already exists' });
+    }
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/banks/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const BankList = require('../models/BankList');
+    await BankList.findByIdAndDelete(req.params.id);
+    return res.json({ success: true, message: 'Bank deleted' });
+  } catch (err) {
+    console.error('Error deleting bank:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- PENDING BANK PAYMENTS (ADMIN) ---
+router.get('/pending-bank-payments', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+    const skip = (pageNum - 1) * lim;
+
+    const query = { status: 'pending_bank' };
+    const [items, total] = await Promise.all([
+      OpayBusinessPaymentSession.find(query)
+        .populate('business')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .lean(),
+      OpayBusinessPaymentSession.countDocuments(query),
+    ]);
+
+    return res.json({ success: true, data: items, page: pageNum, total });
+  } catch (err) {
+    console.error('Error fetching pending bank sessions:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-bank-payments/accept', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_bank' }).populate('business');
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending bank session not found or already processed' });
+    }
+
+    session.status = 'paid';
+    session.lastVerificationSuccessAt = new Date();
+    await session.save();
+
+    // Trigger Callback URL
+    const payload = {
+      status: 'COMPLETED',
+      amount: Number(session.amount),
+      transaction_id: session.bankDetails?.trxid || session.code,
+      invoice_number: session.invoiceNumber || null,
+      session_code: session.code,
+      user_identity: session.userIdentityAddress || null,
+      checkout_items: session.checkoutItems || null,
+      bank: 'bank_transfer',
+    };
+
+    if (session.callbackUrl) {
+      const axios = require('axios');
+      axios.post(session.callbackUrl, payload, { timeout: 5000 }).catch(e => console.warn('Callback error:', e.message));
+    }
+
+    return res.json({ success: true, message: 'Bank payment accepted successfully', session });
+  } catch (err) {
+    console.error('Error accepting pending bank payment:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-bank-payments/reject', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_bank' });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending bank session not found' });
+    }
+
+    session.status = 'cancelled';
+    await session.save();
+
+    return res.json({ success: true, message: 'Bank payment rejected', session });
+  } catch (err) {
+    console.error('Error rejecting pending bank payment:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

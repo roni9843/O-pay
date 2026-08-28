@@ -45,6 +45,7 @@ const navGroups = [
       { to: "/dashboard/pending-balance", label: "Pending Balance", icon: Clock },
       { to: "/dashboard/payment", label: "Payment History", icon: CreditCard },
       { to: "/dashboard/pending-nagad", label: "Pending Nagad", icon: Clock, roles: ["wallet_agent"] },
+      { to: "/dashboard/pending-bank", label: "Pending Bank", icon: Clock, roles: ["wallet_agent"] },
       { to: "/dashboard/auto-withdrawal-history", label: "Auto Withdrawals", icon: Clock, roles: ["wallet_agent"] },
     ]
   },
@@ -78,6 +79,7 @@ const navGroups = [
     title: "Integration",
     items: [
       { to: "/dashboard/add-payment-method", label: "Payment Methods", icon: CreditCard, rightIcon: Plus },
+      { to: "/dashboard/bank-accounts", label: "Bank Accounts", icon: CreditCard, roles: ["wallet_agent"], rightIcon: Plus },
       { to: "/dashboard/add-payment-page", label: "Payment Pages", icon: AppWindow, hiddenRoles: ["wallet_agent"] },
       { to: "/dashboard/api-key", label: "API Key", icon: Key, hiddenRoles: ["wallet_agent"] },
     ]

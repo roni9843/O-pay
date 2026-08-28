@@ -30,7 +30,8 @@ const OpayBusinessPaymentSessionSchema = new mongoose.Schema(
     ],
     firstOpenedAt: { type: Date },
     lastActivityAt: { type: Date },
-    status: { type: String, enum: ['pending', 'paid', 'expired', 'cancelled', 'pending_nagad'], default: 'pending', index: true },
+    status: { type: String, enum: ['pending', 'paid', 'expired', 'cancelled', 'pending_nagad', 'pending_bank'], default: 'pending', index: true },
+    bankDetails: { type: mongoose.Schema.Types.Mixed },
     expiresAt: { type: Date },
     verificationAttempts: [
       {

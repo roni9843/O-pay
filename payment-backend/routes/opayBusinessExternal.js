@@ -564,7 +564,20 @@ router.get('/wallet-status', async (req, res) => {
 
     const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
 
-    const providers = { bkash: false, nagad: false, rocket: false, upay: false };
+    const providers = { bkash: false, nagad: false, rocket: false, upay: false, bank: false };
+
+    // Check if any online Agent has active Bank Account
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const bankAccounts = await AgentBankAccount.find({ status: 'active' }).populate('owner').lean();
+    for (const bankAcc of bankAccounts) {
+      if (!bankAcc.owner || bankAcc.owner.role !== 'wallet_agent') continue;
+      if (!activeUserIds.has(bankAcc.owner._id.toString())) continue;
+      const availCredit = (bankAcc.owner.credit || 0) - (bankAcc.owner.minimumCredit || 0);
+      if (availCredit >= requiredAmount) {
+        providers.bank = true;
+        break;
+      }
+    }
 
     for (const pm of methods) {
       if (!pm.owner || pm.owner.role !== 'wallet_agent') continue;
@@ -622,10 +635,55 @@ router.get('/random-payment-method', async (req, res) => {
   try {
     const providerRaw = (req.query.provider || '').toString().toLowerCase();
     const { code } = req.query;
-    const allowedProviders = ['bkash', 'nagad', 'rocket', 'upay'];
+    const allowedProviders = ['bkash', 'nagad', 'rocket', 'upay', 'bank'];
 
     if (!allowedProviders.includes(providerRaw)) {
       return res.status(400).json({ success: false, message: 'Invalid provider' });
+    }
+
+    let requiredAmount = 0;
+    if (code) {
+      const session = await OpayBusinessPaymentSession.findOne({ code });
+      if (session) requiredAmount = session.amount || 0;
+    }
+
+    if (providerRaw === 'bank') {
+      const AgentBankAccount = require('../models/AgentBankAccount');
+      const UserSubscription = require('../models/UserSubscription');
+      const now = new Date();
+      const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).select('user').lean();
+      const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
+
+      const bankAccounts = await AgentBankAccount.find({ status: 'active' }).populate('owner').lean();
+      const eligibleBanks = bankAccounts.filter((b) => {
+        if (!b.owner || b.owner.role !== 'wallet_agent') return false;
+        if (!activeUserIds.has(b.owner._id.toString())) return false;
+        const availCredit = (b.owner.credit || 0) - (b.owner.minimumCredit || 0);
+        return availCredit >= requiredAmount;
+      });
+
+      if (!eligibleBanks.length) {
+        return res.status(404).json({ success: false, message: 'No active wallet agent bank account available' });
+      }
+
+      const chosenBank = eligibleBanks[Math.floor(Math.random() * eligibleBanks.length)];
+      return res.json({
+        success: true,
+        method: {
+          provider: 'bank',
+          bankName: chosenBank.bankName,
+          accountHolderName: chosenBank.accountHolderName,
+          accountNumber: chosenBank.accountNumber,
+          branchName: chosenBank.branchName,
+          division: chosenBank.division,
+          district: chosenBank.district,
+          upazilaThana: chosenBank.upazilaThana,
+          routingNumber: chosenBank.routingNumber,
+          agentId: chosenBank.owner._id,
+          bankAccountId: chosenBank._id,
+          ownerName: chosenBank.owner.name,
+        }
+      });
     }
 
     let requiredAmount = 0;
@@ -1670,6 +1728,46 @@ router.post('/verify-payment', async (req, res) => {
           pushNotificationStatus = targetTokens.length === 0 ? 'No Devices/FCM Tokens' : 'No FCM Token';
           console.warn('[PUSH NOTIFICATION] Firebase not initialized or no agent devices with FCM tokens found');
         }
+
+// POST /api/opay-business/verify-bank-payment
+// Customer submits screenshot proof for bank transfer
+router.post('/verify-bank-payment', async (req, res) => {
+  try {
+    const { code, proofUrl, bankDetails } = req.body;
+    if (!code || !proofUrl) {
+      return res.status(400).json({ success: false, message: 'Missing code or proof screenshot URL' });
+    }
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: { $in: ['pending', 'pending_bank'] } });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Invalid or expired payment session' });
+    }
+
+    session.status = 'pending_bank';
+    session.bankDetails = {
+      ...(bankDetails || {}),
+      proofUrl,
+      submittedAt: new Date(),
+    };
+    await session.save();
+
+    // Broadcast Socket event to Admin & Agents
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('pending_bank_payment_created', session);
+    }
+
+    return res.json({
+      success: true,
+      status: 'pending_bank',
+      message: 'Bank transfer proof submitted and awaiting approval',
+      code: session.code
+    });
+  } catch (err) {
+    console.error('Verify bank payment error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during bank proof submission' });
+  }
+});
       } catch (pushErr) {
         pushNotificationStatus = `Error: ${pushErr.message}`;
         console.error('[PUSH NOTIFICATION ERROR]', pushErr.message);
