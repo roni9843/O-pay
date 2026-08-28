@@ -1,8 +1,5 @@
 import { useAuthStore } from '../store/authStore';
 
-export async function getMyPaymentMethods(token) {
-  return get("/api/payment-methods", token);
-}
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 async function request(path, options = {}) {
@@ -212,6 +209,10 @@ export async function del(path, token) {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
+export async function getMyPaymentMethods(token) {
+  return get("/api/payment-methods", token);
+}
+
 export async function getPaymentMethodPages(token) {
   return get("/api/payment-method-page-content", token);
 }
