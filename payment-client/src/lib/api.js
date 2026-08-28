@@ -367,17 +367,7 @@ export async function rejectPendingNagad(token, code) {
   });
 }
 
-export default {  
-  register, 
-  sendOtp,
-  verifyOtpAndRegister,
-  login, 
-  me, 
-  getSubscriptionPlans,
-  getCreditPlans, 
-  addBalance, 
-  purchaseSubscription, 
-  getMySubscriptions,
+
 export async function getAgentBankAccounts(token) {
   return request('/api/dashboard/bank-accounts', {
     headers: { Authorization: `Bearer ${token}` }
