@@ -5,6 +5,8 @@ import Register from './pages/Register'
 import KYC from './pages/KYC'
 import PaymentTest from './pages/PaymentTest'
 import ApiDocs from './pages/ApiDocs'
+import DepositAutoDocs from './pages/DepositAutoDocs'
+import AutoWithdrawalDocs from './pages/AutoWithdrawalDocs'
 import History from './pages/History'
 import Withdrawal from './pages/Withdrawal'
 import DashboardLayout from './components/DashboardLayout'
@@ -57,10 +59,10 @@ function Dashboard() {
   }, [user._id]) // use user._id to avoid infinite re-runs if user object ref changes
 
   const daily = overview?.daily || []
-  const maxAmount = daily.reduce((m, d) => Math.max(m, d.successAmount || 0), 0)
-  const maxCount = daily.reduce((m, d) => Math.max(m, d.successCount || 0), 0)
+  const maxAmount = daily.reduce((m, d) => Math.max(m, d.successAmount || 0, d.withdrawAmount || 0), 0)
+  const maxCount = daily.reduce((m, d) => Math.max(m, d.successCount || 0, d.withdrawCount || 0), 0)
 
-  const hasData = daily.some(d => d.successAmount > 0 || d.successCount > 0);
+  const hasData = daily.some(d => (d.successAmount || 0) > 0 || (d.successCount || 0) > 0 || (d.withdrawAmount || 0) > 0 || (d.withdrawCount || 0) > 0);
   const [hoveredIndex, setHoveredIndex] = useState(null)
 
   // SVG Area Chart points calculation
@@ -173,7 +175,7 @@ function Dashboard() {
         <div className="p-6 md:p-8 border-b border-fuchsia-100/80 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-fuchsia-600">API Auto Withdrawals</p>
-            <h3 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Withdrawal performance</h3>
+            <h3 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Withdrawal performance & Ratio</h3>
             <p className="mt-2 text-sm text-slate-500 font-medium max-w-2xl">Overview of all automated payout requests triggered via your API.</p>
           </div>
           <button onClick={() => window.location.href = '/auto-withdrawal-history'} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-fuchsia-100 text-fuchsia-700 font-black text-[10px] uppercase tracking-widest shadow-sm w-fit hover:bg-fuchsia-50 transition-colors">
@@ -181,7 +183,7 @@ function Dashboard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 md:p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 md:p-8">
           {[
             {
               label: 'Total Requests',
@@ -193,7 +195,7 @@ function Dashboard() {
             {
               label: 'Completed Payouts',
               value: overview ? (overview.autoWithdrawalStats?.completedCount || 0) : '...',
-              sub: 'Successfully transferred',
+              sub: `Success Ratio: ${overview?.autoWithdrawalStats?.totalCount ? Math.round(((overview.autoWithdrawalStats?.completedCount || 0) / overview.autoWithdrawalStats.totalCount) * 100) : 0}%`,
               accent: 'from-fuchsia-500 to-pink-500',
               ring: 'ring-fuchsia-500/10',
             },
@@ -203,6 +205,13 @@ function Dashboard() {
               sub: 'Total value of completed payouts',
               accent: 'from-indigo-500 to-violet-500',
               ring: 'ring-indigo-500/10',
+            },
+            {
+              label: 'Success Rate Ratio',
+              value: overview ? `${overview.autoWithdrawalStats?.totalCount ? Math.round(((overview.autoWithdrawalStats?.completedCount || 0) / overview.autoWithdrawalStats.totalCount) * 100) : 100}%` : '...',
+              sub: 'Payout conversion efficiency',
+              accent: 'from-emerald-500 to-teal-500',
+              ring: 'ring-emerald-500/10',
             },
           ].map((card) => (
             <div key={card.label} className={`relative rounded-[1.75rem] bg-white border border-white/70 shadow-sm p-5 ring-1 ${card.ring} overflow-hidden`}>
@@ -247,15 +256,19 @@ function Dashboard() {
         </div>
 
         <div className="p-8 rounded-[2rem] bg-white border border-slate-200 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <div>
-              <h3 className="text-lg font-black text-slate-800 tracking-tight">Payment Trends</h3>
-              <p className="text-xs font-bold text-slate-400">Success volume over time</p>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">Payment & Withdrawal Trends</h3>
+              <p className="text-xs font-bold text-slate-400">Success revenue vs withdrawal payout volume over time</p>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></div>
                 <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Revenue</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-fuchsia-500 shadow-sm shadow-fuchsia-500/50"></div>
+                <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Withdrawal</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-sky-400 shadow-sm shadow-sky-400/50"></div>
@@ -284,6 +297,10 @@ function Dashboard() {
                   <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
                   <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                 </linearGradient>
+                <linearGradient id="areaGradientWithdraw" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#d946ef" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#d946ef" stopOpacity="0.0" />
+                </linearGradient>
                 <linearGradient id="areaGradientCount" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
@@ -309,7 +326,26 @@ function Dashboard() {
                 </>
               )}
 
-              {/* Amount Area */}
+              {/* Withdrawal Amount Area */}
+              {daily.length > 0 && (
+                <>
+                <path
+                  d={`M 0,200 L ${getPoints(daily, 'withdrawAmount', maxAmount, 200, 1000)} L 1000,200 Z`}
+                  fill="url(#areaGradientWithdraw)"
+                />
+                <polyline
+                  points={getPoints(daily, 'withdrawAmount', maxAmount, 200, 1000)}
+                  fill="none"
+                  stroke="#d946ef"
+                  strokeWidth="3"
+                  strokeDasharray="5 5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+                </>
+              )}
+
+              {/* Success Revenue Amount Area */}
               {daily.length > 0 && (
                 <>
                 <path
@@ -371,7 +407,7 @@ function Dashboard() {
             {/* Tooltip */}
             {hoveredIndex !== null && daily[hoveredIndex] && (
               <div 
-                className="absolute z-40 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-2xl text-white pointer-events-none transition-all duration-75"
+                className="absolute z-40 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-2xl text-white pointer-events-none transition-all duration-75 min-w-[200px]"
                 style={{
                   left: `${(hoveredIndex / (daily.length - 1)) * 100}%`,
                   top: '-10px',
@@ -380,13 +416,17 @@ function Dashboard() {
               >
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-white/5 pb-1">{daily[hoveredIndex].date}</p>
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-8">
+                  <div className="flex items-center justify-between gap-6">
                     <span className="text-[10px] font-black uppercase text-slate-400">Net Sales</span>
-                    <span className="text-sm font-black text-emerald-400">{daily[hoveredIndex].successAmount.toLocaleString()} BDT</span>
+                    <span className="text-xs font-black text-emerald-400">৳{daily[hoveredIndex].successAmount.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-8">
+                  <div className="flex items-center justify-between gap-6">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Withdrawal</span>
+                    <span className="text-xs font-black text-fuchsia-400">৳{(daily[hoveredIndex].withdrawAmount || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 pt-1 border-t border-white/5">
                     <span className="text-[10px] font-black uppercase text-slate-400">Paid Links</span>
-                    <span className="text-sm font-black text-sky-400">{daily[hoveredIndex].successCount}</span>
+                    <span className="text-xs font-black text-sky-400">{daily[hoveredIndex].successCount}</span>
                   </div>
                 </div>
               </div>
@@ -532,7 +572,17 @@ function App() {
         } />
         <Route path="/api-docs" element={
           <ProtectedRoute authReady={authReady}>
-            <ApiDocs />
+            <DepositAutoDocs />
+          </ProtectedRoute>
+        } />
+        <Route path="/deposit-auto-docs" element={
+          <ProtectedRoute authReady={authReady}>
+            <DepositAutoDocs />
+          </ProtectedRoute>
+        } />
+        <Route path="/auto-withdrawal-docs" element={
+          <ProtectedRoute authReady={authReady}>
+            <AutoWithdrawalDocs />
           </ProtectedRoute>
         } />
         <Route path="/success-page/:code" element={<PublicSuccessPage />} />

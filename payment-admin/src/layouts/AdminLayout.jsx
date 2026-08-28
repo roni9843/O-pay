@@ -31,12 +31,12 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: 'from-violet-500 to-indigo-500' },
   { to: '/users', label: 'Users', icon: Users, accent: 'from-emerald-500 to-teal-500' },
   { to: '/wallet-agents', label: 'Wallet Agents', icon: Wallet, accent: 'from-pink-500 to-rose-500' },
-  { to: '/agent-applications', label: 'Applications', icon: Users, accent: 'from-blue-500 to-indigo-500', badgeKey: 'pendingAgentApplications' },
+  { to: '/agent-applications', label: 'Applications', icon: Users, accent: 'from-blue-500 to-indigo-500' },
   { to: '/opay-business', label: 'Opay Business', icon: Briefcase, accent: 'from-sky-500 to-cyan-500' },
   { to: '/merchant-package', label: 'Merchant Package', icon: Box, accent: 'from-indigo-500 to-purple-500' },
   { to: '/merchant-withdraws', label: 'Merchant Withdraws', icon: Landmark, accent: 'from-orange-500 to-amber-500', badgeKey: 'pendingWithdrawals' },
   { to: '/merchant-topup-history', label: 'Merchant Topups', icon: Zap, accent: 'from-emerald-500 to-teal-500' },
-  { to: '/auto-withdrawals', label: 'Withdrawal System', icon: Layers, accent: 'from-blue-500 to-indigo-500' },
+  { to: '/auto-withdrawals', label: 'Withdrawal System', icon: Layers, accent: 'from-blue-500 to-indigo-500', badgeKey: 'pendingAutoWithdrawals' },
   { to: '/payment-link-sessions', label: 'Payment Links', icon: LinkIcon, accent: 'from-sky-500 to-blue-500' },
   { to: '/device-online', label: 'Device Online', icon: Smartphone, accent: 'from-amber-500 to-orange-500' },
   { to: '/push-history', label: 'Push History', icon: History, accent: 'from-indigo-500 to-purple-500' },
@@ -224,7 +224,10 @@ export default function AdminLayout() {
   const activeItem = navItems.find((item) => location.pathname.startsWith(item.to))
 
   useEffect(() => {
-    fetchStats()
+    if (!token) return;
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000);
+    return () => clearInterval(interval);
   }, [token])
 
   const fetchStats = async () => {

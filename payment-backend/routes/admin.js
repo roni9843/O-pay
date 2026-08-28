@@ -87,7 +87,8 @@ router.get('/stats', auth, async (req, res) => {
       pendingWithdrawals,
       pendingCreditTopUps,
       pendingAgentApplications,
-      pendingNagad
+      pendingNagad,
+      pendingAutoWithdrawals
     ] = await Promise.all([
       User.countDocuments(),
       Device.countDocuments(),
@@ -96,7 +97,8 @@ router.get('/stats', auth, async (req, res) => {
       MerchantWithdrawal.countDocuments({ status: 'pending' }),
       require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
       require('../models/AgentApplication').countDocuments({ status: 'pending' }),
-      OpayBusinessPaymentSession.countDocuments({ status: 'pending_nagad' })
+      OpayBusinessPaymentSession.countDocuments({ status: 'pending_nagad' }),
+      AutoWithdrawalRequest.countDocuments({ status: { $in: ['pending', 'booked'] } })
     ]);
 
     statsCache = {
@@ -107,7 +109,8 @@ router.get('/stats', auth, async (req, res) => {
       pendingWithdrawals,
       pendingCreditTopUps,
       pendingAgentApplications,
-      pendingNagad
+      pendingNagad,
+      pendingAutoWithdrawals
     };
     statsCacheTime = now;
 
@@ -773,6 +776,30 @@ router.post('/users/:id/balance', auth, async (req, res) => {
       if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
       return res.json({ success: true, data: updated });
     }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Set agent's auto withdrawal commission rate (Admin only)
+// Body: { rate: Number }  — e.g. { rate: 2 } sets 2%
+router.post('/users/:id/commission-rate', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { id } = req.params;
+    let { rate } = req.body;
+    rate = Number(rate);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({ success: false, message: 'Rate must be a number between 0 and 100' });
+    }
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { autoWithdrawalCommissionRate: rate },
+      { new: true }
+    ).select('-password');
+    if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
+    return res.json({ success: true, data: updated, message: `Commission rate set to ${rate}%` });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -2044,7 +2071,7 @@ router.get('/opay-businesses', auth, async (req, res) => {
             ]),
             AutoWithdrawalRequest.aggregate([
                 { $match: { merchant: busId, status: { $in: ['pending', 'booked', 'completed'] } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+                { $group: { _id: null, total: { $sum: { $ifNull: ['$deductedAmount', '$amount'] } } } }
             ])
         ]);
 
@@ -2132,7 +2159,7 @@ router.get('/opay-businesses/:id/payment-page-history', auth, async (req, res) =
 
     const autoWithdrawals = await AutoWithdrawalRequest.aggregate([
         { $match: { merchant: businessId, status: { $in: ['pending', 'booked', 'completed'] } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$deductedAmount', '$amount'] } } } }
     ]);
     const totalAutoWithdrawalAmount = autoWithdrawals[0]?.total || 0;
 
@@ -2200,7 +2227,7 @@ router.get('/opay-businesses/:id/dashboard-overview', auth, async (req, res) => 
       ]),
       AutoWithdrawalRequest.aggregate([
         { $match: { merchant: businessId, status: { $in: ['pending', 'booked', 'completed'] } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$deductedAmount', '$amount'] } } } }
       ]),
       OpayBusinessPaymentSession.aggregate([
         {
@@ -2385,6 +2412,16 @@ router.post('/opay-businesses/:id/toggle-lifetime-payment', auth, async (req, re
         if (!business) return res.status(404).json({ message: "Business not found" });
 
         business.isLifetimePaid = !business.isLifetimePaid;
+        
+        if (business.isLifetimePaid) {
+          business.allowDeposit = req.body.allowDeposit !== undefined ? req.body.allowDeposit : true;
+          business.allowAutoWithdrawal = req.body.allowAutoWithdrawal !== undefined ? req.body.allowAutoWithdrawal : true;
+        } else {
+          business.allowDeposit = false;
+          business.allowAutoWithdrawal = false;
+          business.activePackageId = null;
+        }
+
         await business.save();
         
         return res.json({ 
@@ -2472,6 +2509,36 @@ router.patch('/opay-businesses/:id', auth, async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: 'Business not found' });
     delete updated.passwordHash;
     return res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: Assign / Change Package for a Merchant
+router.post('/opay-businesses/:id/assign-package', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { id } = req.params;
+    const { packageId } = req.body || {};
+
+    const business = await OpayBusiness.findById(id);
+    if (!business) return res.status(404).json({ success: false, message: 'Merchant not found' });
+
+    if (packageId) {
+      const pkg = await OpayBusinessPackage.findById(packageId);
+      if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+
+      business.activePackageId = pkg._id;
+      business.isLifetimePaid = true;
+      business.allowDeposit = pkg.packageType === 'both' || pkg.packageType === 'deposit';
+      business.allowAutoWithdrawal = pkg.packageType === 'both' || pkg.packageType === 'withdrawal';
+    } else {
+      business.activePackageId = null;
+    }
+
+    await business.save();
+    return res.json({ success: true, message: 'Merchant package updated successfully', data: business });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -2580,6 +2647,35 @@ router.post('/merchant-withdrawals/:id/status', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/admin/merchant-withdrawals/:id (Delete test or invalid withdrawal request)
+router.delete('/merchant-withdrawals/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { id } = req.params;
+    const deleted = await MerchantWithdrawal.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    return res.json({ success: true, message: 'Merchant withdrawal deleted successfully' });
+  } catch (err) {
+    console.error('Delete merchant withdrawal error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// DELETE /api/admin/auto-withdrawals/:id (Delete test or invalid auto withdrawal request)
+router.delete('/auto-withdrawals/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { id } = req.params;
+    const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
+    const deleted = await AutoWithdrawalRequest.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Auto withdrawal request not found' });
+    return res.json({ success: true, message: 'Auto withdrawal deleted successfully' });
+  } catch (err) {
+    console.error('Delete auto withdrawal error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
 // GET /api/admin/merchant-withdrawal-config
 // Read admin-controlled minimum withdrawal + commission percent
 router.get('/merchant-withdrawal-config', auth, async (req, res) => {
@@ -2667,68 +2763,82 @@ router.get('/push-logs', auth, async (req, res) => {
   }
 });
 
-// Get dynamic OpayBusinessPackage settings
-router.get('/opay-business-package', auth, async (req, res) => {
+// Get all OpayBusinessPackages
+router.get('/opay-business-packages', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    let pkg = await OpayBusinessPackage.findOne();
-    if (!pkg) {
-      // Return default values in-memory if none exists yet
-      pkg = {
-        name: 'Lifetime Activation Package',
-        amount: 5000,
-        offerDetails: 'এককালীন ফি প্রদান করে আজীবন আনলিমিটেড পেমেন্ট লিংক তৈরি করুন।',
-        features: [
-          'লাইফটাইম আনলিমিটেড পেমেন্ট লিংক তৈরি',
-          '০% অতিরিক্ত হিডেন চার্জ',
-          'রিয়েল-টাইম ট্রানজ্যাকশন মনিটরিং ড্যাশবোর্ড',
-          'গ্রাহকদের জন্য প্রিমিয়াম সাকসেস ল্যান্ডিং পেইজ',
-          '২৪/৭ মার্চেন্ট ও কাস্টমার সাপোর্ট সার্ভিস'
-        ],
-        isActive: true
-      };
-    }
-    return res.json({ success: true, data: pkg });
+    const packages = await OpayBusinessPackage.find().sort({ createdAt: 1 }).lean();
+    return res.json({ success: true, data: packages });
   } catch (err) {
-    console.error('Error fetching business package config:', err);
+    console.error('Error fetching business packages:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Update dynamic OpayBusinessPackage settings
-router.post('/opay-business-package', auth, async (req, res) => {
+// Create new OpayBusinessPackage
+router.post('/opay-business-packages', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { amount, offerDetails, features, isActive } = req.body || {};
+    const { name, amount, offerDetails, features, isActive, packageType } = req.body || {};
 
     const amountNum = Number(amount);
     if (!Number.isFinite(amountNum) || amountNum < 0) {
       return res.status(400).json({ success: false, message: 'Invalid activation fee amount' });
     }
-
     if (!Array.isArray(features)) {
       return res.status(400).json({ success: false, message: 'Features list must be an array' });
     }
 
-    let pkg = await OpayBusinessPackage.findOne();
-    if (!pkg) {
-      pkg = new OpayBusinessPackage({
-        amount: amountNum,
-        offerDetails: String(offerDetails || '').trim(),
-        features: features.map(f => String(f).trim()),
-        isActive: typeof isActive === 'boolean' ? isActive : true
-      });
-    } else {
-      pkg.amount = amountNum;
-      pkg.offerDetails = String(offerDetails || '').trim();
-      pkg.features = features.map(f => String(f).trim());
-      if (typeof isActive === 'boolean') pkg.isActive = isActive;
-    }
+    const pkg = new OpayBusinessPackage({
+      name: String(name || 'Lifetime Activation Package').trim(),
+      amount: amountNum,
+      offerDetails: String(offerDetails || '').trim(),
+      features: features.map(f => String(f).trim()),
+      isActive: typeof isActive === 'boolean' ? isActive : true,
+      packageType: packageType || 'both'
+    });
 
     await pkg.save();
-    return res.json({ success: true, message: 'Lifetime activation package updated successfully', data: pkg });
+    return res.json({ success: true, message: 'Package created successfully', data: pkg });
   } catch (err) {
-    console.error('Error updating business package config:', err);
+    console.error('Error creating business package:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Update OpayBusinessPackage
+router.put('/opay-business-packages/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const { name, amount, offerDetails, features, isActive, packageType } = req.body || {};
+    
+    const updateData = {};
+    if (name !== undefined) updateData.name = String(name).trim();
+    if (amount !== undefined) updateData.amount = Number(amount);
+    if (offerDetails !== undefined) updateData.offerDetails = String(offerDetails).trim();
+    if (features && Array.isArray(features)) updateData.features = features.map(f => String(f).trim());
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (packageType !== undefined) updateData.packageType = packageType;
+
+    const pkg = await OpayBusinessPackage.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+
+    return res.json({ success: true, message: 'Package updated successfully', data: pkg });
+  } catch (err) {
+    console.error('Error updating business package:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Delete OpayBusinessPackage
+router.delete('/opay-business-packages/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const pkg = await OpayBusinessPackage.findByIdAndDelete(req.params.id);
+    if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+    return res.json({ success: true, message: 'Package deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting business package:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -2874,6 +2984,17 @@ router.post('/pending-nagad/accept', auth, async (req, res) => {
         const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
         if (merchantToActivate) {
           merchantToActivate.isLifetimePaid = true;
+          if (session.checkoutItems.packageId) {
+            const pkg = await require('../models/OpayBusinessPackage').findById(session.checkoutItems.packageId);
+            if (pkg) {
+              merchantToActivate.allowDeposit = pkg.packageType === 'both' || pkg.packageType === 'deposit';
+              merchantToActivate.allowAutoWithdrawal = pkg.packageType === 'both' || pkg.packageType === 'withdrawal';
+              merchantToActivate.activePackageId = pkg._id;
+            }
+          } else {
+            merchantToActivate.allowDeposit = true;
+            merchantToActivate.allowAutoWithdrawal = true;
+          }
           await merchantToActivate.save();
           console.log(`[ACTIVATION SUCCESS - ADMIN NAGAD] Activated merchant ${merchantToActivate.email} (ID: ${merchantToActivate._id})`);
         }
@@ -3011,9 +3132,11 @@ router.post('/auto-withdrawals/:id/reject', auth, async (req, res) => {
       try {
         const payload = {
           status: 'REJECTED',
+          withdrawal_id: request._id,
           amount: request.amount,
           payment_method: request.paymentMethod,
           user_identity_address: request.userIdentityAddress,
+          account_number: request.accountNumber,
           checkout_items: request.checkoutItems,
           reason: request.rejectReason || 'Rejected by administrator'
         };
@@ -3078,6 +3201,7 @@ router.get('/auto-withdrawals', auth, async (req, res) => {
       .populate('merchant', 'name email company')
       .populate('bookedBy', 'name email phone')
       .populate('rejectedBy', 'name email phone')
+      .populate('agentRejections.agent', 'name email phone')
       .lean();
 
     return res.json({ success: true, data: withdrawals, total });

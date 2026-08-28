@@ -151,6 +151,14 @@ export async function addMinimumCredit(token, id, amount, mode) {
   })
 }
 
+export async function setCommissionRate(token, id, rate) {
+  return request(`/api/admin/users/${id}/commission-rate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ rate }),
+  })
+}
+
 export async function getStats(token) {
   return request('/api/admin/stats', {
     headers: { Authorization: `Bearer ${token}` }
@@ -375,6 +383,14 @@ export async function deleteCreditPlan(token, id) {
   })
 }
 
+export async function assignCreditPlanToAgent(token, payload) {
+  return request('/api/credit-plans/assign-to-agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
 // Agent Applications
 export async function getAgentApplications(token) {
   return request('/api/agent-applications', {
@@ -562,6 +578,20 @@ export async function updateMerchantWithdrawalStatus(token, id, status, rejectRe
   })
 }
 
+export async function deleteMerchantWithdrawal(token, id) {
+  return request(`/api/admin/merchant-withdrawals/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function deleteAutoWithdrawal(token, id) {
+  return request(`/api/admin/auto-withdrawals/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
 export async function uploadWithdrawalProofs(token, files) {
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
@@ -672,6 +702,20 @@ export async function setAdminAutoWithdrawalMinBalance(token, balance) {
   })
 }
 
+export async function getAdminAutoWithdrawalFee(token) {
+  return request('/api/settings/auto-withdrawal-fee', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function setAdminAutoWithdrawalFee(token, percentage) {
+  return request('/api/settings/auto-withdrawal-fee', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ percentage })
+  })
+}
+
 export async function getAdminMerchantTopupFee(token) {
   return request('/api/settings/merchant-topup-fee', {
     headers: { Authorization: `Bearer ${token}` }
@@ -694,17 +738,32 @@ export async function updateAdminProfile(token, payload) {
   })
 }
 
-export async function getOpayBusinessPackage(token) {
-  return request('/api/admin/opay-business/package', {
+export async function getOpayBusinessPackages(token) {
+  return request('/api/admin/opay-business-packages', {
     headers: { Authorization: `Bearer ${token}` }
   })
 }
 
-export async function updateOpayBusinessPackage(token, payload) {
-  return request('/api/admin/opay-business/package', {
+export async function createOpayBusinessPackage(token, payload) {
+  return request('/api/admin/opay-business-packages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function updateOpayBusinessPackage(token, id, payload) {
+  return request(`/api/admin/opay-business-packages/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteOpayBusinessPackage(token, id) {
+  return request(`/api/admin/opay-business-packages/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
   })
 }
 
@@ -713,6 +772,14 @@ export async function toggleOpayBusinessLifetimePayment(token, businessId, statu
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ isActive: status })
+  })
+}
+
+export async function assignOpayBusinessPackage(token, businessId, packageId) {
+  return request(`/api/admin/opay-businesses/${businessId}/assign-package`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ packageId })
   })
 }
 
@@ -730,10 +797,11 @@ export async function listAutoWithdrawals(token, params = {}) {
 }
 
 export async function rejectAutoWithdrawal(token, id, data) {
+  const payload = typeof data === 'string' ? { reason: data } : (data || {});
   return request(`/api/admin/auto-withdrawals/${id}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data)
+    body: JSON.stringify(payload)
   })
 }
 
@@ -754,11 +822,11 @@ export default {
   getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs,
   getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig,
   getAdminNotificationNumbers, setAdminNotificationNumbers, getAdminAutoWithdrawalMinBalance, setAdminAutoWithdrawalMinBalance,
+  getAdminAutoWithdrawalFee, setAdminAutoWithdrawalFee,
   getAdminMerchantTopupFee, setAdminMerchantTopupFee,
   getGlobalStatus, setGlobalStatus, setUserStatus, listUsersWithStatus,
-  updateAdminProfile,
-  getOpayBusinessPackage, updateOpayBusinessPackage,
-  toggleOpayBusinessLifetimePayment,
+  getOpayBusinessPackages, createOpayBusinessPackage, updateOpayBusinessPackage, deleteOpayBusinessPackage,
+  toggleOpayBusinessLifetimePayment, assignOpayBusinessPackage,
   getMerchantTopupHistory,
   listAutoWithdrawals, rejectAutoWithdrawal
 }

@@ -132,90 +132,111 @@ export default function CreditTopup() {
                  </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                   {plans.map((plan, i) => (
-                     <div key={plan._id || i} className="relative group bg-white/90 backdrop-blur-lg rounded-3xl p-8 border border-gray-100 shadow-xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-2 transition-all duration-300 flex flex-col">
-                        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 rounded-t-3xl" />
-                        
-                        <div className="flex justify-between items-start mb-6">
-                           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl group-hover:scale-110 transition-transform">
-                              {plan.name.charAt(0)}
-                           </div>
-                           {i === 1 && ( 
-                             <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-full">
-                                জনপ্রিয় প্যাকেজ
-                             </span>
-                           )}
-                        </div>
+                   {plans.map((plan, i) => {
+                      const isAlreadyClaimed = plan.isOneTime && requests.some(r => 
+                        (r.planId === plan._id || r.planId?._id === plan._id) && 
+                        (r.status === 'approved' || r.status === 'pending')
+                      );
 
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                        <div className="flex items-baseline gap-1 mb-6">
-                           <span className="text-4xl font-black text-gray-900">৳{plan.creditAmount?.toLocaleString()}</span>
-                           <span className="text-gray-500 font-medium">ক্রেডিট</span>
-                        </div>
-
-                        <div className="space-y-4 mb-8 flex-1">
-                           <div className="flex items-center gap-3 text-gray-600">
-                              <div className="p-1 rounded-full bg-rose-100 text-rose-500">
-                                 <CheckCircle size={14} />
-                              </div>
-                               <span className="text-sm font-medium">
-                                সর্বনিম্ন ব্যালেন্স প্রয়োজন: <span className="font-bold text-gray-900">৳{plan.minimumCredit?.toLocaleString() || 0}</span>
-                               </span>
-                           </div>
-
-                           <div className="flex items-center gap-3 text-gray-600">
-                              <div className="p-1 rounded-full bg-emerald-100 text-emerald-600">
-                                 <CheckCircle size={14} />
-                              </div>
-                               <span className="text-sm font-medium">
-                                কমিশন: <span className="font-bold text-gray-900">
-                                  {plan.commissionType === 'percentage' ? `${plan.commission}%` : `৳${plan.commission}`}
-                                </span>
-                               </span>
-                           </div>
-
-                           <div className="flex items-center gap-3 text-gray-600">
-                              <div className="p-1 rounded-full bg-blue-100 text-blue-600">
-                                 <CheckCircle size={14} />
-                              </div>
-                               <span className="text-sm font-medium">সাথে সাথেই চালু হবে</span>
-                           </div>
+                      return (
+                        <div key={plan._id || i} className="relative group bg-white/90 backdrop-blur-lg rounded-3xl p-8 border border-gray-100 shadow-xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-2 transition-all duration-300 flex flex-col">
+                           <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 rounded-t-3xl" />
                            
-                           {plan.description && (
-                              <div className="flex items-center gap-3 text-gray-600 border-t border-gray-100 pt-3 mt-2">
-                                 <div className="p-1 rounded-full bg-indigo-100 text-indigo-600">
-                                    <Zap size={14} />
+                           <div className="flex justify-between items-start mb-6">
+                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl group-hover:scale-110 transition-transform">
+                                 {plan.name.charAt(0)}
+                              </div>
+                              {isAlreadyClaimed ? (
+                                <span className="px-3 py-1 bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider rounded-full">
+                                   অফারটি ব্যবহৃত হয়েছে
+                                </span>
+                              ) : plan.isOneTime ? (
+                                <span className="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold uppercase tracking-wider rounded-full animate-pulse">
+                                   একবারই কেনার সুযোগ (One-Time)
+                                </span>
+                              ) : i === 1 ? ( 
+                                <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-full">
+                                   জনপ্রিয় প্যাকেজ
+                                </span>
+                              ) : null}
+                           </div>
+
+                           <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                           <div className="flex items-baseline gap-1 mb-6">
+                              <span className="text-4xl font-black text-gray-900">৳{plan.creditAmount?.toLocaleString()}</span>
+                              <span className="text-gray-500 font-medium">ক্রেডিট</span>
+                           </div>
+
+                           <div className="space-y-4 mb-8 flex-1">
+                              <div className="flex items-center gap-3 text-gray-600">
+                                 <div className="p-1 rounded-full bg-rose-100 text-rose-500">
+                                    <CheckCircle size={14} />
                                  </div>
-                                 <span className="text-sm font-medium leading-normal text-gray-500">{plan.description}</span>
+                                  <span className="text-sm font-medium">
+                                   সর্বনিম্ন ব্যালেন্স প্রয়োজন: <span className="font-bold text-gray-900">৳{plan.minimumCredit?.toLocaleString() || 0}</span>
+                                  </span>
                               </div>
-                           )}
 
-                           {plan.details && plan.details.length > 0 && (
-                              <div className="space-y-3 border-t border-gray-100 pt-4 mt-2">
-                                 {plan.details.map((detail, idx) => (
-                                    <div key={idx} className="flex items-start gap-3 text-gray-600">
-                                       <div className="p-1 rounded-full bg-indigo-50 text-indigo-600 mt-0.5 shrink-0">
-                                          <Zap size={10} className="fill-current" />
-                                       </div>
-                                       <span className="text-sm font-medium leading-tight">{detail}</span>
+                              <div className="flex items-center gap-3 text-gray-600">
+                                 <div className="p-1 rounded-full bg-emerald-100 text-emerald-600">
+                                    <CheckCircle size={14} />
+                                 </div>
+                                  <span className="text-sm font-medium">
+                                   কমিশন: <span className="font-bold text-gray-900">
+                                     {plan.commissionType === 'percentage' ? `${plan.commission}%` : `৳${plan.commission}`}
+                                   </span>
+                                  </span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-gray-600">
+                                 <div className="p-1 rounded-full bg-blue-100 text-blue-600">
+                                    <CheckCircle size={14} />
+                                 </div>
+                                  <span className="text-sm font-medium">সাথে সাথেই চালু হবে</span>
+                              </div>
+                              
+                              {plan.description && (
+                                 <div className="flex items-center gap-3 text-gray-600 border-t border-gray-100 pt-3 mt-2">
+                                    <div className="p-1 rounded-full bg-indigo-100 text-indigo-600">
+                                       <Zap size={14} />
                                     </div>
-                                 ))}
-                              </div>
-                           )}
-                        </div>
+                                    <span className="text-sm font-medium leading-normal text-gray-500">{plan.description}</span>
+                                 </div>
+                              )}
 
-                        <button 
-                          onClick={() => handleSelectPlan(plan)}
-                          className="relative w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-lg hover:from-indigo-500 hover:to-violet-500 transition-all shadow-lg overflow-hidden group"
-                        >
-                          <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                          <span className="relative z-10 flex items-center justify-center gap-2">
-                             প্যাকেজ কিনুন <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                          </span>
-                        </button>
-                     </div>
-                   ))}
-                </div>
+                              {plan.details && plan.details.length > 0 && (
+                                 <div className="space-y-3 border-t border-gray-100 pt-4 mt-2">
+                                    {plan.details.map((detail, idx) => (
+                                       <div key={idx} className="flex items-start gap-3 text-gray-600">
+                                          <div className="p-1 rounded-full bg-indigo-50 text-indigo-600 mt-0.5 shrink-0">
+                                             <Zap size={10} className="fill-current" />
+                                          </div>
+                                          <span className="text-sm font-medium leading-tight">{detail}</span>
+                                       </div>
+                                    ))}
+                                 </div>
+                              )}
+                           </div>
+
+                           <button 
+                             onClick={() => !isAlreadyClaimed && handleSelectPlan(plan)}
+                             disabled={isAlreadyClaimed}
+                             className={`relative w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg overflow-hidden group mt-4 ${
+                               isAlreadyClaimed
+                                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                                 : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500'
+                             }`}
+                           >
+                             {!isAlreadyClaimed && <div className="absolute inset-0 bg-white/20 animate-pulse" />}
+                             <span className="relative z-10 flex items-center justify-center gap-2">
+                                {isAlreadyClaimed ? 'অফারটি ইতিমধ্যে ব্যবহৃত হয়েছে' : 'প্যাকেজ কিনুন'} 
+                                {!isAlreadyClaimed && <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+                             </span>
+                           </button>
+                        </div>
+                      );
+                    })}
+                 </div>
              )}
 
              {/* Recent Requests Section Removed (Moved to CreditHistory page) */}

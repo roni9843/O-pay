@@ -25,14 +25,7 @@ const bankWallets = [
   { name: "Southeast Bank PLC", logo: "https://paystation.com.bd/paystation/payment_partner/Asset_38aib@2x.png" },
 ];
 
-const cryptoWallets = [
-  { name: "Touch 'n Go", logo: tngLogo },
-  { name: "RadoPay", logo: radopayLogo },
-  { name: "Paynor", logo: paynorLogo },
-  { name: "InstaPay", logo: instapayLogo },
-  { name: "Bybit", logo: bypitLogo },
-  { name: "Binance", logo: binanceLogo },
-];
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
 
 export default function SimplePaymentPage() {
   const { code } = useParams();
@@ -114,8 +107,6 @@ export default function SimplePaymentPage() {
       return () => clearTimeout(timer);
     }
   }, [paymentSuccess, redirectTarget]);
-
-  const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
 
   const logSessionEvent = useCallback(
     async (type, extraMeta = {}) => {

@@ -1,7 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs, getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig } from '../lib/api';
-import { Landmark, Search, Filter, CheckCircle, XCircle, Clock, Eye, X, AlertCircle, Upload, Image as ImageIcon, Copy } from 'lucide-react';
+import { 
+  getMerchantWithdrawals, 
+  updateMerchantWithdrawalStatus, 
+  uploadWithdrawalProofs, 
+  getMerchantWithdrawalConfig, 
+  updateMerchantWithdrawalConfig,
+  deleteMerchantWithdrawal
+} from '../lib/api';
+import { 
+  Landmark, 
+  Search, 
+  Filter, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  Eye, 
+  X, 
+  AlertCircle, 
+  Upload, 
+  Image as ImageIcon, 
+  Copy,
+  TrendingUp,
+  DollarSign,
+  Wallet,
+  CheckCircle2,
+  Sparkles,
+  Trash2
+} from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -108,6 +134,24 @@ export default function MerchantWithdraws() {
         }
     };
 
+    const handleDelete = async (e, id) => {
+        e.stopPropagation();
+        if (!window.confirm("আপনি কি নিশ্চিত যে এই উইথড্রয়াল রিকোয়েস্টটি স্থায়ীভাবে মুছে ফেলতে চান? (Permanently delete request?)")) return;
+        try {
+            const res = await deleteMerchantWithdrawal(token, id);
+            if (res.success) {
+                setWithdraws(prev => prev.filter(w => w._id !== id));
+                if (selectedRequest?._id === id) setSelectedRequest(null);
+                alert("Withdrawal record deleted successfully.");
+            } else {
+                alert(res.message || "Failed to delete");
+            }
+        } catch (err) {
+            console.error(err);
+            alert(err.message || "Failed to delete withdrawal request");
+        }
+    };
+
     const getStatusBadge = (status) => {
         switch (status) {
             case 'approved': return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><CheckCircle className="w-3 h-3"/> Approved</span>;
@@ -143,20 +187,29 @@ export default function MerchantWithdraws() {
         alert('Payout details copied to clipboard!');
     };
 
+    // Calculate Summary Metrics
+    const approvedWithdraws = withdraws.filter(w => w.status === 'approved');
+    const pendingWithdraws = withdraws.filter(w => w.status === 'pending');
+
+    const totalApprovedAmount = approvedWithdraws.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const totalCommissionEarned = approvedWithdraws.reduce((sum, w) => sum + (w.commissionAmount || 0), 0);
+    const totalNetPayout = approvedWithdraws.reduce((sum, w) => sum + (w.receiveAmount ?? w.amount ?? 0), 0);
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 pb-12 font-sans">
             {/* Header */}
-            <div className="rounded-3xl border border-white/5 bg-gradient-to-r from-orange-600/20 via-amber-600/10 to-transparent p-6 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
+            <div className="rounded-3xl border border-white/5 bg-gradient-to-r from-orange-600/20 via-amber-600/10 to-transparent p-6 sm:p-8 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-[80px]" />
                 
                 <div className="relative z-10">
-                    <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+                        <Landmark className="w-8 h-8 text-amber-400" />
                         <span className="bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
-                            Merchant Withdrawals
+                            Merchant Manual Withdrawals
                         </span>
                     </h2>
                     <p className="text-sm text-slate-400 mt-1 max-w-xl">
-                        Review and process withdrawal requests from Marchants. Apply payment proofs for transparency.
+                        Review and process manual withdrawal requests from Merchants. Apply payment proofs for transparency.
                     </p>
                     <p className="text-xs text-amber-200/90 mt-2 font-bold">
                         Example: 10,000 at 10% commission {'=>'} Opay Receives 1,000 and Merchant Payout 9,000.
@@ -170,6 +223,72 @@ export default function MerchantWithdraws() {
                 </div>
             </div>
 
+            {/* TOP SUMMARY STATS CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                {/* Total Approved Amount */}
+                <div className="bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-slate-900 border border-emerald-500/30 rounded-3xl p-6 shadow-xl relative overflow-hidden backdrop-blur-xl group hover:border-emerald-500/50 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none" />
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">মোট অনুমোদিত উইথড্রয়াল</span>
+                        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400">
+                            <Wallet className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                        ৳{totalApprovedAmount.toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-2 font-medium">অনুমোদিত মোট রিকোয়েস্টেড ব্যালেন্স</p>
+                </div>
+
+                {/* Total Opay Commission Earned */}
+                <div className="bg-gradient-to-br from-amber-950/60 via-slate-900/80 to-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-xl relative overflow-hidden backdrop-blur-xl group hover:border-amber-500/50 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 blur-2xl rounded-full pointer-events-none" />
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">মোট কমিশন লাভ (Opay)</span>
+                        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400">
+                            <TrendingUp className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-amber-300 font-mono tracking-tight">
+                        ৳{totalCommissionEarned.toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-2 font-medium">ম্যানুয়াল উইথড্রয়াল থেকে অর্জিত কমিশন</p>
+                </div>
+
+                {/* Total Net Payout Sent to Merchants */}
+                <div className="bg-gradient-to-br from-cyan-950/60 via-slate-900/80 to-slate-900 border border-cyan-500/30 rounded-3xl p-6 shadow-xl relative overflow-hidden backdrop-blur-xl group hover:border-cyan-500/50 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 blur-2xl rounded-full pointer-events-none" />
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-cyan-400">মোট মার্চেন্ট পেআউট (Net)</span>
+                        <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-cyan-400">
+                            <DollarSign className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-cyan-300 font-mono tracking-tight">
+                        ৳{totalNetPayout.toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-2 font-medium">মার্চেন্টদের পাঠানো নিট ক্যাশ-আউট</p>
+                </div>
+
+                {/* Pending Requests Count */}
+                <div className="bg-gradient-to-br from-orange-950/60 via-slate-900/80 to-slate-900 border border-orange-500/30 rounded-3xl p-6 shadow-xl relative overflow-hidden backdrop-blur-xl group hover:border-orange-500/50 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 blur-2xl rounded-full pointer-events-none" />
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-orange-400">পেন্ডিং রিকোয়েস্ট</span>
+                        <div className="p-2.5 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-orange-400">
+                            <Clock className="w-5 h-5 animate-pulse" />
+                        </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-orange-300 font-mono tracking-tight">
+                        {pendingWithdraws.length} টি
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-2 font-medium">অনুমোদনের অপেক্ষায় থাকা রিকোয়েস্ট</p>
+                </div>
+
+            </div>
+
+            {/* Withdrawal Controls */}
             <div className="rounded-3xl border border-white/5 bg-white/5 backdrop-blur-xl p-6 shadow-xl">
                 <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-4">Withdrawal Rules (Admin Control)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -223,51 +342,75 @@ export default function MerchantWithdraws() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {withdraws.map(w => (
-                                <tr key={w._id} className="hover:bg-white/[0.02] transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="text-xs text-white font-medium">{new Date(w.createdAt).toLocaleString()}</div>
-                                        <div className="text-[10px] text-slate-500 font-mono mt-1">#{w._id.slice(-6).toUpperCase()}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold text-white">{w.merchantId?.name || 'Unknown'}</div>
-                                        <div className="text-[10px] text-slate-400 mt-1">{w.merchantId?.mobile || w.merchantId?.email || 'N/A'}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-black text-emerald-400 text-lg tracking-tighter">৳{w.amount?.toLocaleString()}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-xs text-amber-300 font-bold">{Number(w.commissionPercent || 0).toFixed(2)}%</div>
-                                        <div className="text-[10px] text-slate-500">Opay gets: ৳{Number(w.commissionAmount || 0).toLocaleString()}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-black text-cyan-300 text-base">৳{Number(w.receiveAmount ?? w.amount ?? 0).toLocaleString()}</div>
-                                        <div className="text-[10px] text-slate-500">Merchant gets this amount</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold text-slate-300 uppercase">
-                                                {w.method?.provider || w.method?.bankName || 'Dest'}
-                                            </span>
-                                            <span className="text-xs text-slate-400 font-mono">{w.method?.number || w.method?.accountNo || 'N/A'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {getStatusBadge(w.status)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button 
-                                            onClick={() => {
-                                                setSelectedRequest(w);
-                                                setProofFiles([]);
-                                            }}
-                                            className="p-2 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 rounded-xl transition-all"
-                                        >
-                                            <Eye size={18} />
-                                        </button>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={8} className="text-center py-12 text-slate-500">
+                                        Loading withdrawals...
                                     </td>
                                 </tr>
-                            ))}
+                            ) : withdraws.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="text-center py-12 text-slate-500 italic">
+                                        No merchant withdrawal requests found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                withdraws.map(w => (
+                                    <tr key={w._id} className="hover:bg-white/[0.02] transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="text-xs text-white font-medium">{new Date(w.createdAt).toLocaleString()}</div>
+                                            <div className="text-[10px] text-slate-500 font-mono mt-1">#{w._id.slice(-6).toUpperCase()}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-white">{w.merchantId?.name || 'Unknown'}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1">{w.merchantId?.mobile || w.merchantId?.email || 'N/A'}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-black text-emerald-400 text-lg tracking-tighter">৳{w.amount?.toLocaleString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-xs text-amber-300 font-bold">{Number(w.commissionPercent || 0).toFixed(2)}%</div>
+                                            <div className="text-[10px] text-slate-500">Opay gets: ৳{Number(w.commissionAmount || 0).toLocaleString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-black text-cyan-300 text-base">৳{Number(w.receiveAmount ?? w.amount ?? 0).toLocaleString()}</div>
+                                            <div className="text-[10px] text-slate-500">Merchant gets this amount</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold text-slate-300 uppercase">
+                                                    {w.method?.provider || w.method?.bankName || 'Dest'}
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-mono">{w.method?.number || w.method?.accountNo || 'N/A'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {getStatusBadge(w.status)}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button 
+                                                    onClick={() => {
+                                                        setSelectedRequest(w);
+                                                        setProofFiles([]);
+                                                    }}
+                                                    className="p-2 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 rounded-xl transition-all"
+                                                    title="View Details"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => handleDelete(e, w._id)}
+                                                    className="p-2 text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 rounded-xl transition-all"
+                                                    title="Delete Request"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -376,7 +519,7 @@ export default function MerchantWithdraws() {
                                 </div>
                             </div>
 
-                            {/* Payout Proof Upload Section (If pending OR if approved but admin wants to add/update) */}
+                            {/* Payout Proof Upload Section */}
                             {(selectedRequest.status === 'pending' || selectedRequest.status === 'approved') && (
                                 <div className="p-5 rounded-3xl bg-emerald-500/5 border border-emerald-500/20 space-y-4">
                                     <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
@@ -440,15 +583,18 @@ export default function MerchantWithdraws() {
                                         <ImageIcon className="w-3.5 h-3.5" /> Payout Proofs Provided
                                     </h3>
                                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                        {selectedRequest.proofImages.map((url, i) => (
-                                            <a key={i} href={`${API_BASE}${url}`} target="_blank" rel="noreferrer" className="block aspect-square rounded-xl overflow-hidden border border-white/10 hover:border-emerald-500/50 transition-all">
-                                                <img 
-                                                    src={`${API_BASE}${url}`} 
-                                                    alt="proof" 
-                                                    className="w-full h-full object-cover" 
-                                                />
-                                            </a>
-                                        ))}
+                                        {selectedRequest.proofImages.map((url, i) => {
+                                            const fullUrl = /^https?:\/\//i.test(url) ? url : `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+                                            return (
+                                                <a key={i} href={fullUrl} target="_blank" rel="noreferrer" className="block aspect-square rounded-xl overflow-hidden border border-white/10 hover:border-emerald-500/50 transition-all">
+                                                    <img 
+                                                        src={fullUrl} 
+                                                        alt="proof" 
+                                                        className="w-full h-full object-cover" 
+                                                    />
+                                                </a>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

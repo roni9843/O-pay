@@ -5,7 +5,7 @@ import { LayoutDashboard, Settings, LogOut, Menu, X, FileText, ChevronDown, Chev
 import clsx from 'clsx';
 import appStoreLogo from "../assets/appstore.png";
 import KYCSummary from './KYCSummary';
-import { api } from '../lib/api';
+import { api, getAutoWithdrawalPendingCount } from '../lib/api';
 
 export default function DashboardLayout({ children }) {
     const { logout, user, token, fetchMe } = useAuthStore();
@@ -25,21 +25,45 @@ export default function DashboardLayout({ children }) {
     const [kycData, setKycData] = useState(null);
     const [loadingKyc, setLoadingKyc] = useState(false);
 
-    const navItems = [
+    // Pending Auto Withdrawals Count State
+    const [pendingAutoCount, setPendingAutoCount] = useState(0);
+
+    useEffect(() => {
+        if (!token || !user?.allowAutoWithdrawal) return;
+        const fetchCount = async () => {
+            try {
+                const count = await getAutoWithdrawalPendingCount();
+                setPendingAutoCount(count);
+            } catch (e) {}
+        };
+        fetchCount();
+        const interval = setInterval(fetchCount, 10000);
+        return () => clearInterval(interval);
+    }, [token, user?.allowAutoWithdrawal]);
+
+    const allNavItems = [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Package', href: '/package', icon: Box },
         { label: 'KYC Verification', href: '/kyc', icon: FileText },
-        { label: 'Payment Link', href: '/custom-payment-link', icon: Link2 },
-        { label: 'Payment Test', href: '/payment-test', icon: CreditCard },
-        { label: 'API Withdrawals', href: '/auto-withdrawal-history', icon: Clock },
-        { label: 'History', href: '/history', icon: Clock },
-        { label: 'Pending Nagad', href: '/pending-nagad', icon: Clock },
-        { label: 'Add Balance', href: '/add-balance', icon: PlusCircle },
-        { label: 'Topup History', href: '/topup-history', icon: Wallet },
+        { label: 'Payment Link', href: '/custom-payment-link', icon: Link2, requireDeposit: true },
+        { label: 'Payment Test', href: '/payment-test', icon: CreditCard, requireDeposit: true },
+        { label: 'API Withdrawals', href: '/auto-withdrawal-history', icon: Clock, requireAutoWithdrawal: true, badge: pendingAutoCount },
+        { label: 'History', href: '/history', icon: Clock, requireDeposit: true },
+        { label: 'Pending Nagad', href: '/pending-nagad', icon: Clock, requireDeposit: true },
+        { label: 'Add Balance', href: '/add-balance', icon: PlusCircle, requireAutoWithdrawal: true },
+        { label: 'Topup History', href: '/topup-history', icon: Wallet, requireAutoWithdrawal: true },
         { label: 'Withdrawal', href: '/withdrawal', icon: Wallet },
-        { label: 'API Docs', href: '/api-docs', icon: BookOpen },
+        { label: 'Deposit Auto Docs', href: '/deposit-auto-docs', icon: BookOpen, requireDeposit: true },
+        { label: 'Auto Withdrawal Docs', href: '/auto-withdrawal-docs', icon: Wallet, requireAutoWithdrawal: true },
         { label: 'Settings', href: '/settings', icon: Settings },
     ];
+
+    const navItems = allNavItems.filter(item => {
+        if (item.requireDeposit && user?.isLifetimePaid && !user?.allowDeposit) return false;
+        if (item.requireAutoWithdrawal && user?.isLifetimePaid && !user?.allowAutoWithdrawal) return false;
+        return true;
+    });
+
 
     const handleLogout = () => {
         logout();
@@ -112,6 +136,11 @@ export default function DashboardLayout({ children }) {
                             >
                                 <Icon className={clsx("w-5 h-5 transition-colors", isActive ? "text-brand-primary" : "text-slate-400 group-hover:text-brand-primary")} />
                                 <span className="flex-1">{item.label}</span>
+                                {item.badge > 0 && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-sm">
+                                        {item.badge}
+                                    </span>
+                                )}
                                 {item.href === '/kyc' && (
                                     <span className={clsx(
                                         "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",

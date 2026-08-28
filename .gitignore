@@ -18,10 +18,12 @@ coverage
 all backup/
 docs/OPAY_API_BUSINESS_DOCS_VIDEO.mp4
 
-# Environment files
+# Environment & Secret files
 .env
 .env.*
 !.env.example
+serviceAccountKey.json
+*.json.key
 
 # Editor and OS files
 .vscode/*

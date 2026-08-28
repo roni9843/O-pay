@@ -149,7 +149,33 @@ async function createWithdrawal() {
 }
 ```
 
-### 1.1 Request Parameters
+### 1.1 Success Response Example
+```json
+{
+    "success": true,
+    "message": "Auto withdrawal request created",
+    "data": {
+        "withdrawal_id": "6a9123cc5c451c86f49e36fc",
+        "merchant_id": "69764a8c6e27387edce2cfdd",
+        "amount": 1,
+        "fee_percentage": 6,
+        "fee_amount": 0.06,
+        "deducted_amount": 1.06,
+        "payment_method": "bkash",
+        "user_identity_address": "ronii555ii",
+        "account_number": "01877634562",
+        "callback_url": "https://kind-panda-07.webhook.cool",
+        "checkout_items": [
+            { "userId": "9992" },
+            { "withdrawal_type": "affiliate" }
+        ],
+        "status": "pending",
+        "created_at": "2026-08-28T05:59:40.026Z"
+    }
+}
+```
+
+### 1.2 Request Parameters
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `amount` | `number` | **Yes** | The amount you want to send. Automatically deducted from your available balance. |
@@ -162,9 +188,10 @@ async function createWithdrawal() {
 ---
 
 ## 🚀 Step 2: Receive Auto Withdrawal Notifications (Webhooks)
-There are **two** events that trigger a webhook to your `callback_url`:
+There are **three** events that trigger a webhook to your `callback_url`:
 1. **PROCESSING (Booked):** A Wallet Agent has started processing your request.
 2. **COMPLETED (Success):** The Wallet Agent has successfully transferred the money.
+3. **REJECTED (Failed/Cancelled):** Admin or System rejected the withdrawal (refunded back to balance).
 
 ### 2.1 When an Agent Books (Starts Processing)
 ```json
@@ -174,6 +201,7 @@ There are **two** events that trigger a webhook to your `callback_url`:
   "amount": 1000,
   "payment_method": "bkash",
   "user_identity_address": "017XXXXXXXX",
+  "account_number": "017XXXXXXXX",
   "checkout_items": [
     { "userId": "9992" },
     { "withdrawal_type": "affiliate" }
@@ -181,7 +209,24 @@ There are **two** events that trigger a webhook to your `callback_url`:
 }
 ```
 
-### 2.2 When an Agent Completes (Success)
+### 2.2 When a Request is Rejected / Cancelled
+```json
+{
+  "status": "REJECTED",
+  "withdrawal_id": "64d0b1a2f1c8e9...",
+  "amount": 1000,
+  "payment_method": "bkash",
+  "user_identity_address": "017XXXXXXXX",
+  "account_number": "017XXXXXXXX",
+  "checkout_items": [
+    { "userId": "9992" },
+    { "withdrawal_type": "affiliate" }
+  ],
+  "reason": "Rejected by administrator"
+}
+```
+
+### 2.3 When an Agent Completes (Success)
 **We will send you this exact JSON format in the body:**
 ```json
 {
@@ -199,37 +244,44 @@ There are **two** events that trigger a webhook to your `callback_url`:
     "https://api.oraclepay.org/uploads/proofs/1690001234-proof1.png",
     "https://api.oraclepay.org/uploads/proofs/1690001234-proof2.png"
   ],
-  "date_and_time": "2023-08-04T12:00:00Z"
+  "date_and_time": "2026-08-28T12:00:00Z"
 }
 ```
 
-### 2.1 Webhook Payload Fields Explained
+### 2.4 Webhook Payload Fields Explained
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `status` | `string` | Will be **"COMPLETED"** when successful. |
+| `status` | `string` | Status of the payout: **"PROCESSING"**, **"COMPLETED"**, or **"REJECTED"**. |
 | `withdrawal_id` | `string` | Our internal database ID for this specific withdrawal request. |
-| `amount` | `number` | The amount that was successfully transferred. |
-| `payment_method` | `string` | The method used (e.g., `bkash`). |
+| `amount` | `number` | The requested payout amount. |
+| `payment_method` | `string` | The receiving wallet method used (e.g., `bkash`, `nagad`). |
 | `user_identity_address` | `string` | The exact `user_identity_address` you passed in step 1. |
-| `account_number` | `string` | The exact `account_number` you passed in step 1. |
-| `checkout_items` | `array` | The exact array of custom objects you passed in step 1. |
-| `proof_images` | `array of strings` | URLs to screenshot proofs uploaded by the Wallet Agent verifying the successful transfer. |
-| `date_and_time` | `string` | The ISO timestamp of when the transfer was completed. |
+| `account_number` | `string` | The exact `account_number` target passed in step 1. |
+| `checkout_items` | `array` | The exact array of custom objects passed in step 1. |
+| `proof_images` | `array` | *(Only on COMPLETED)* URLs to screenshot proofs uploaded by the Wallet Agent. |
+| `reason` | `string` | *(Only on REJECTED)* Reason for rejection or cancellation. |
+| `date_and_time` | `string` | *(Only on COMPLETED)* ISO timestamp of completion. |
 
-**How you should handle it (Node.js/Express Example):**
+**How you should handle all statuses (Node.js / Express Example):**
 ```javascript
 app.post('/api/withdraw-webhook', (req, res) => {
   const data = req.body;
   
-  if (data.status === 'COMPLETED') {
-     console.log(`Withdrawal of ${data.amount} to ${data.account_number} is complete!`);
+  if (data.status === 'PROCESSING') {
+     console.log(`[PROCESSING] Agent has booked withdrawal ID: ${data.withdrawal_id}`);
+     // TODO: Mark withdrawal status as "PROCESSING" in your database
+  } 
+  else if (data.status === 'COMPLETED') {
+     console.log(`[COMPLETED] Payout of ৳${data.amount} to ${data.account_number} was successful!`);
      console.log(`Proof URLs:`, data.proof_images);
-     
-     // TODO: Parse your checkout_items to find the specific user
-     // TODO: Update the user's withdrawal status to "SUCCESS" in your DB
+     // TODO: Mark withdrawal status as "SUCCESS" in your database
+  } 
+  else if (data.status === 'REJECTED') {
+     console.log(`[REJECTED] Withdrawal ID: ${data.withdrawal_id} was rejected. Reason: ${data.reason}`);
+     // TODO: Refund balance to your user or mark withdrawal as "FAILED" in your database
   }
 
-  // VERY IMPORTANT: Always reply with 200 OK so we know you received it
+  // VERY IMPORTANT: Always reply with 200 OK
   res.status(200).send('OK'); 
 });
 ```

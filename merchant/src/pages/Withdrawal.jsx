@@ -304,20 +304,23 @@ export default function Withdrawal() {
                                         <ImageIcon className="w-3 h-3" /> Payout Receipts
                                     </p>
                                     <div className="flex flex-wrap gap-2">
-                                        {w.proofImages.map((url, idx) => (
-                                            <a 
-                                                key={idx} 
-                                                href={`${API_BASE}${url}`} 
-                                                target="_blank" 
-                                                rel="noreferrer"
-                                                className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 hover:border-emerald-500 transition-all group relative"
-                                            >
-                                                <img src={`${API_BASE}${url}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="receipt" />
-                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center">
-                                                    <ExternalLink className="text-white w-3 h-3" />
-                                                </div>
-                                            </a>
-                                        ))}
+                                        {w.proofImages.map((url, idx) => {
+                                            const fullUrl = /^https?:\/\//i.test(url) ? url : `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+                                            return (
+                                                <a 
+                                                    key={idx} 
+                                                    href={fullUrl} 
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                    className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 hover:border-emerald-500 transition-all group relative"
+                                                >
+                                                    <img src={fullUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="receipt" />
+                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center">
+                                                        <ExternalLink className="text-white w-3 h-3" />
+                                                    </div>
+                                                </a>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

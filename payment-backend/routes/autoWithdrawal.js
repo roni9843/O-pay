@@ -89,6 +89,7 @@ router.post('/:id/book', auth, async (req, res) => {
         amount: request.amount,
         payment_method: request.paymentMethod,
         user_identity_address: request.userIdentityAddress,
+        account_number: request.accountNumber,
         checkout_items: request.checkoutItems
       }).catch(err => console.error('Book webhook failed:', err.message));
     }
@@ -103,6 +104,12 @@ router.post('/:id/book', auth, async (req, res) => {
           checkRequest.bookedBy = null;
           checkRequest.bookedAt = null;
           checkRequest.rejectedBy.push(userId); // Prevent this user from booking it again
+          if (!checkRequest.agentRejections) checkRequest.agentRejections = [];
+          checkRequest.agentRejections.push({
+            agent: userId,
+            reason: 'Auto-rejected due to 10-minute timeout',
+            rejectedAt: new Date()
+          });
           await checkRequest.save();
 
           if (io) {
@@ -146,11 +153,22 @@ router.post('/:id/reject', auth, async (req, res) => {
       request.status = 'pending';
       request.bookedBy = null;
       request.bookedAt = null;
-      // Note: We DO NOT add to rejectedBy, so the user can see it again.
       
       const { reason } = req.body;
       if (reason) {
         request.rejectReason = reason;
+      }
+
+      if (!request.agentRejections) request.agentRejections = [];
+      request.agentRejections.push({
+        agent: userId,
+        reason: reason || 'Cancelled/Released by agent',
+        rejectedAt: new Date()
+      });
+
+      if (!request.rejectedBy) request.rejectedBy = [];
+      if (!request.rejectedBy.includes(userId)) {
+        request.rejectedBy.push(userId);
       }
       
       await request.save();
@@ -188,11 +206,15 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
       return res.status(400).json({ success: false, message: 'At least one proof screenshot is required' });
     }
 
-    // Calculate Agent Credit
+    // Calculate Agent Auto Withdrawal Commission (agent.credit does NOT increase)
     const agent = await User.findById(userId);
     const agentCreditBefore = agent.credit || 0;
-    const agentCreditAfter = agentCreditBefore + request.amount;
-    agent.credit = agentCreditAfter;
+    const agentCreditAfter = agentCreditBefore; // Credit remains unaffected
+    const agentCommissionRate = agent.autoWithdrawalCommissionRate || 0;
+    const agentCommissionAmount = (request.amount * agentCommissionRate) / 100;
+    
+    // Add Commission + Bonus to agent's autoWithdrawalCommission card balance
+    agent.autoWithdrawalCommission = (agent.autoWithdrawalCommission || 0) + agentCommissionAmount;
     await agent.save();
 
     // The merchant balance doesn't actually get deducted from an explicit 'balance' field in OpayBusiness
@@ -212,8 +234,8 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
     const withdrawals = await MerchantWithdrawal.find({ merchantId: merchant._id, status: { $in: ['approved', 'pending'] } }).select('amount').lean();
     const totalWithdrawalAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
     
-    const autoWithdrawals = await AutoWithdrawalRequest.find({ merchant: merchant._id, status: { $in: ['pending', 'booked', 'completed'] } }).select('amount').lean();
-    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const autoWithdrawals = await AutoWithdrawalRequest.find({ merchant: merchant._id, status: { $in: ['pending', 'booked', 'completed'] } }).select('amount deductedAmount').lean();
+    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.deductedAmount ?? w.amount ?? 0), 0);
     
     const availableBalance = totalSuccessAmount - totalWithdrawalAmount - totalAutoWithdrawalAmount + (merchant.balanceAdjustment || 0);
     
@@ -221,12 +243,21 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
     request.proofImages = proofImages;
     request.agentCreditBefore = agentCreditBefore;
     request.agentCreditAfter = agentCreditAfter;
+    request.agentCommissionRate = agentCommissionRate;
+    request.agentCommissionAmount = agentCommissionAmount;
     // Since availableBalance already subtracted this request's amount (because it was booked), we add it back for 'Before'
-    request.merchantBalanceBefore = availableBalance + request.amount; 
+    request.merchantBalanceBefore = availableBalance + (request.deductedAmount ?? request.amount); 
     request.merchantBalanceAfter = availableBalance;
     
     // Send Callback
     try {
+      const baseUrl = (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+      const fullProofImages = proofImages.map(img => {
+        if (/^https?:\/\//i.test(img)) return img;
+        const cleanPath = img.startsWith('/') ? img : `/${img}`;
+        return `${baseUrl}${cleanPath}`;
+      });
+
       const payload = {
         status: 'COMPLETED',
         withdrawal_id: request._id,
@@ -236,7 +267,7 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
         user_identity_address: request.userIdentityAddress,
         account_number: request.accountNumber,
         checkout_items: request.checkoutItems,
-        proof_images: proofImages.map(img => `${req.protocol}://${req.get('host')}${img}`)
+        proof_images: fullProofImages
       };
       
       const cbRes = await axios.post(request.callbackUrl, payload, { timeout: 10000 });

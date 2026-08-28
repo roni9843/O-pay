@@ -27,6 +27,11 @@ const CreditPlanSchema = new mongoose.Schema({
     enum: ['fixed', 'percentage'],
     default: 'fixed'
   },
+  autoWithdrawalCommission: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   description: {
     type: String,
     trim: true
@@ -34,6 +39,10 @@ const CreditPlanSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isOneTime: {
+    type: Boolean,
+    default: false
   },
   details: {
     type: [String],

@@ -7,7 +7,7 @@ const ApiAccessToken = require('../models/ApiAccessToken');
 
 router.get('/overview', auth, async (req, res) => {
   try {
-    const devices = await Device.find({ owner: req.user._id }).select('_id deviceName deviceUserName deviceCode');
+    const devices = await Device.find({ owner: req.user._id }).select('_id deviceName deviceUserName deviceCode online lastSeen subscriptionEndDate');
 
     if (!devices.length) {
       return res.json({
@@ -35,6 +35,9 @@ router.get('/overview', auth, async (req, res) => {
         deviceName: device.deviceName || device.deviceUserName || 'Unnamed Device',
         deviceUserName: device.deviceUserName || null,
         deviceCode: device.deviceCode || null,
+        online: Boolean(device.online),
+        lastSeen: device.lastSeen || null,
+        subscriptionEndDate: device.subscriptionEndDate || null
       };
 
       const keys = new Set([
@@ -159,13 +162,16 @@ router.get('/overview', auth, async (req, res) => {
     const totalsDoc = agg?.totals?.[0] || { totalTransactions: 0, totalAmount: 0 };
     const todayDoc = agg?.today?.[0] || { totalTransactions: 0, totalAmount: 0 };
 
+    const processedDeviceIds = new Set();
     const devicesBreakdown = (agg?.byDevice || []).map((item) => {
       const info = deviceMap.get(String(item._id)) || deviceMap.get(String(item.fallbackName)) || {
         deviceId: String(item._id),
         deviceName: item.fallbackName || 'Unknown device',
         deviceUserName: null,
         deviceCode: null,
+        online: false
       };
+      if (info.deviceId) processedDeviceIds.add(info.deviceId);
       return {
         ...info,
         totalTransactions: item.totalTransactions,
@@ -174,6 +180,22 @@ router.get('/overview', auth, async (req, res) => {
         lastTrxID: item.lastTrxID,
         provider: item.provider || null,
       };
+    });
+
+    devices.forEach(d => {
+      const dId = String(d._id);
+      if (!processedDeviceIds.has(dId)) {
+        devicesBreakdown.push({
+          deviceId: dId,
+          deviceName: d.deviceName || d.deviceUserName || 'Unnamed Device',
+          deviceUserName: d.deviceUserName || null,
+          deviceCode: d.deviceCode || null,
+          online: Boolean(d.online),
+          lastSeen: d.lastSeen || null,
+          totalTransactions: 0,
+          totalAmount: 0
+        });
+      }
     });
 
     const providersBreakdown = (agg?.byProvider || []).map((item) => ({
@@ -584,6 +606,17 @@ router.post('/pending-nagad/accept', auth, async (req, res) => {
         const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
         if (merchantToActivate) {
           merchantToActivate.isLifetimePaid = true;
+          if (session.checkoutItems.packageId) {
+            const pkg = await require('../models/OpayBusinessPackage').findById(session.checkoutItems.packageId);
+            if (pkg) {
+              merchantToActivate.allowDeposit = pkg.packageType === 'both' || pkg.packageType === 'deposit';
+              merchantToActivate.allowAutoWithdrawal = pkg.packageType === 'both' || pkg.packageType === 'withdrawal';
+              merchantToActivate.activePackageId = pkg._id;
+            }
+          } else {
+            merchantToActivate.allowDeposit = true;
+            merchantToActivate.allowAutoWithdrawal = true;
+          }
           await merchantToActivate.save();
         }
       } catch (activationErr) {}

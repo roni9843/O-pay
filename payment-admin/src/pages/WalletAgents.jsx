@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { Link } from 'react-router-dom'
 
-import { listUsers, listDevicesOnlineStatus, getDevicePaymentMethods, getUserPaymentMethods, updatePaymentMethodStatus, addCredit, updateUser, addMinimumCredit } from '../lib/api'
-import { User as UserIcon, Smartphone, CreditCard, PhoneCall, ChevronDown, ChevronUp, Wallet } from 'lucide-react'
+import { listUsers, listDevicesOnlineStatus, getDevicePaymentMethods, getUserPaymentMethods, updatePaymentMethodStatus, addCredit, updateUser, addMinimumCredit, setCommissionRate } from '../lib/api'
+import { User as UserIcon, Smartphone, CreditCard, PhoneCall, ChevronDown, ChevronUp, Wallet, TrendingUp } from 'lucide-react'
 
 export default function WalletAgents() {
   const token = useAuthStore((s) => s.token)
@@ -20,6 +20,8 @@ export default function WalletAgents() {
   const [creditSaving, setCreditSaving] = useState({}) // userId -> bool
   const [minCreditInputs, setMinCreditInputs] = useState({}) // userId -> string
   const [minCreditSaving, setMinCreditSaving] = useState({}) // userId -> bool
+  const [commRateInputs, setCommRateInputs] = useState({}) // userId -> string
+  const [commRateSaving, setCommRateSaving] = useState({}) // userId -> bool
 
   useEffect(() => {
     if (!token) return
@@ -138,6 +140,25 @@ export default function WalletAgents() {
       setError(e.message || 'Failed to update minimum credit')
     } finally {
       setMinCreditSaving((prev) => ({ ...prev, [agent._id]: false }))
+    }
+  }
+
+  const handleSetCommissionRate = async (agent) => {
+    if (!token || !agent?._id) return
+    const raw = commRateInputs[agent._id]
+    const val = Number(raw)
+    if (isNaN(val) || val < 0 || val > 100) return
+
+    setCommRateSaving((prev) => ({ ...prev, [agent._id]: true }))
+    try {
+      const res = await setCommissionRate(token, agent._id, val)
+      const updated = res?.data || agent
+      setAgents((prev) => prev.map((a) => (a._id === updated._id ? { ...a, autoWithdrawalCommissionRate: updated.autoWithdrawalCommissionRate } : a)))
+      setCommRateInputs((prev) => ({ ...prev, [agent._id]: '' }))
+    } catch (e) {
+      setError(e.message || 'Failed to set commission rate')
+    } finally {
+      setCommRateSaving((prev) => ({ ...prev, [agent._id]: false }))
     }
   }
 
@@ -427,6 +448,43 @@ export default function WalletAgents() {
                             {minCreditSaving[agent._id] ? '...' : 'Set'}
                           </button>
                         </div>
+                      </div>
+
+                      {/* Commission Rate Control */}
+                      <div className="p-4 rounded-2xl border border-white/5 bg-gradient-to-b from-emerald-500/[0.04] to-transparent">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Commission Rate
+                          </span>
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">
+                            {(agent.autoWithdrawalCommissionRate ?? 0)}%
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="flex-1 px-3 py-2 text-xs rounded-xl border border-white/10 bg-black/20 focus:outline-none focus:border-emerald-500/50 text-white placeholder:text-slate-600 transition-colors"
+                            placeholder="Rate % (0-100)"
+                            value={commRateInputs[agent._id] ?? ''}
+                            onChange={(e) =>
+                              setCommRateInputs((prev) => ({ ...prev, [agent._id]: e.target.value }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSetCommissionRate(agent)}
+                            disabled={commRateSaving[agent._id] || commRateInputs[agent._id] === undefined || commRateInputs[agent._id] === ''}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 shadow-lg shadow-emerald-900/20 font-medium transition-all"
+                          >
+                            {commRateSaving[agent._id] ? '...' : 'Set'}
+                          </button>
+                        </div>
+                        <p className="mt-2 text-[10px] text-slate-500">
+                          Auto withdrawal commission % for this agent.
+                        </p>
                       </div>
 
                       {/* Numbers Status */}

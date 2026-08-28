@@ -80,19 +80,21 @@ export async function uploadPaymentPageImage(file) {
   formData.append('image', file)
   const res = await api.post('/uploads/payment-page-image', formData, {
     headers: {
-      'Content-Type': 'multipart/form-data'
+      'Content-Type': 'multipart/form-data'
     }
   })
   return res.data
 }
 
-export async function getActivationPackage() {
+export async function getActivationPackages() {
   const res = await api.get('/opay-business/activation-package')
   return res.data
 }
 
-export async function createActivationCheckout() {
-  const res = await api.post('/opay-business/create-activation-checkout')
+export const getActivationPackage = getActivationPackages;
+
+export async function createActivationCheckout(packageId = null) {
+  const res = await api.post('/opay-business/create-activation-checkout', { packageId })
   return res.data
 }
 
@@ -100,6 +102,7 @@ export async function getPendingNagad() {
   const res = await api.get('/opay-business/pending-nagad')
   return res.data
 }
+
 
 export async function getAutoWithdrawalHistory(params = {}) {
   const res = await api.get('/opay-business/auto-withdraw/history', { params })
@@ -109,6 +112,11 @@ export async function getAutoWithdrawalHistory(params = {}) {
 export async function cancelAutoWithdrawal(id) {
   const res = await api.post(`/opay-business/auto-withdraw/${id}/cancel`)
   return res.data
+}
+
+export async function getAutoWithdrawalPendingCount() {
+  const res = await api.get('/opay-business/auto-withdraw/history', { params: { status: 'pending', limit: 1 } })
+  return res.data?.total || 0
 }
 
 export async function initTopup(amount) {

@@ -107,6 +107,10 @@ router.post('/auto-withdraw', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Business is disabled' });
     }
 
+    if (!business.allowAutoWithdrawal) {
+      return res.status(403).json({ success: false, message: 'Your current package does not allow auto-withdrawals.' });
+    }
+
     const { amount, payment_method, user_identity_address, callback_url, checkout_items, account_number } = req.body;
 
     if (!amount || isNaN(amount) || amount <= 0) {
@@ -140,8 +144,8 @@ router.post('/auto-withdraw', async (req, res) => {
     const totalWithdrawalAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
     
     // Calculate previous auto-withdrawals that are pending/booked/completed
-    const autoWithdrawals = await AutoWithdrawalRequest.find({ merchant: business._id, status: { $in: ['pending', 'booked', 'completed'] } }).select('amount').lean();
-    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const autoWithdrawals = await AutoWithdrawalRequest.find({ merchant: business._id, status: { $in: ['pending', 'booked', 'completed'] } }).select('amount deductedAmount').lean();
+    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.deductedAmount ?? w.amount ?? 0), 0);
 
     const balanceAdjustment = business.balanceAdjustment || 0;
 
@@ -150,17 +154,25 @@ router.post('/auto-withdraw', async (req, res) => {
     const minBalanceSetting = await Setting.findOne({ key: 'merchant_auto_withdraw_min_balance' }).lean();
     const minAutoWithdrawBalance = Number(minBalanceSetting?.value || 0);
 
-    if (amount > availableBalance) {
-      return res.status(400).json({ success: false, message: 'Insufficient balance for auto withdrawal' });
+    const feeSetting = await Setting.findOne({ key: 'merchant_auto_withdraw_fee_percentage' }).lean();
+    const feePercentage = Number(feeSetting?.value || 0);
+    const feeAmount = (Number(amount) * feePercentage) / 100;
+    const deductedAmount = Number(amount) + feeAmount;
+
+    if (deductedAmount > availableBalance) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance for auto withdrawal (including fee)' });
     }
     
-    if (availableBalance - Number(amount) < minAutoWithdrawBalance) {
+    if (availableBalance - deductedAmount < minAutoWithdrawBalance) {
       return res.status(400).json({ success: false, message: `Insufficient balance. You must maintain a minimum balance of ৳${minAutoWithdrawBalance}.` });
     }
 
     const request = await AutoWithdrawalRequest.create({
       merchant: business._id,
       amount: Number(amount),
+      feePercentage,
+      feeAmount,
+      deductedAmount,
       paymentMethod: payment_method,
       userIdentityAddress: user_identity_address,
       accountNumber: account_number,
@@ -178,7 +190,21 @@ router.post('/auto-withdraw', async (req, res) => {
     return res.json({
       success: true,
       message: 'Auto withdrawal request created',
-      data: request
+      data: {
+        withdrawal_id: request._id,
+        merchant_id: request.merchant,
+        amount: request.amount,
+        fee_percentage: request.feePercentage,
+        fee_amount: request.feeAmount,
+        deducted_amount: request.deductedAmount,
+        payment_method: request.paymentMethod,
+        user_identity_address: request.userIdentityAddress,
+        account_number: request.accountNumber,
+        callback_url: request.callbackUrl,
+        checkout_items: request.checkoutItems,
+        status: request.status,
+        created_at: request.createdAt
+      }
     });
   } catch (err) {
     console.error('auto-withdraw api error:', err);
@@ -258,7 +284,11 @@ router.get('/auto-withdraw/history', opayBusinessAuth, async (req, res) => {
     const query = { merchant: req.user._id };
     
     if (status && status !== 'all') {
-      query.status = status;
+      if (status === 'pending_all' || status === 'pending') {
+        query.status = { $in: ['pending', 'booked'] };
+      } else {
+        query.status = status;
+      }
     }
 
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
@@ -348,6 +378,13 @@ router.post('/generate-payment-page', async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Business is disabled',
+      });
+    }
+
+    if (!business.allowDeposit) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your current package does not allow generating payment pages.',
       });
     }
 
@@ -774,6 +811,17 @@ router.get('/payment-receipt/:code', async (req, res) => {
         const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
         if (merchantToActivate && !merchantToActivate.isLifetimePaid) {
           merchantToActivate.isLifetimePaid = true;
+          if (session.checkoutItems.packageId) {
+            const pkg = await require('../models/OpayBusinessPackage').findById(session.checkoutItems.packageId);
+            if (pkg) {
+              merchantToActivate.allowDeposit = pkg.packageType === 'both' || pkg.packageType === 'deposit';
+              merchantToActivate.allowAutoWithdrawal = pkg.packageType === 'both' || pkg.packageType === 'withdrawal';
+              merchantToActivate.activePackageId = pkg._id;
+            }
+          } else {
+            merchantToActivate.allowDeposit = true;
+            merchantToActivate.allowAutoWithdrawal = true;
+          }
           await merchantToActivate.save();
           console.log(`[ACTIVATION FALLBACK SUCCESS] Activated merchant ${merchantToActivate.email}`);
         }
@@ -1719,6 +1767,17 @@ router.post('/verify-payment', async (req, res) => {
         const merchantToActivate = await OpayBusiness.findById(session.checkoutItems.merchantIdToActivate);
         if (merchantToActivate) {
           merchantToActivate.isLifetimePaid = true;
+          if (session.checkoutItems.packageId) {
+            const pkg = await require('../models/OpayBusinessPackage').findById(session.checkoutItems.packageId);
+            if (pkg) {
+              merchantToActivate.allowDeposit = pkg.packageType === 'both' || pkg.packageType === 'deposit';
+              merchantToActivate.allowAutoWithdrawal = pkg.packageType === 'both' || pkg.packageType === 'withdrawal';
+              merchantToActivate.activePackageId = pkg._id;
+            }
+          } else {
+            merchantToActivate.allowDeposit = true;
+            merchantToActivate.allowAutoWithdrawal = true;
+          }
           await merchantToActivate.save();
           console.log(`[ACTIVATION SUCCESS] Activated merchant ${merchantToActivate.email} (ID: ${merchantToActivate._id})`);
         }
@@ -1978,7 +2037,7 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      dailyMap[key] = { date: key, successAmount: 0, successCount: 0, generatedCount: 0 };
+      dailyMap[key] = { date: key, successAmount: 0, successCount: 0, generatedCount: 0, withdrawAmount: 0, withdrawCount: 0 };
     }
     for (const s of sessions) {
       const key = new Date(s.createdAt).toISOString().slice(0, 10);
@@ -1987,6 +2046,21 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
       if (s.status === 'paid') {
         dailyMap[key].successCount += 1;
         dailyMap[key].successAmount += s.amount || 0;
+      }
+    }
+    
+    // Include AutoWithdrawal daily breakdown for graphs
+    const recentAutoWithdrawals = await AutoWithdrawalRequest.find({
+      merchant: businessId,
+      createdAt: { $gte: since }
+    }).select('amount status createdAt').lean();
+
+    for (const w of recentAutoWithdrawals) {
+      const key = new Date(w.createdAt).toISOString().slice(0, 10);
+      if (!dailyMap[key]) continue;
+      if (w.status === 'completed') {
+        dailyMap[key].withdrawCount += 1;
+        dailyMap[key].withdrawAmount += w.amount || 0;
       }
     }
     const daily = Object.values(dailyMap);
@@ -2011,7 +2085,7 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
       status: { $in: ['pending', 'booked', 'completed'] }
     }).lean();
     
-    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.deductedAmount ?? w.amount ?? 0), 0);
 
     const business = await OpayBusiness.findById(businessId).select('balanceAdjustment').lean();
     const balanceAdjustment = business?.balanceAdjustment || 0;
@@ -2217,8 +2291,8 @@ router.get('/withdrawals', opayBusinessAuth, async (req, res) => {
 // Auth: Bearer token for OpayBusiness
 router.get('/activation-package', opayBusinessAuth, async (req, res) => {
   try {
-    const pkg = await OpayBusinessPackage.findOne({ isActive: true });
-    return res.json({ success: true, data: pkg || null });
+    const packages = await OpayBusinessPackage.find({ isActive: true }).sort({ amount: 1 });
+    return res.json({ success: true, data: packages });
   } catch (err) {
     console.error('Error getting activation package:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -2230,14 +2304,24 @@ router.get('/activation-package', opayBusinessAuth, async (req, res) => {
 router.post('/create-activation-checkout', opayBusinessAuth, async (req, res) => {
   try {
     const business = req.user;
-    if (business.isLifetimePaid) {
-      return res.status(400).json({ success: false, message: 'Your account is already activated.' });
+    const { packageId } = req.body || {};
+
+    if (business.isLifetimePaid && business.activePackageId && String(business.activePackageId) === String(packageId)) {
+      return res.status(400).json({ success: false, message: 'Your account is already activated with this package.' });
     }
 
-    const pkg = await OpayBusinessPackage.findOne({ isActive: true });
+    let pkg;
+    if (packageId) {
+      pkg = await OpayBusinessPackage.findOne({ _id: packageId, isActive: true });
+    } else {
+      pkg = await OpayBusinessPackage.findOne({ isActive: true });
+    }
+
     if (!pkg) {
       // No active package configured by Admin, bypass payment!
       business.isLifetimePaid = true;
+      business.allowDeposit = true;
+      business.allowAutoWithdrawal = true;
       await business.save();
       return res.json({ success: true, bypass: true, message: 'Activation bypassed since no package is active.' });
     }
@@ -2265,7 +2349,8 @@ router.post('/create-activation-checkout', opayBusinessAuth, async (req, res) =>
       checkoutItems: {
         type: 'Activation Payment',
         purpose: 'Lifetime Portal Activation Fee',
-        merchantIdToActivate: business._id
+        merchantIdToActivate: business._id,
+        packageId: pkg._id
       },
       expiresAt,
     });

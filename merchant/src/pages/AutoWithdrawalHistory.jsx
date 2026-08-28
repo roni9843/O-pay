@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Layers, ArrowUpRight, Trash2, Search, Calendar, Calculator } from 'lucide-react'
 import { getAutoWithdrawalHistory, cancelAutoWithdrawal } from '../lib/api'
+const getProofImageUrl = (path) => {
+  if (!path) return '';
+  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const urlObj = new URL(path);
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
+        return `${API_BASE}${urlObj.pathname}${urlObj.search}`;
+      }
+    } catch (e) {}
+    return path;
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${cleanPath}`;
+};
 
 export default function AutoWithdrawalHistory() {
   const [loading, setLoading] = useState(true)
@@ -192,6 +207,9 @@ export default function AutoWithdrawalHistory() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-bold text-emerald-600 text-base">৳{item.amount?.toLocaleString()}</div>
+                      {item.feeAmount > 0 && (
+                        <div className="text-xs text-rose-500 font-medium">+ ৳{item.feeAmount?.toLocaleString()} Fee</div>
+                      )}
                       <div className="text-xs text-slate-500 uppercase">{item.paymentMethod}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -212,8 +230,8 @@ export default function AutoWithdrawalHistory() {
                       {item.status === 'completed' && item.proofImages && item.proofImages.length > 0 && (
                         <div className="flex gap-2 flex-wrap mt-1">
                           {item.proofImages.map((img, i) => (
-                            <a key={i} href={img.startsWith('http') ? img : `http://localhost:5000${img}`} target="_blank" rel="noreferrer" className="block w-10 h-10 rounded border border-slate-200 overflow-hidden hover:border-emerald-500 transition-colors">
-                              <img src={img.startsWith('http') ? img : `http://localhost:5000${img}`} alt="Proof" className="w-full h-full object-cover" />
+                            <a key={i} href={getProofImageUrl(img)} target="_blank" rel="noreferrer" className="block w-10 h-10 rounded border border-slate-200 overflow-hidden hover:border-emerald-500 transition-colors">
+                              <img src={getProofImageUrl(img)} alt="Proof" className="w-full h-full object-cover" />
                             </a>
                           ))}
                         </div>

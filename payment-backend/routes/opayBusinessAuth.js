@@ -10,6 +10,8 @@ async function checkActivationBypass(business) {
     const pkg = await OpayBusinessPackage.findOne({ isActive: true });
     if (!pkg) {
       business.isLifetimePaid = true;
+      business.allowDeposit = true;
+      business.allowAutoWithdrawal = true;
       await business.save();
     }
   }
@@ -68,7 +70,10 @@ router.post('/register', async (req, res) => {
         enabled: business.enabled,
         kycStatus: business.kycStatus,
         isLifetimePaid: business.isLifetimePaid,
-        lifetimePaymentCode: business.lifetimePaymentCode
+        lifetimePaymentCode: business.lifetimePaymentCode,
+        allowDeposit: business.allowDeposit,
+        allowAutoWithdrawal: business.allowAutoWithdrawal,
+        activePackageId: business.activePackageId
       },
       message: 'Registration successful'
     });
@@ -121,7 +126,10 @@ router.post('/login', async (req, res) => {
         enabled: business.enabled,
         kycStatus: business.kycStatus,
         isLifetimePaid: business.isLifetimePaid,
-        lifetimePaymentCode: business.lifetimePaymentCode
+        lifetimePaymentCode: business.lifetimePaymentCode,
+        allowDeposit: business.allowDeposit,
+        allowAutoWithdrawal: business.allowAutoWithdrawal,
+        activePackageId: business.activePackageId
       }
     });
 
@@ -155,7 +163,10 @@ router.get('/me', async (req, res) => {
                 enabled: business.enabled,
                 kycStatus: business.kycStatus,
                 isLifetimePaid: business.isLifetimePaid,
-                lifetimePaymentCode: business.lifetimePaymentCode
+                lifetimePaymentCode: business.lifetimePaymentCode,
+                allowDeposit: business.allowDeposit,
+                allowAutoWithdrawal: business.allowAutoWithdrawal,
+                activePackageId: business.activePackageId
             }
         });
 

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import api from "../../lib/api";
+import { io } from "socket.io-client";
 import {
   ArrowUpRight,
   Activity,
@@ -25,11 +26,11 @@ import {
   Download,
   History,
   Copy,
-  XCircle
+  XCircle,
+  TrendingUp
 } from "lucide-react";
 import opayLogo from "../../assets/appstore.png";
 import CreditTopup from "./CreditTopup";
-import { io } from "socket.io-client";
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -158,66 +159,128 @@ export default function Overview() {
   };
 
   const [expiringSubs, setExpiringSubs] = React.useState([]);
+  const [totalAgentEarnings, setTotalAgentEarnings] = React.useState(0);
+  const [totalAgentVolume, setTotalAgentVolume] = React.useState(0);
+  const [completedWithdrawalCount, setCompletedWithdrawalCount] = React.useState(0);
+
+  const loadOverviewData = React.useCallback(async () => {
+    if (!token) return;
+    try {
+      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingWithdrawalsRes, historyRes, meRes] = await Promise.all([
+        api.getDashboardOverview(token).catch(() => ({})),
+        api.getMyPaymentMethods(token).catch(() => []),
+        api.getPaymentMethodPages(token).catch(() => []),
+        api.getMySubscriptions(token).catch(() => []),
+        api.getMyCreditTopupRequests(token).catch(() => []),
+        api.getAgentPendingNagad(token).catch(() => ({ data: [] })),
+        api.getPendingAutoWithdrawals(token).catch(() => ({ data: [], pending: [], active: null })),
+        api.getAutoWithdrawalHistory(token).catch(() => ({ data: [] })),
+        api.me(token).catch(() => null)
+      ]);
+
+      setStats({
+        ...(dashboardRes?.data || {
+          totals: { totalTransactions: 0, totalAmount: 0 },
+          today: { totalTransactions: 0, totalAmount: 0 },
+          devices: [],
+          providers: [],
+          recent: [],
+        }),
+        paymentMethods: methodsRes?.data || [],
+        methodPages: pagesRes?.data || []
+      });
+
+      const requests = topupRes?.data || [];
+      const pending = requests.find(r => r.status === 'pending');
+      setPendingTopup(pending || null);
+
+      setPendingNagadList(pendingNagadRes?.data || []);
+      
+      const pendingWithdrawalsList = pendingWithdrawalsRes?.pending || [];
+      const activeBooking = pendingWithdrawalsRes?.active || null;
+      
+      setActiveAutoWithdrawal(activeBooking);
+      setPendingAutoWithdrawals(pendingWithdrawalsList);
+
+      const activeUser = meRes || user;
+      const historyList = historyRes?.data || [];
+      const completedList = historyList.filter(h => h.status === 'completed');
+      const totalEarned = completedList.reduce((sum, item) => {
+        const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
+          ? item.agentCommissionAmount
+          : (item.amount * (activeUser?.autoWithdrawalCommissionRate || 0)) / 100;
+        return sum + comm;
+      }, 0);
+      const totalVol = completedList.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+      setTotalAgentEarnings(totalEarned);
+      setTotalAgentVolume(totalVol);
+      setCompletedWithdrawalCount(completedList.length);
+
+      if (meRes) setUser(meRes);
+
+      const now = new Date();
+      const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+      const warnings = (subsRes || []).filter(s => {
+        const end = new Date(s.endDate);
+        return end < tenDaysLater;
+      });
+      setExpiringSubs(warnings);
+    } catch (err) {
+      console.error("Overview data load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   React.useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingWithdrawalsRes] = await Promise.all([
-          api.getDashboardOverview(token),
-          api.getMyPaymentMethods(token).catch(() => []),
-          api.getPaymentMethodPages(token).catch(() => []),
-          api.getMySubscriptions(token).catch(() => []),
-          api.getMyCreditTopupRequests(token).catch(() => []),
-          api.getAgentPendingNagad(token).catch(() => ({ data: [] })),
-          api.getPendingAutoWithdrawals(token).catch(() => ({ data: [] }))
-        ]);
+    if (token) loadOverviewData();
+  }, [token, loadOverviewData]);
 
-        if (!cancelled) {
-          setStats({
-            ...(dashboardRes?.data || {
-              totals: { totalTransactions: 0, totalAmount: 0 },
-              today: { totalTransactions: 0, totalAmount: 0 },
-              devices: [],
-              providers: [],
-              recent: [],
-            }),
-            paymentMethods: methodsRes?.data || [],
-            methodPages: pagesRes?.data || []
-          });
+  // Window Focus Auto-Refresh as fallback
+  React.useEffect(() => {
+    const onFocus = () => {
+      loadOverviewData();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadOverviewData]);
 
-          // Check for pending topup
-          const requests = topupRes?.data || [];
-          const pending = requests.find(r => r.status === 'pending');
-          setPendingTopup(pending || null);
+  React.useEffect(() => {
+    if (!token || user?.role !== "wallet_agent") return;
+    const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
+    
+    const refreshData = () => {
+      loadOverviewData();
+    };
 
-          setPendingNagadList(pendingNagadRes?.data || []);
-          
-          const pendingWithdrawalsList = pendingWithdrawalsRes?.pending || [];
-          const activeBooking = pendingWithdrawalsRes?.active || null;
-          
-          setActiveAutoWithdrawal(activeBooking);
-          setPendingAutoWithdrawals(pendingWithdrawalsList);
+    socket.on("connect", () => {
+      console.log("Socket connected for auto-withdrawals real-time sync");
+    });
 
-          // Subscription Warning Logic (Expired or < 10 days left)
-          const now = new Date();
-          const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
-          const warnings = (subsRes || []).filter(s => {
-            const end = new Date(s.endDate);
-            return end < tenDaysLater;
-          });
-          setExpiringSubs(warnings);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || "Failed to load dashboard");
-      } finally {
-        if (!cancelled) setLoading(false);
+    socket.on("new_auto_withdrawal", (data) => {
+      if (data && data.status === 'pending') {
+        setPendingAutoWithdrawals(prev => {
+          if (prev.find(p => p._id === data._id)) return prev;
+          return [data, ...prev];
+        });
       }
-    }
-    if (token) load();
-    return () => { cancelled = true; };
-  }, [token]);
+      refreshData();
+    });
+
+    socket.on("auto_withdrawal_completed", refreshData);
+    socket.on("auto_withdrawal_booked", refreshData);
+    socket.on("auto_withdrawal_cancelled", refreshData);
+    socket.on("auto_withdrawal_rejected", refreshData);
+    socket.on("auto_withdrawal_timeout", refreshData);
+    socket.on("auto_withdrawal_updated", refreshData);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, user?.role]);
+
+
 
   // Load current subscription end date for wallet agents (for "Valid Thru")
   React.useEffect(() => {
@@ -253,44 +316,53 @@ export default function Overview() {
     };
   }, [token, user?.role]);
 
-  // Socket for Auto Withdrawals
+  // Socket for Auto Withdrawals & Real-time Auto Refresh
   React.useEffect(() => {
     if (!token || user?.role !== "wallet_agent") return;
-    const socket = io(SOCKET_URL, { transports: ["websocket"] });
+    const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
     
+    const refreshData = () => {
+      if (loadDataRef.current) loadDataRef.current();
+    };
+
     socket.on("connect", () => {
       console.log("Socket connected for auto-withdrawals");
     });
 
     socket.on("new_auto_withdrawal", (data) => {
-      // Add to pending if it's pending
       if (data.status === 'pending') {
         setPendingAutoWithdrawals(prev => {
           if (prev.find(p => p._id === data._id)) return prev;
           return [data, ...prev];
         });
       }
+      refreshData();
     });
+
+    socket.on("auto_withdrawal_completed", refreshData);
+    socket.on("auto_withdrawal_booked", refreshData);
+    socket.on("auto_withdrawal_cancelled", refreshData);
+    socket.on("auto_withdrawal_rejected", refreshData);
+    socket.on("auto_withdrawal_timeout", refreshData);
 
     socket.on("auto_withdrawal_updated", (data) => {
       if (data.status !== 'pending') {
-        // Remove from pending list
         setPendingAutoWithdrawals(prev => prev.filter(p => p._id !== data._id));
       } else {
-        // Add back to pending list
         setPendingAutoWithdrawals(prev => {
           if (prev.find(p => p._id === data._id)) return prev;
           return [data, ...prev];
         });
       }
       
-      // If it's my active one and it got rejected/completed elsewhere (timeout)
       setActiveAutoWithdrawal(prev => {
         if (prev && prev._id === data._id && data.status !== 'booked') {
-          return null; // Timer expired or cancelled
+          return null;
         }
         return prev;
       });
+
+      refreshData();
     });
 
     return () => {
@@ -324,6 +396,7 @@ export default function Overview() {
       } else {
         setPendingAutoWithdrawals(prev => prev.filter(p => p._id !== id));
       }
+      loadOverviewData();
     } catch (err) {
       alert(err.message || "Failed to reject");
     }
@@ -337,7 +410,7 @@ export default function Overview() {
     setCompletingWithdrawal(true);
     try {
       await api.completeAutoWithdrawal(token, activeAutoWithdrawal._id, completionFiles);
-      alert("Withdrawal completed successfully! Credit added to your balance.");
+      alert("Withdrawal completed successfully! Commission & Bonus added to your Auto Withdrawal Commission card.");
       setActiveAutoWithdrawal(null);
       setCompletionFiles([]);
       handleRefreshCredit(); // Refresh credit
@@ -493,38 +566,49 @@ if (user?.role === "wallet_agent") {
         {!activeAutoWithdrawal && pendingAutoWithdrawals && pendingAutoWithdrawals.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider px-2">Available Withdrawals ({pendingAutoWithdrawals.length})</h3>
-            {pendingAutoWithdrawals.map(w => (
-              <div key={w._id} className="relative overflow-hidden rounded-3xl backdrop-blur-2xl bg-gradient-to-r from-amber-500 to-orange-500 border-2 border-amber-400/50 shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 p-6 group animate-in slide-in-from-top-4">
-                <div className="absolute inset-0 bg-white/10 animate-pulse-slow pointer-events-none" />
-                <div className="relative z-10">
-                  <div className="flex flex-col items-center justify-center mb-6 pt-4 border-b border-white/10 pb-6">
-                    <div className="text-amber-100 text-xs uppercase tracking-widest font-bold mb-2 px-3 py-1 bg-white/10 rounded-full">{w.paymentMethod}</div>
-                    <div className="text-[10px] text-amber-100/70 uppercase tracking-widest font-bold mb-1">Transfer Amount</div>
-                    <div className="text-5xl font-black text-white drop-shadow-md">৳{w.amount}</div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <span className="text-[10px] text-amber-100/70 font-mono tracking-widest bg-black/10 px-2 py-1 rounded">ID: {w._id}</span>
-                  </div>
+            {pendingAutoWithdrawals.map(w => {
+              const commRate = user?.autoWithdrawalCommissionRate || 0;
+              const expectedProfit = (w.amount * commRate) / 100;
 
-                  
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => handleBookWithdrawal(w._id)}
-                      className="flex-1 bg-white text-orange-600 hover:bg-orange-50 hover:scale-[1.02] text-sm font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider flex justify-center items-center gap-2"
-                    >
-                      Accept Transfer <ArrowUpRight className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={() => handleRejectWithdrawal(w._id, false)}
-                      className="px-6 bg-black/10 hover:bg-black/20 text-white rounded-xl transition-colors font-bold text-xs"
-                    >
-                      Hide
-                    </button>
+              return (
+                <div key={w._id} className="relative overflow-hidden rounded-3xl backdrop-blur-2xl bg-gradient-to-r from-amber-500 to-orange-500 border-2 border-amber-400/50 shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 p-6 group animate-in slide-in-from-top-4">
+                  <div className="absolute inset-0 bg-white/10 animate-pulse-slow pointer-events-none" />
+                  <div className="relative z-10">
+                    <div className="flex flex-col items-center justify-center mb-6 pt-4 border-b border-white/10 pb-6">
+                      <div className="text-amber-100 text-xs uppercase tracking-widest font-bold mb-2 px-3 py-1 bg-white/10 rounded-full">{w.paymentMethod}</div>
+                      <div className="text-[10px] text-amber-100/70 uppercase tracking-widest font-bold mb-1">Transfer Amount</div>
+                      <div className="text-5xl font-black text-white drop-shadow-md">৳{w.amount}</div>
+
+                      {/* Agent Expected Profit Badge */}
+                      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/20 border border-white/20 text-white font-bold text-xs shadow-inner backdrop-blur-sm">
+                        <TrendingUp className="w-4 h-4 text-emerald-300 animate-bounce" />
+                        <span>উইথড্রয়াল কমিশন: <strong className="text-emerald-300 font-mono text-sm">+৳{expectedProfit.toFixed(2)}</strong> ({commRate}%)</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <span className="text-[10px] text-amber-100/70 font-mono tracking-widest bg-black/10 px-2 py-1 rounded">ID: {w._id}</span>
+                    </div>
+
+                    
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => handleBookWithdrawal(w._id)}
+                        className="flex-1 bg-white text-orange-600 hover:bg-orange-50 hover:scale-[1.02] text-sm font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider flex justify-center items-center gap-2"
+                      >
+                        Accept Transfer <ArrowUpRight className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleRejectWithdrawal(w._id, false)}
+                        className="px-6 bg-black/10 hover:bg-black/20 text-white rounded-xl transition-colors font-bold text-xs"
+                      >
+                        Hide
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -878,14 +962,74 @@ if (user?.role === "wallet_agent") {
                { user.credit <= user.minimumCredit && (
                  <span className="absolute right-12 text-rose-400 animate-pulse">Min: {user.minimumCredit}</span> 
                )}
-
-               {/* Current Credit Label */}
-               <span className="absolute right-0 text-emerald-300 font-bold text-sm drop-shadow-sm">
+              <div className="absolute right-0 text-emerald-300 font-bold text-sm drop-shadow-sm">
                  {user.credit}
-               </span>
+               </div>
              </div>
           </div>
         )}
+
+        {/* --- Auto Withdrawal Total Earnings & Stats Cards --- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
+          {/* Auto Withdrawal Commission Card */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950/90 via-teal-900/90 to-slate-950/90 border border-emerald-500/30 p-5 shadow-2xl backdrop-blur-xl group hover:border-emerald-400/50 transition-all">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/20 transition-all" />
+            <div className="flex items-center justify-between mb-3 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 shadow-inner">
+                  <TrendingUp className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Auto Withdrawal Commission</h4>
+                  <p className="text-[10px] text-slate-400">কমিশন ও বোনাস একাউন্ট</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                {user?.autoWithdrawalCommissionRate || 0}% Rate
+              </span>
+            </div>
+
+            <div className="relative z-10 flex items-baseline gap-2 mt-2">
+              <span className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
+                ৳{formatAmount((user?.autoWithdrawalCommission || 0) + (user?.autoWithdrawalBonus || 0) || totalAgentEarnings)}
+              </span>
+              <span className="text-xs text-emerald-400 font-bold uppercase">BDT</span>
+            </div>
+            
+            <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400 relative z-10">
+              <span>কমপ্লিট উইথড্রয়াল: <strong className="text-white font-bold">{completedWithdrawalCount} টি</strong></span>
+              <span className="text-emerald-400 font-medium">কমিশন + বোনাস</span>
+            </div>
+          </div>
+
+          {/* Total Volume Processed */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-950/90 to-purple-950/90 border border-indigo-500/30 p-5 shadow-2xl backdrop-blur-xl group hover:border-indigo-400/50 transition-all">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/20 transition-all" />
+            <div className="flex items-center justify-between mb-3 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-2.5 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shadow-inner">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">মোট ক্যাশ-আউট ভলিউম</h4>
+                  <p className="text-[10px] text-slate-400">Total Processed Volume</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative z-10 flex items-baseline gap-2 mt-2">
+              <span className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">
+                ৳{totalAgentVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className="text-xs text-indigo-300 font-bold uppercase">BDT</span>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400 relative z-10">
+              <span>ক্রেডিটে যুক্ত হয়েছে</span>
+              <span className="text-indigo-300 font-medium">১০০% ভেরিফাইড</span>
+            </div>
+          </div>
+        </div>
 
         {/* Quick Services - Dynamic Payment Methods + Specific Actions */}
         <div className="bg-white/75 backdrop-blur-lg rounded-3xl shadow-xl p-5 sm:p-6 md:p-8 border border-emerald-100/70">
@@ -1228,81 +1372,164 @@ if (user?.role === "wallet_agent") {
               ))}
             </div>
 
-            <div className="grid gap-8 lg:grid-cols-3">
-              {/* Recent Transactions */}
-              <div className="lg:col-span-2 rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl overflow-hidden">
-                <div className="p-8 border-b border-white/10">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                    Recent Transactions
-                  </h3>
-                  <p className="text-purple-300 text-sm mt-1">Latest incoming payments</p>
-                </div>
-                <div className="overflow-x-auto">
-                  {stats.recent.length === 0 ? (
-                    <div className="p-12 text-center text-purple-300">
-                      <Clock className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p>No transactions yet. Waiting for first payment...</p>
+            {/* Main Grid */}
+            <div className="grid gap-8 lg:grid-cols-3 mb-10">
+              {/* Left Column: Linked Numbers & Recent Transactions */}
+              <div className="lg:col-span-2 space-y-8">
+                
+                {/* My Linked Numbers (SIM Gateways) */}
+                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-6 sm:p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <CreditCard className="w-6 h-6 text-pink-400" /> My Linked Numbers
+                      </h3>
+                      <p className="text-purple-300 text-xs mt-0.5">Manage active SIM numbers & gateways</p>
+                    </div>
+                    <Link to="/dashboard/add-payment-method" className="px-3 py-1.5 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/30 text-xs font-bold hover:bg-pink-500/30 transition-all flex items-center gap-1">
+                      + Add Method
+                    </Link>
+                  </div>
+
+                  {stats?.paymentMethods && stats.paymentMethods.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {stats.paymentMethods.map((method, idx) => (
+                        <div key={method._id || idx} className="p-4 rounded-2xl bg-black/30 border border-white/10 flex items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white uppercase text-xs tracking-wider">{method.provider}</span>
+                              <span className={`w-2 h-2 rounded-full ${method.status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                            </div>
+                            <p className="text-sm font-mono font-bold text-cyan-300 mt-1">{method.accountNumber}</p>
+                            <p className="text-[10px] text-purple-300 mt-0.5 uppercase">{method.gateway || 'personal'} • SIM {method.simIndex || 1}</p>
+                          </div>
+                          
+                          <button
+                            onClick={() => setToggleModal({ 
+                              id: method._id, 
+                              currentStatus: method.status, 
+                              provider: method.provider, 
+                              number: method.accountNumber 
+                            })}
+                            className={`text-[10px] px-3 py-1.5 rounded-xl font-bold uppercase transition-all ${
+                              method.status === 'active'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
+                            }`}
+                          >
+                            {method.status === 'active' ? 'Active' : 'Disabled'}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="text-left text-xs uppercase tracking-wider text-purple-300 border-b border-white/10">
-                          <th className="pb-4 pl-8">TrxID</th>
-                          <th className="pb-4">Amount</th>
-                          <th className="pb-4">Provider</th>
-                          <th className="pb-4">Device</th>
-                          <th className="pb-4">Time</th>
-                          <th className="pb-4 pr-8">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stats.recent.map((item, i) => (
-                          <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition">
-                            <td className="py-5 pl-8 font-mono text-sm">{item.trxID}</td>
-                            <td className="py-5 font-bold text-emerald-400">৳{formatAmount(item.amount)}</td>
-                            <td className="py-5 text-purple-300">{item.title || "Unknown"}</td>
-                            <td className="py-5 text-cyan-300">{item.deviceName || "—"}</td>
-                            <td className="py-5 text-sm text-purple-200">{formatDate(item.createdAt)}</td>
-                            <td className="py-5 pr-8">
-                              {item.verify ? (
-                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
-                                  <CheckCircle className="w-4 h-4" /> Verified
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium">
-                                  <AlertCircle className="w-4 h-4" /> Pending
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <div className="text-center py-6 text-purple-300 border border-dashed border-white/10 rounded-2xl">
+                      <p className="text-sm mb-2">No linked numbers found</p>
+                      <Link to="/dashboard/add-payment-method" className="text-xs text-pink-400 font-bold hover:underline">Add your first bKash/Nagad number</Link>
+                    </div>
                   )}
+                </div>
+
+                {/* Recent Transactions */}
+                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl overflow-hidden">
+                  <div className="p-6 sm:p-8 border-b border-white/10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        Recent Transactions
+                      </h3>
+                      <p className="text-purple-300 text-sm mt-1">Latest incoming verified payments</p>
+                    </div>
+                    <Link to="/dashboard/payment-messages" className="text-xs text-purple-300 hover:text-white font-bold flex items-center gap-1">
+                      View All <ArrowUpRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                  <div className="overflow-x-auto">
+                    {stats.recent.length === 0 ? (
+                      <div className="p-12 text-center text-purple-300">
+                        <Clock className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p>No transactions yet. Waiting for first payment...</p>
+                      </div>
+                    ) : (
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-left text-xs uppercase tracking-wider text-purple-300 border-b border-white/10">
+                            <th className="pb-4 pl-8">TrxID</th>
+                            <th className="pb-4">Amount</th>
+                            <th className="pb-4">Provider</th>
+                            <th className="pb-4">Device</th>
+                            <th className="pb-4">Time</th>
+                            <th className="pb-4 pr-8">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stats.recent.map((item, i) => (
+                            <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition">
+                              <td className="py-5 pl-8 font-mono text-sm">{item.trxID}</td>
+                              <td className="py-5 font-bold text-emerald-400">৳{formatAmount(item.amount)}</td>
+                              <td className="py-5 text-purple-300">{item.title || "Unknown"}</td>
+                              <td className="py-5 text-cyan-300">{item.deviceName || "—"}</td>
+                              <td className="py-5 text-sm text-purple-200">{formatDate(item.createdAt)}</td>
+                              <td className="py-5 pr-8">
+                                {item.verify ? (
+                                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
+                                    <CheckCircle className="w-4 h-4" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium">
+                                    <AlertCircle className="w-4 h-4" /> Pending
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Right Sidebar */}
+              {/* Right Sidebar: Active Devices & Quick Navigation */}
               <div className="space-y-6">
-                {/* Devices */}
-                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Smartphone className="w-8 h-8 text-cyan-400" />
-                    <h3 className="text-xl font-bold">Active Devices</h3>
+                {/* Active Devices */}
+                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-6 sm:p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="w-7 h-7 text-cyan-400" />
+                      <div>
+                        <h3 className="text-xl font-bold text-white">Active Devices</h3>
+                        <p className="text-xs text-purple-300">{stats.devices.length} linked devices</p>
+                      </div>
+                    </div>
+                    <Link to="/dashboard/device" className="text-xs font-bold text-cyan-300 hover:underline">
+                      Manage
+                    </Link>
                   </div>
+
                   {stats.devices.length === 0 ? (
-                    <p className="text-purple-300 text-sm">No devices connected</p>
+                    <div className="text-center py-6 text-purple-300 border border-dashed border-white/10 rounded-2xl">
+                      <p className="text-sm mb-3">No devices connected</p>
+                      <Link to="/dashboard/device" className="px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold hover:bg-cyan-500/30 transition-all inline-block">
+                        + Add Device
+                      </Link>
+                    </div>
                   ) : (
-                    <div className="space-y-4">
-                      {stats.devices.slice(0, 4).map((d) => (
-                        <div key={d.deviceId} className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="space-y-3">
+                      {stats.devices.map((d) => (
+                        <div key={d.deviceId} className="p-4 rounded-2xl bg-black/30 border border-white/10 hover:border-cyan-500/40 transition-colors">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-semibold text-purple-200">{d.deviceName}</p>
-                              <p className="text-xs text-purple-400">{d.deviceCode || d.deviceId}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-purple-100 text-sm">{d.deviceName}</p>
+                                <span className={`w-2 h-2 rounded-full ${d.online ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                              </div>
+                              <p className="text-xs text-purple-400 font-mono mt-0.5">{d.deviceCode || d.deviceId}</p>
+                              <span className={`inline-block mt-1.5 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${d.online ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
+                                {d.online ? 'Online' : 'Offline'}
+                              </span>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-emerald-400">৳{formatAmount(d.totalAmount)}</p>
+                              <p className="font-bold text-emerald-400 text-sm">৳{formatAmount(d.totalAmount)}</p>
                               <p className="text-xs text-purple-300">{d.totalTransactions} trx</p>
                             </div>
                           </div>
@@ -1312,45 +1539,52 @@ if (user?.role === "wallet_agent") {
                   )}
                 </div>
 
-                {/* Providers */}
-                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-8">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-                    <Globe className="w-8 h-8 text-pink-400" />
-                    Top Providers
-                  </h3>
-                  {stats.providers.length === 0 ? (
-                    <p className="text-purple-300 text-sm">No data available</p>
-                  ) : (
-                    <div className="space-y-4">
+                {/* Quick Navigation Menu */}
+                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-6 sm:p-8">
+                  <h3 className="text-xl font-bold text-white mb-4">Quick Navigation</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { to: "/dashboard/profile", label: "Profile", icon: User },
+                      { to: "/dashboard/device", label: "Devices", icon: Smartphone },
+                      { to: "/dashboard/devices-presence", label: "Presence", icon: Wifi },
+                      { to: "/dashboard/add-payment-method", label: "Add Number", icon: CreditCard },
+                      { to: "/dashboard/number-status", label: "Number Status", icon: PhoneCall },
+                      { to: "/dashboard/payment-messages", label: "History", icon: History },
+                      { to: "/dashboard/subscription", label: "Subscription", icon: Zap },
+                      { to: "/dashboard/your-plan", label: "Your Plan", icon: ClipboardList },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/15 text-purple-200 transition-all text-xs font-bold"
+                        >
+                          <Icon className="w-4 h-4 text-cyan-400" />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Providers Breakdown */}
+                {stats.providers && stats.providers.length > 0 && (
+                  <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-6 sm:p-8">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-white">
+                      <Globe className="w-6 h-6 text-pink-400" /> Top Providers
+                    </h3>
+                    <div className="space-y-3">
                       {stats.providers.slice(0, 4).map((p, i) => (
-                        <div key={i} className="flex justify-between items-center">
-                          <span className="text-purple-200 font-medium">{p.provider}</span>
+                        <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-black/20 border border-white/5">
+                          <span className="text-purple-200 font-bold uppercase text-xs">{p.provider}</span>
                           <div className="text-right">
-                            <p className="font-bold text-cyan-400">৳{formatAmount(p.totalAmount)}</p>
-                            <p className="text-xs text-purple-300">{p.totalTransactions} trx</p>
+                            <p className="font-bold text-cyan-300 text-sm">৳{formatAmount(p.totalAmount)}</p>
+                            <p className="text-[10px] text-purple-300">{p.totalTransactions} trx</p>
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                {/* Wallet Agent Credit Summary */}
-                {user?.role === "wallet_agent" && (
-                  <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl p-8">
-                    <div className="flex items-center gap-3 mb-4">
-                      <CreditCard className="w-8 h-8 text-indigo-400" />
-                      <div>
-                        <h3 className="text-xl font-bold">Wallet Credit</h3>
-                        <p className="text-purple-300 text-sm">Your available wallet agent credit</p>
-                      </div>
-                    </div>
-                    <div className="text-3xl font-bold bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">
-                      ৳{formatAmount(user?.credit ?? 0)}
-                    </div>
-                    <p className="mt-2 text-xs text-purple-200">
-                      This credit is separate from your main balance and is used for wallet agent operations.
-                    </p>
                   </div>
                 )}
               </div>

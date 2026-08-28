@@ -104,6 +104,39 @@ router.post('/auto-withdrawal-min-balance', auth, async (req, res) => {
   }
 });
 
+// Admin: get auto withdrawal fee
+router.get('/auto-withdrawal-fee', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const s = await Setting.findOne({ key: 'merchant_auto_withdraw_fee_percentage' });
+    return res.json({ success: true, percentage: Number(s?.value || 0) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: set auto withdrawal fee
+router.post('/auto-withdrawal-fee', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { percentage } = req.body || {};
+    if (percentage === undefined || isNaN(percentage) || Number(percentage) < 0 || Number(percentage) > 100) {
+      return res.status(400).json({ success: false, message: 'Invalid percentage' });
+    }
+    const s = await Setting.findOneAndUpdate(
+      { key: 'merchant_auto_withdraw_fee_percentage' },
+      { $set: { value: Number(percentage) } },
+      { upsert: true, new: true }
+    );
+    return res.json({ success: true, percentage: Number(s.value) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+
 // Admin: get merchant topup fee
 router.get('/merchant-topup-fee', auth, async (req, res) => {
   try {

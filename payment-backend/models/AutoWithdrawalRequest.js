@@ -10,6 +10,18 @@ const autoWithdrawalRequestSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  feePercentage: {
+    type: Number,
+    default: 0
+  },
+  feeAmount: {
+    type: Number,
+    default: 0
+  },
+  deductedAmount: {
+    type: Number,
+    required: false // Temporarily false or default to allow old records to still load, or just make it required but existing records will break validation on save if we don't set it. Let's make it not required, or default to amount via pre-save.
+  },
   paymentMethod: {
     type: String,
     required: true,
@@ -51,6 +63,11 @@ const autoWithdrawalRequestSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  agentRejections: [{
+    agent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String, default: '' },
+    rejectedAt: { type: Date, default: Date.now }
+  }],
   rejectReason: {
     type: String,
     default: ''
@@ -71,6 +88,18 @@ const autoWithdrawalRequestSchema = new mongoose.Schema({
   agentCreditAfter: {
     type: Number,
     default: null
+  },
+  agentCommissionRate: {
+    type: Number,
+    default: 0
+  },
+  agentCommissionAmount: {
+    type: Number,
+    default: 0
+  },
+  agentBonusAmount: {
+    type: Number,
+    default: 0
   },
   callbackResult: {
     type: mongoose.Schema.Types.Mixed,

@@ -9,6 +9,9 @@ const OpayBusinessSchema = new mongoose.Schema(
     enabled: { type: Boolean, default: false },
     apiToken: { type: String, required: true, unique: true },
     isLifetimePaid: { type: Boolean, default: false },
+    allowDeposit: { type: Boolean, default: false },
+    allowAutoWithdrawal: { type: Boolean, default: false },
+    activePackageId: { type: mongoose.Schema.Types.ObjectId, ref: 'OpayBusinessPackage', default: null },
     lifetimePaymentCode: { type: String, default: null },
     balanceAdjustment: { type: Number, default: 0 },
     kycStatus: { 

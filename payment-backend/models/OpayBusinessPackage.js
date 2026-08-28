@@ -12,7 +12,8 @@ const OpayBusinessPackageSchema = new mongoose.Schema(
       'গ্রাহকদের জন্য প্রিমিয়াম সাকসেস ল্যান্ডিং পেইজ',
       '২৪/৭ মার্চেন্ট ও কাস্টমার সাপোর্ট সার্ভিস'
     ]},
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    packageType: { type: String, enum: ['deposit', 'withdrawal', 'both'], default: 'both' }
   },
   { timestamps: true }
 );

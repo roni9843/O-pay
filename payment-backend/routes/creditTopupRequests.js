@@ -18,6 +18,25 @@ const ensureAdmin = (req, res, next) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { planId, methodId, methodName, submissionData } = req.body;
+
+    const plan = await CreditPlan.findById(planId);
+    if (!plan) {
+      return res.status(404).json({ success: false, message: 'Credit Plan not found' });
+    }
+
+    if (plan.isOneTime) {
+      const existing = await CreditTopupRequest.findOne({
+        userId: req.user.id,
+        planId: plan._id,
+        status: { $in: ['approved', 'pending'] }
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: 'এই প্যাকেজটি ওয়ান-টাইম (একবারই অফার গ্রহণ করা যাবে)। আপনি ইতিমধ্যে এটি ব্যবহার করেছেন!'
+        });
+      }
+    }
     
     const request = new CreditTopupRequest({
       userId: req.user.id,
@@ -140,6 +159,11 @@ router.patch('/:id/status', [auth, ensureAdmin], async (req, res) => {
       // 2. Update Minimum Credit (Additive)
       if (plan.minimumCredit) {
          user.minimumCredit = (user.minimumCredit || 0) + plan.minimumCredit;
+      }
+
+      // 3. Update Auto Withdrawal Commission Rate
+      if (plan.autoWithdrawalCommission !== undefined) {
+         user.autoWithdrawalCommissionRate = Number(plan.autoWithdrawalCommission) || 0;
       }
 
       await user.save();
