@@ -1978,7 +1978,7 @@ router.post('/verify-bank-payment', async (req, res) => {
 
     // ── Send FCM Mobile Push Notification ──
     try {
-      const firebaseAdmin = require('../config/firebase');
+      const { admin: firebaseAdmin, isFirebaseInitialized } = require('../firebase');
       const Device = require('../models/Device');
       const PushLog = require('../models/PushLog');
 
@@ -1988,7 +1988,7 @@ router.post('/verify-bank-payment', async (req, res) => {
       const devices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
       const tokens = devices.map(d => d.fcmToken).filter(Boolean);
 
-      if (firebaseAdmin && tokens.length > 0) {
+      if (isFirebaseInitialized && firebaseAdmin && tokens.length > 0) {
         const payload = {
           notification: {
             title: `🏦 নতুন ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
