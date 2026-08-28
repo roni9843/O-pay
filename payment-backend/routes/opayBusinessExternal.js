@@ -1750,6 +1750,34 @@ router.post('/verify-payment', async (req, res) => {
           pushNotificationStatus = targetTokens.length === 0 ? 'No Devices/FCM Tokens' : 'No FCM Token';
           console.warn('[PUSH NOTIFICATION] Firebase not initialized or no agent devices with FCM tokens found');
         }
+      } catch (pushErr) {
+        pushNotificationStatus = `Error: ${pushErr.message}`;
+        console.error('[PUSH NOTIFICATION ERROR]', pushErr.message);
+      }
+
+      session.status = 'pending_nagad';
+      session.paymentMessage = matchedMessage._id;
+      session.aiVerification = {
+        ...(session.aiVerification || {}),
+        pushNotificationStatus
+      };
+      await session.save();
+
+      console.log(`[VERIFY PENDING NAGAD] Nagad transaction ${trimmedTrxid} is pending admin approval.`);
+      return res.json({
+        success: true,
+        status: 'pending_nagad',
+        message: 'পেমেন্টটি এডমিন ভেরিফিকেশনের জন্য অপেক্ষমান রয়েছে। এডমিন এটি চেক করে ১-৫ মিনিটের মধ্যে অনুমোদন করবে। অনুগ্রহ করে অপেক্ষা করুন।',
+        code: session.code
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid or unsupported payment transaction' });
+  } catch (err) {
+    console.error('Verify payment error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during payment verification' });
+  }
+});
 
 // POST /api/opay-business/verify-bank-payment
 // Customer submits screenshot proof for bank transfer
@@ -1794,26 +1822,6 @@ router.post('/verify-bank-payment', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error during bank proof submission' });
   }
 });
-      } catch (pushErr) {
-        pushNotificationStatus = `Error: ${pushErr.message}`;
-        console.error('[PUSH NOTIFICATION ERROR]', pushErr.message);
-      }
-
-      session.status = 'pending_nagad';
-      session.paymentMessage = matchedMessage._id;
-      session.aiVerification = {
-        ...(session.aiVerification || {}),
-        pushNotificationStatus
-      };
-      await session.save();
-
-      console.log(`[VERIFY PENDING NAGAD] Nagad transaction ${trimmedTrxid} is pending admin approval.`);
-      return res.json({
-        success: true,
-        status: 'pending_nagad',
-        message: 'পেমেন্টটি এডমিন ভেরিফিকেশনের জন্য অপেক্ষমান রয়েছে। এডমিন এটি চেক করে ১-৫ মিনিটের মধ্যে অনুমোদন করবে। অনুগ্রহ করে অপেক্ষা করুন।',
-        redirect_url: session.successRedirectUrl
-      });
     }
 
     // Mark verified
