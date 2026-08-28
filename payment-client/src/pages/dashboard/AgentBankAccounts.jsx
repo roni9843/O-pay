@@ -26,19 +26,17 @@ export default function AgentBankAccounts() {
     status: 'active',
   });
 
-  // Fetch Supported Banks from Admin
+  // Fetch Supported Banks
   const loadData = async () => {
     try {
       setLoading(true);
       const [banksRes, myAccsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/admin/banks`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(r => r.json()).catch(() => ({ success: false })),
+        api.getSupportedBanks().catch(() => ({ success: false })),
         api.getAgentBankAccounts(token)
       ]);
 
-      if (banksRes.success) setSupportedBanks(banksRes.data || []);
-      if (myAccsRes.success) setMyAccounts(myAccsRes.data || []);
+      if (banksRes && banksRes.success) setSupportedBanks(banksRes.data || []);
+      if (myAccsRes && myAccsRes.success) setMyAccounts(myAccsRes.data || []);
     } catch (e) {
       console.error(e);
     } finally {

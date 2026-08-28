@@ -368,6 +368,10 @@ export async function rejectPendingNagad(token, code) {
 }
 
 
+export async function getSupportedBanks() {
+  return request('/api/opay-business/supported-banks');
+}
+
 export async function getAgentBankAccounts(token) {
   return request('/api/dashboard/bank-accounts', {
     headers: { Authorization: `Bearer ${token}` }
@@ -449,6 +453,7 @@ export default {
   acceptPendingNagad,
   rejectPendingNagad,
   getAgentBankAccounts,
+  getSupportedBanks,
   addAgentBankAccount,
   deleteAgentBankAccount,
   getAgentPendingBankPayments,
