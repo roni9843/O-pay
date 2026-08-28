@@ -615,6 +615,19 @@ router.get('/wallet-status', async (req, res) => {
   }
 });
 
+// GET /api/opay-business/supported-banks
+// Public read-only: returns list of active supported banks for client payment pages
+router.get('/supported-banks', async (_req, res) => {
+  try {
+    const BankList = require('../models/BankList');
+    const banks = await BankList.find({ status: 'active' }).sort({ sortOrder: 1, name: 1 }).lean();
+    return res.json({ success: true, data: banks });
+  } catch (err) {
+    console.error('opay-business supported-banks error:', err);
+    return res.status(500).json({ success: false, message: 'Server error while loading supported banks' });
+  }
+});
+
 // GET /api/opay-business/wallet-templates
 // Public read-only: returns global wallet-agent templates per provider+gateway.
 router.get('/wallet-templates', async (_req, res) => {

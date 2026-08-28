@@ -265,6 +265,22 @@ export default function SimplePaymentPage() {
     loadWalletStatus();
   }, []);
 
+  const [supportedBanks, setSupportedBanks] = useState([]);
+
+  // Load Admin supported banks list dynamically
+  useEffect(() => {
+    async function loadSupportedBanks() {
+      try {
+        const res = await fetch(`${API_URL}/api/opay-business/supported-banks`);
+        const data = await res.json();
+        if (res.ok && data.success && Array.isArray(data.data)) {
+          setSupportedBanks(data.data);
+        }
+      } catch (_) {}
+    }
+    loadSupportedBanks();
+  }, []);
+
   // Load global wallet-agent templates (for logos / colors)
   useEffect(() => {
     async function loadTemplates() {
@@ -707,7 +723,10 @@ export default function SimplePaymentPage() {
           {activeTab === 0 && (
             <>
               <div className="grid grid-cols-3 gap-6">
-                {bankWallets.map((wallet) => {
+                {(supportedBanks.length > 0 ? supportedBanks : bankWallets).map((wallet) => {
+                  const bankName = wallet.name;
+                  const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
+
                   const handleBankClick = async () => {
                     try {
                       const env = import.meta.env.VITE_APP_ENV || 'local';
@@ -717,16 +736,16 @@ export default function SimplePaymentPage() {
                         setSelectedAccount(data.method);
                         setShowBankModal(true);
                       } else {
-                        handleUnavailableClick(wallet.name);
+                        handleUnavailableClick(bankName);
                       }
                     } catch (e) {
-                      handleUnavailableClick(wallet.name);
+                      handleUnavailableClick(bankName);
                     }
                   };
 
                   return (
                     <button
-                      key={wallet.name}
+                      key={wallet._id || bankName}
                       onClick={handleBankClick}
                       className="flex flex-col items-center gap-2 group relative"
                     >
@@ -739,8 +758,8 @@ export default function SimplePaymentPage() {
                         "
                       >
                         <img
-                          src={wallet.logo}
-                          alt={wallet.name}
+                          src={logoSrc}
+                          alt={bankName}
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
 
@@ -764,7 +783,7 @@ export default function SimplePaymentPage() {
                           text-gray-600 group-hover:text-gray-800
                         "
                       >
-                        {wallet.name}
+                        {bankName}
                       </span>
                     </button>
                   );
