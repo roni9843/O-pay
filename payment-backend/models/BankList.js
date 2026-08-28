@@ -7,6 +7,8 @@ const BankListSchema = new mongoose.Schema(
     logo: { type: String, trim: true, default: '' },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     sortOrder: { type: Number, default: 0 },
+    bgColor: { type: String, trim: true, default: '#ffffff' },
+    textColor: { type: String, trim: true, default: '#1e293b' },
   },
   { timestamps: true }
 );

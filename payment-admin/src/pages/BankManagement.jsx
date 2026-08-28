@@ -18,6 +18,8 @@ export default function BankManagement() {
     logo: '',
     status: 'active',
     sortOrder: 0,
+    bgColor: '#ffffff',
+    textColor: '#1e293b',
   });
 
   const fetchBanks = async () => {
@@ -66,12 +68,14 @@ export default function BankManagement() {
       logo: bank.logo || '',
       status: bank.status || 'active',
       sortOrder: bank.sortOrder || 0,
+      bgColor: bank.bgColor || '#ffffff',
+      textColor: bank.textColor || '#1e293b',
     });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0 });
+    setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b' });
   };
 
   const handleSubmit = async (e) => {
@@ -93,7 +97,7 @@ export default function BankManagement() {
         const res = await api.createBank(token, formData);
         if (res.success) {
           toast.success('Bank added successfully');
-          setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0 });
+          setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b' });
           fetchBanks();
         }
       }
@@ -128,7 +132,7 @@ export default function BankManagement() {
             Bank Management
           </h1>
           <p className="text-xs text-slate-300 font-medium mt-1">
-            Configure supported banks, upload logos, set display sorting order, and view Agent usage counts.
+            Configure supported banks, upload logos, set background/text colors, display sorting order, and view Agent usage counts.
           </p>
         </div>
         <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-xs font-bold w-fit">
@@ -213,6 +217,49 @@ export default function BankManagement() {
               </div>
             </div>
 
+            {/* Color Controls (Background & Text Color) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                  Card Background Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formData.bgColor}
+                    onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                    className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.bgColor}
+                    onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                    className="w-full px-2.5 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                  Text / Title Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formData.textColor}
+                    onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
+                    className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.textColor}
+                    onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
+                    className="w-full px-2.5 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Sorting Order & Status */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -278,12 +325,13 @@ export default function BankManagement() {
               {banks.map((bank) => (
                 <div
                   key={bank._id}
-                  className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-indigo-100 hover:shadow-md transition-all space-y-3 relative group"
+                  style={{ backgroundColor: bank.bgColor || '#f8fafc' }}
+                  className="p-4 rounded-2xl border border-slate-200/80 hover:shadow-lg transition-all space-y-3 relative group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       {bank.logo ? (
-                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/60 p-2 shadow-sm flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/60 p-2 shadow-md flex items-center justify-center flex-shrink-0">
                           <img src={bank.logo} alt={bank.name} className="w-full h-full object-contain" />
                         </div>
                       ) : (
@@ -292,13 +340,15 @@ export default function BankManagement() {
                         </div>
                       )}
                       <div>
-                        <h4 className="font-black text-slate-900 text-sm leading-snug">{bank.name}</h4>
+                        <h4 style={{ color: bank.textColor || '#0f172a' }} className="font-black text-sm leading-snug">
+                          {bank.name}
+                        </h4>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                          <span className="text-[10px] font-black uppercase opacity-60 tracking-wider" style={{ color: bank.textColor || '#64748b' }}>
                             {bank.code || 'NO CODE'}
                           </span>
-                          <span className="text-[10px] text-slate-300">•</span>
-                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5">
+                          <span className="text-[10px] opacity-40">•</span>
+                          <span className="text-[10px] font-bold opacity-60 flex items-center gap-0.5" style={{ color: bank.textColor || '#64748b' }}>
                             <ArrowUpDown className="w-3 h-3" /> Order: {bank.sortOrder || 0}
                           </span>
                         </div>

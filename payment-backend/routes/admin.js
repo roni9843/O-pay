@@ -3277,7 +3277,7 @@ router.post('/banks', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const { name, code, logo, status, sortOrder } = req.body;
+    const { name, code, logo, status, sortOrder, bgColor, textColor } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Bank name is required' });
     }
@@ -3287,6 +3287,8 @@ router.post('/banks', auth, async (req, res) => {
       logo: logo ? logo.trim() : '',
       status: status === 'inactive' ? 'inactive' : 'active',
       sortOrder: Number(sortOrder) || 0,
+      bgColor: bgColor ? bgColor.trim() : '#ffffff',
+      textColor: textColor ? textColor.trim() : '#1e293b',
     });
     return res.json({ success: true, data: bank });
   } catch (err) {
@@ -3302,7 +3304,7 @@ router.put('/banks/:id', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const { name, code, logo, status, sortOrder } = req.body;
+    const { name, code, logo, status, sortOrder, bgColor, textColor } = req.body;
     
     const bank = await BankList.findById(req.params.id);
     if (!bank) return res.status(404).json({ success: false, message: 'Bank not found' });
@@ -3312,6 +3314,8 @@ router.put('/banks/:id', auth, async (req, res) => {
     if (logo !== undefined) bank.logo = logo.trim();
     if (status) bank.status = status === 'inactive' ? 'inactive' : 'active';
     if (sortOrder !== undefined) bank.sortOrder = Number(sortOrder) || 0;
+    if (bgColor !== undefined) bank.bgColor = bgColor.trim();
+    if (textColor !== undefined) bank.textColor = textColor.trim();
 
     await bank.save();
     return res.json({ success: true, data: bank });

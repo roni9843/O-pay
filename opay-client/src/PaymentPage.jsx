@@ -744,6 +744,9 @@ export default function SimplePaymentPage() {
                     }
                   };
 
+                  const customBg = wallet.bgColor || '#ffffff';
+                  const customText = wallet.textColor || '#475569';
+
                   return (
                     <button
                       key={wallet._id || bankName}
@@ -751,10 +754,11 @@ export default function SimplePaymentPage() {
                       className="flex flex-col items-center gap-2 group relative"
                     >
                       <div
+                        style={{ backgroundColor: customBg }}
                         className="
                           relative w-20 h-20 sm:w-24 sm:h-24
-                          rounded-2xl bg-white shadow-md flex items-center justify-center p-4
-                          transition-all duration-300
+                          rounded-2xl shadow-md flex items-center justify-center p-3.5
+                          transition-all duration-300 border border-gray-100/80
                           group-hover:shadow-xl group-hover:-translate-y-2
                         "
                       >
@@ -779,9 +783,9 @@ export default function SimplePaymentPage() {
                       </div>
 
                       <span
+                        style={{ color: customText }}
                         className="
-                          text-sm font-medium transition-colors
-                          text-gray-600 group-hover:text-gray-800
+                          text-xs font-bold transition-colors text-center line-clamp-1
                         "
                       >
                         {bankName}
