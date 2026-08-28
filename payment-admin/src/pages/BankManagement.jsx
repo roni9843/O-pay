@@ -20,6 +20,7 @@ export default function BankManagement() {
     sortOrder: 0,
     bgColor: '#ffffff',
     textColor: '#1e293b',
+    labelColor: '#94a3b8',
   });
 
   const fetchBanks = async () => {
@@ -70,12 +71,13 @@ export default function BankManagement() {
       sortOrder: bank.sortOrder || 0,
       bgColor: bank.bgColor || '#ffffff',
       textColor: bank.textColor || '#1e293b',
+      labelColor: bank.labelColor || '#94a3b8',
     });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b' });
+    setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b', labelColor: '#94a3b8' });
   };
 
   const handleSubmit = async (e) => {
@@ -97,7 +99,7 @@ export default function BankManagement() {
         const res = await api.createBank(token, formData);
         if (res.success) {
           toast.success('Bank added successfully');
-          setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b' });
+          setFormData({ name: '', code: '', logo: '', status: 'active', sortOrder: 0, bgColor: '#ffffff', textColor: '#1e293b', labelColor: '#94a3b8' });
           fetchBanks();
         }
       }
@@ -217,44 +219,64 @@ export default function BankManagement() {
               </div>
             </div>
 
-            {/* Color Controls (Background & Text Color) */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Color Controls (Background, Text & Label Color) */}
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
-                  Card Background Color
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Card Bg
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="color"
                     value={formData.bgColor}
                     onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
-                    className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                    className="w-7 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5"
                   />
                   <input
                     type="text"
                     value={formData.bgColor}
                     onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
-                    className="w-full px-2.5 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                    className="w-full px-1.5 py-1 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
-                  Text / Title Color
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Value Color
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="color"
                     value={formData.textColor}
                     onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
-                    className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                    className="w-7 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5"
                   />
                   <input
                     type="text"
                     value={formData.textColor}
                     onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
-                    className="w-full px-2.5 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                    className="w-full px-1.5 py-1 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  Title Label
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={formData.labelColor}
+                    onChange={(e) => setFormData({ ...formData, labelColor: e.target.value })}
+                    className="w-7 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.labelColor}
+                    onChange={(e) => setFormData({ ...formData, labelColor: e.target.value })}
+                    className="w-full px-1.5 py-1 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none"
                   />
                 </div>
               </div>

@@ -738,6 +738,7 @@ export default function SimplePaymentPage() {
                           ...data.method,
                           bgColor: wallet.bgColor,
                           textColor: wallet.textColor,
+                          labelColor: wallet.labelColor,
                           bankLogo: wallet.logo,
                         });
                         setShowBankModal(true);

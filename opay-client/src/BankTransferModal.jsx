@@ -41,6 +41,7 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
 
   const cardBgColor = account?.bgColor || '#0f172a';
   const cardTextColor = account?.textColor || '#ffffff';
+  const cardLabelColor = account?.labelColor || '#94a3b8';
 
   return (
     <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
@@ -110,7 +111,7 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
 
         {/* ================= CONTENT BODY ================= */}
         <div className="mt-12 p-6 space-y-5">
-          {/* Account Details Card (CUSTOM ADMIN BG COLOR & TEXT COLOR APPLIED HERE) */}
+          {/* Account Details Card (EVERY TITLE AND VALUE COLOR IS DYNAMICALLY CONTROLLED) */}
           <div
             style={{ backgroundColor: cardBgColor, color: cardTextColor }}
             className="p-5 rounded-2xl space-y-3.5 shadow-xl border border-black/10 transition-colors duration-300"
@@ -133,28 +134,30 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
               {/* Account Holder */}
               <div className="flex items-center justify-between bg-white/5 p-2.5 rounded-xl border border-white/5">
                 <div>
-                  <span className="text-[10px] text-gray-400 block uppercase font-sans">Account Holder</span>
-                  <span className="font-bold text-white text-sm">{account?.accountHolderName || 'N/A'}</span>
+                  <span className="text-[10px] block uppercase font-sans font-bold" style={{ color: cardLabelColor }}>Account Holder</span>
+                  <span className="font-bold text-sm" style={{ color: cardTextColor }}>{account?.accountHolderName || 'N/A'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(account?.accountHolderName, 'holder')}
-                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 rounded-lg text-xs font-sans font-medium text-emerald-300 transition-colors"
+                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 rounded-lg text-xs font-sans font-medium transition-colors"
+                  style={{ color: cardTextColor }}
                 >
                   {copiedKey === 'holder' ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
 
               {/* Account Number */}
-              <div className="flex items-center justify-between bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/30">
+              <div className="flex items-center justify-between bg-white/10 p-2.5 rounded-xl border border-white/10">
                 <div>
-                  <span className="text-[10px] text-emerald-400 block uppercase font-sans font-bold">Account Number</span>
-                  <span className="font-extrabold text-emerald-400 text-base">{account?.accountNumber || 'N/A'}</span>
+                  <span className="text-[10px] block uppercase font-sans font-bold" style={{ color: cardLabelColor }}>Account Number</span>
+                  <span className="font-black text-base" style={{ color: cardTextColor }}>{account?.accountNumber || 'N/A'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(account?.accountNumber, 'acc')}
-                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-gray-950 rounded-lg text-xs font-sans font-bold shadow transition-colors"
+                  className="px-3 py-1.5 bg-white/25 hover:bg-white/35 rounded-lg text-xs font-sans font-black shadow transition-colors"
+                  style={{ color: cardTextColor }}
                 >
                   {copiedKey === 'acc' ? '✓ Copied' : 'Copy Acc'}
                 </button>
@@ -163,25 +166,26 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
               {/* Branch & Location */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white/5 p-2 rounded-xl border border-white/5">
-                  <span className="text-[10px] text-gray-400 block uppercase font-sans">Branch</span>
-                  <span className="font-semibold text-gray-200 truncate block">{account?.branchName || 'N/A'}</span>
+                  <span className="text-[10px] block uppercase font-sans font-bold" style={{ color: cardLabelColor }}>Branch</span>
+                  <span className="font-semibold truncate block" style={{ color: cardTextColor }}>{account?.branchName || 'N/A'}</span>
                 </div>
                 <div className="bg-white/5 p-2 rounded-xl border border-white/5">
-                  <span className="text-[10px] text-gray-400 block uppercase font-sans">Location</span>
-                  <span className="font-semibold text-gray-200 truncate block">{account?.upazilaThana}, {account?.district}</span>
+                  <span className="text-[10px] block uppercase font-sans font-bold" style={{ color: cardLabelColor }}>Location</span>
+                  <span className="font-semibold truncate block" style={{ color: cardTextColor }}>{account?.upazilaThana}, {account?.district}</span>
                 </div>
               </div>
 
               {/* Routing Number */}
               <div className="flex items-center justify-between bg-white/5 p-2.5 rounded-xl border border-white/5">
                 <div>
-                  <span className="text-[10px] text-gray-400 block uppercase font-sans">Routing Number</span>
-                  <span className="font-bold text-amber-300 text-sm">{account?.routingNumber || 'N/A'}</span>
+                  <span className="text-[10px] block uppercase font-sans font-bold" style={{ color: cardLabelColor }}>Routing Number</span>
+                  <span className="font-bold text-sm" style={{ color: cardTextColor }}>{account?.routingNumber || 'N/A'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(account?.routingNumber, 'routing')}
-                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 rounded-lg text-xs font-sans font-medium text-amber-300 transition-colors"
+                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 rounded-lg text-xs font-sans font-medium transition-colors"
+                  style={{ color: cardTextColor }}
                 >
                   {copiedKey === 'routing' ? '✓ Copied' : 'Copy'}
                 </button>

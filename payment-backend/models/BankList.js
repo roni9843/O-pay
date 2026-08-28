@@ -9,6 +9,7 @@ const BankListSchema = new mongoose.Schema(
     sortOrder: { type: Number, default: 0 },
     bgColor: { type: String, trim: true, default: '#ffffff' },
     textColor: { type: String, trim: true, default: '#1e293b' },
+    labelColor: { type: String, trim: true, default: '#94a3b8' },
   },
   { timestamps: true }
 );
