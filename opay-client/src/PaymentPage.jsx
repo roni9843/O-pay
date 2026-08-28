@@ -743,7 +743,7 @@ export default function SimplePaymentPage() {
                         });
                         setShowBankModal(true);
                       } else {
-                        handleUnavailableClick(bankName);
+                        handleUnavailableClick(data?.message || bankName);
                       }
                     } catch (e) {
                       handleUnavailableClick(bankName);
@@ -869,10 +869,12 @@ export default function SimplePaymentPage() {
                 <span className="text-red-500 text-2xl">!</span>
               </div>
               <h3 className="text-lg font-semibold mb-2" style={{ color: "#211060" }}>
-                Not Available Yet
+                {selectedMethod.toLowerCase().includes('already') || selectedMethod.toLowerCase().includes('expired') || selectedMethod.toLowerCase().includes('valid') ? 'Link Expired / Invalid' : 'Not Available Yet'}
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                {selectedMethod} is currently not available. Please choose another payment option.
+                {selectedMethod.toLowerCase().includes('already') || selectedMethod.toLowerCase().includes('expired') || selectedMethod.toLowerCase().includes('valid')
+                  ? selectedMethod
+                  : `${selectedMethod} is currently not available. Please choose another payment option.`}
               </p>
               <button
                 className="mt-1 inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-medium text-white shadow-md hover:shadow-lg transition"
