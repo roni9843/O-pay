@@ -686,12 +686,6 @@ router.get('/random-payment-method', async (req, res) => {
       });
     }
 
-    let requiredAmount = 0;
-    if (code) {
-      const session = await OpayBusinessPaymentSession.findOne({ code });
-      if (session) requiredAmount = session.amount || 0;
-    }
-
     // Load active methods for this provider, with owner + device
     const methods = await PaymentMethod.find({ provider: providerRaw, status: 'active' })
       // Need full owner object for credit Check
