@@ -734,7 +734,12 @@ export default function SimplePaymentPage() {
                       const res = await fetch(`${API_URL}/api/opay-business/random-payment-method?provider=bank&code=${sessionCode || ''}&env=${env}`);
                       const data = await res.json();
                       if (res.ok && data.success && data.method) {
-                        setSelectedAccount(data.method);
+                        setSelectedAccount({
+                          ...data.method,
+                          bgColor: wallet.bgColor,
+                          textColor: wallet.textColor,
+                          bankLogo: wallet.logo,
+                        });
                         setShowBankModal(true);
                       } else {
                         handleUnavailableClick(bankName);

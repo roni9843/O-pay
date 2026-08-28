@@ -39,16 +39,19 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
     }
   };
 
+  const customHeaderBg = account?.bgColor || 'linear-gradient(135deg, #211060, #20CFA2)';
+  const customHeaderStyle = account?.bgColor && account.bgColor !== '#ffffff' 
+    ? { backgroundColor: account.bgColor } 
+    : { background: "linear-gradient(135deg, #211060, #20CFA2)" };
+
   return (
     <div className="min-h-screen bg-[#ececec] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
         
-        {/* ================= HEADER (EXACT SAME AS HOME / PAYMENT PAGE) ================= */}
+        {/* ================= HEADER (DYNAMIC ADMIN COLOR FOR SELECTED BANK) ================= */}
         <div
-          className="relative px-6 pt-6 pb-20 text-white"
-          style={{
-            background: "linear-gradient(135deg, #211060, #20CFA2)",
-          }}
+          className="relative px-6 pt-6 pb-20 text-white transition-colors duration-300"
+          style={customHeaderStyle}
         >
           <div className="flex justify-between items-center">
             <button onClick={onBack} className="text-2xl opacity-80 hover:opacity-100 cursor-pointer">
@@ -61,9 +64,11 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
 
           <div className="mt-4 flex flex-col items-center text-center gap-1">
             <div className="w-16 h-16 rounded-2xl bg-white shadow-md flex items-center justify-center p-2">
-              <img src={logo} alt="Opay" className="w-full h-full object-contain" />
+              <img src={account?.bankLogo || logo} alt="Bank Logo" className="w-full h-full object-contain" />
             </div>
-            <h1 className="mt-2 text-xl font-semibold tracking-wide">Opay</h1>
+            <h1 className="mt-2 text-xl font-semibold tracking-wide" style={{ color: account?.textColor || '#ffffff' }}>
+              {account?.bankName || 'Opay'}
+            </h1>
             
             <div className="mt-1 px-3 py-[2px] rounded-full bg-white/20 backdrop-blur inline-flex items-center gap-2">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-400 text-[10px] font-bold text-white">
@@ -97,9 +102,9 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
           </div>
 
           {/* Floating Payable Amount Card */}
-          <div className="absolute left-1/2 -bottom-10 -translate-x-1/2 w-[90%] bg-white rounded-2xl shadow-lg px-6 py-4 text-center">
+          <div className="absolute left-1/2 -bottom-10 -translate-x-1/2 w-[90%] bg-white rounded-2xl shadow-lg px-6 py-4 text-center border border-gray-100">
             <p className="text-sm text-gray-500">Payable Amount</p>
-            <p className="text-2xl font-bold" style={{ color: "#211060" }}>
+            <p className="text-2xl font-bold" style={{ color: account?.bgColor && account.bgColor !== '#ffffff' ? account.bgColor : "#211060" }}>
               ৳{Number(amount).toFixed(2)}
             </p>
           </div>
