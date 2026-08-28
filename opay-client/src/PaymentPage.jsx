@@ -416,6 +416,7 @@ export default function SimplePaymentPage() {
       <BankTransferModal
         account={selectedAccount}
         amount={payableAmount}
+        sessionCode={sessionCode}
         onBack={() => setShowBankModal(false)}
         onSubmitProof={async (proofUrl, bankDetails) => {
           try {
