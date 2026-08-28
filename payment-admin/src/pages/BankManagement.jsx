@@ -44,7 +44,7 @@ export default function BankManagement() {
 
     setUploading(true);
     try {
-      const data = await api.uploadPaymentPageImage(file);
+      const data = await api.uploadPaymentPageImage(token, file);
       if (data && data.url) {
         setFormData((prev) => ({ ...prev, logo: data.url }));
         toast.success('Logo uploaded successfully');
