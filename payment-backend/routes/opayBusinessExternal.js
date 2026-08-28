@@ -1755,8 +1755,9 @@ router.post('/verify-payment', async (req, res) => {
 // Customer submits screenshot proof for bank transfer
 router.post('/verify-bank-payment', async (req, res) => {
   try {
-    const { code, proofUrl, bankDetails } = req.body;
-    if (!code || !proofUrl) {
+    const { code, proofUrl, proofUrls, bankDetails } = req.body;
+    const finalProofUrl = proofUrl || (Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls[0] : null);
+    if (!code || !finalProofUrl) {
       return res.status(400).json({ success: false, message: 'Missing code or proof screenshot URL' });
     }
 
@@ -1765,10 +1766,13 @@ router.post('/verify-bank-payment', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid or expired payment session' });
     }
 
+    const allProofs = Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls : [finalProofUrl];
+
     session.status = 'pending_bank';
     session.bankDetails = {
       ...(bankDetails || {}),
-      proofUrl,
+      proofUrl: finalProofUrl,
+      proofUrls: allProofs,
       submittedAt: new Date(),
     };
     await session.save();

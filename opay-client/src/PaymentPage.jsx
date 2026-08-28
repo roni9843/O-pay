@@ -418,7 +418,7 @@ export default function SimplePaymentPage() {
         amount={payableAmount}
         sessionCode={sessionCode}
         onBack={() => setShowBankModal(false)}
-        onSubmitProof={async (proofUrl, bankDetails) => {
+        onSubmitProof={async (proofUrl, bankDetails, proofUrls) => {
           try {
             const res = await fetch(`${API_URL}/api/opay-business/verify-bank-payment`, {
               method: 'POST',
@@ -426,6 +426,7 @@ export default function SimplePaymentPage() {
               body: JSON.stringify({
                 code: sessionCode,
                 proofUrl,
+                proofUrls,
                 bankDetails
               })
             });

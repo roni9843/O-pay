@@ -92,6 +92,20 @@ router.post('/payment-page-image', flexibleAuth, upload.single('image'), async (
   }
 });
 
+// POST /api/uploads/bank-proof
+// Public upload endpoint for customers submitting bank transfer proof images (single or multiple)
+router.post('/bank-proof', upload.array('proofs', 5), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'No proof files uploaded' });
+    }
+    const urls = req.files.map(f => `/uploads/${f.filename}`);
+    return res.status(201).json({ success: true, urls, url: urls[0] });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message || 'Proof upload failed' });
+  }
+});
+
 const videoStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
