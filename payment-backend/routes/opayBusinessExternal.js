@@ -1773,56 +1773,6 @@ router.post('/verify-payment', async (req, res) => {
     }
 
     return res.status(400).json({ success: false, message: 'Invalid or unsupported payment transaction' });
-  } catch (err) {
-    console.error('Verify payment error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during payment verification' });
-  }
-});
-
-// POST /api/opay-business/verify-bank-payment
-// Customer submits screenshot proof for bank transfer
-router.post('/verify-bank-payment', async (req, res) => {
-  try {
-    const { code, proofUrl, proofUrls, bankDetails } = req.body;
-    const finalProofUrl = proofUrl || (Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls[0] : null);
-    if (!code || !finalProofUrl) {
-      return res.status(400).json({ success: false, message: 'Missing code or proof screenshot URL' });
-    }
-
-    const session = await OpayBusinessPaymentSession.findOne({ code, status: { $in: ['pending', 'pending_bank'] } });
-    if (!session) {
-      return res.status(404).json({ success: false, message: 'Invalid or expired payment session' });
-    }
-
-    const allProofs = Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls : [finalProofUrl];
-
-    session.status = 'pending_bank';
-    session.bankDetails = {
-      ...(bankDetails || {}),
-      proofUrl: finalProofUrl,
-      proofUrls: allProofs,
-      submittedAt: new Date(),
-    };
-    await session.save();
-
-    // Broadcast Socket event to Admin & Agents
-    const io = req.app.get('socketio');
-    if (io) {
-      io.emit('pending_bank_payment_created', session);
-    }
-
-    return res.json({
-      success: true,
-      status: 'pending_bank',
-      message: 'Bank transfer proof submitted and awaiting approval',
-      code: session.code
-    });
-  } catch (err) {
-    console.error('Verify bank payment error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during bank proof submission' });
-  }
-});
-    }
 
     // Mark verified
     matchedMessage.verify = true;
@@ -1991,6 +1941,50 @@ router.post('/verify-bank-payment', async (req, res) => {
   } catch (err) {
     console.error('verify-payment error:', err);
     return res.status(500).json({ success: false, message: 'Server error during verification' });
+  }
+});
+
+// POST /api/opay-business/verify-bank-payment
+// Customer submits screenshot proof for bank transfer
+router.post('/verify-bank-payment', async (req, res) => {
+  try {
+    const { code, proofUrl, proofUrls, bankDetails } = req.body;
+    const finalProofUrl = proofUrl || (Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls[0] : null);
+    if (!code || !finalProofUrl) {
+      return res.status(400).json({ success: false, message: 'Missing code or proof screenshot URL' });
+    }
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: { $in: ['pending', 'pending_bank'] } });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Invalid or expired payment session' });
+    }
+
+    const allProofs = Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls : [finalProofUrl];
+
+    session.status = 'pending_bank';
+    session.bankDetails = {
+      ...(bankDetails || {}),
+      proofUrl: finalProofUrl,
+      proofUrls: allProofs,
+      submittedAt: new Date(),
+    };
+    await session.save();
+
+    // Broadcast Socket event to Admin & Agents
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('pending_bank_payment_created', session);
+    }
+
+    return res.json({
+      success: true,
+      status: 'pending_bank',
+      message: 'Bank transfer proof submitted and awaiting approval',
+      code: session.code
+    });
+  } catch (err) {
+    console.error('Verify bank payment error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during bank proof submission' });
   }
 });
 
