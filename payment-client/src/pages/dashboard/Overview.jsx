@@ -794,9 +794,10 @@ if (user?.role === "wallet_agent") {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
 
       {/* Active Auto Withdrawal (Booked by Me) */}
       {activeAutoWithdrawal && (
