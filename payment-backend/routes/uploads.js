@@ -77,6 +77,14 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
 });
 
+// Helper to construct full public URL with domain fallback
+function getPublicUrl(req, filename) {
+  const host = req.get('host') || 'localhost:5000';
+  const protocol = req.protocol === 'https' ? 'https' : 'http';
+  const baseUrl = (process.env.BACKEND_URL || `${protocol}://${host}`).replace(/\/+$/, '');
+  return `${baseUrl}/uploads/${filename}`;
+}
+
 // POST /api/uploads/payment-page-image
 // Upload a single image file; returns its public URL
 router.post('/payment-page-image', flexibleAuth, upload.single('image'), async (req, res) => {
@@ -85,7 +93,7 @@ router.post('/payment-page-image', flexibleAuth, upload.single('image'), async (
       return res.status(400).json({ error: 'No file uploaded' });
     }
     // Construct public URL
-    const url = `/uploads/${req.file.filename}`;
+    const url = getPublicUrl(req, req.file.filename);
     return res.status(201).json({ success: true, url });
   } catch (err) {
     return res.status(400).json({ error: err.message || 'Upload failed' });
@@ -99,7 +107,7 @@ router.post('/bank-proof', upload.array('proofs', 5), async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No proof files uploaded' });
     }
-    const urls = req.files.map(f => `/uploads/${f.filename}`);
+    const urls = req.files.map(f => getPublicUrl(req, f.filename));
     return res.status(201).json({ success: true, urls, url: urls[0] });
   } catch (err) {
     return res.status(400).json({ success: false, message: err.message || 'Proof upload failed' });
@@ -139,7 +147,7 @@ router.post('/landing-video', auth, videoUpload.single('video'), async (req, res
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const url = `/uploads/${req.file.filename}`;
+    const url = getPublicUrl(req, req.file.filename);
     return res.status(201).json({ success: true, url });
   } catch (err) {
     return res.status(400).json({ error: err.message || 'Video upload failed' });
@@ -153,7 +161,7 @@ router.post('/withdrawal-proof', auth, upload.array('images', 5), async (req, re
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ error: 'No files uploaded' });
         }
-        const urls = req.files.map(f => `/uploads/${f.filename}`);
+        const urls = req.files.map(f => getPublicUrl(req, f.filename));
         return res.status(201).json({ success: true, urls });
     } catch (err) {
         return res.status(400).json({ error: err.message || 'Upload failed' });

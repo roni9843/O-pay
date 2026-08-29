@@ -857,6 +857,27 @@ export async function rejectPendingBankPayment(token, code) {
   })
 }
 
+export async function getAgentBankAccounts(token) {
+  return request('/api/admin/agent-bank-accounts', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function updateAgentBankAccount(token, id, payload) {
+  return request(`/api/admin/agent-bank-accounts/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteAgentBankAccount(token, id) {
+  return request(`/api/admin/agent-bank-accounts/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
 export default {
   login, me,
   listUsers, createUser, getUser, updateUser, addBalance, addCredit, getAdminFAQs, createFAQ, updateFAQ, deleteFAQ, getLandingSettings, saveLandingSetting, uploadLandingVideo,
@@ -881,7 +902,8 @@ export default {
   toggleOpayBusinessLifetimePayment, assignOpayBusinessPackage,
   getMerchantTopupHistory,
   listAutoWithdrawals, rejectAutoWithdrawal,
-  getBankList, createBank, updateBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment
+  getBankList, createBank, updateBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment,
+  getAgentBankAccounts, updateAgentBankAccount, deleteAgentBankAccount
 }
 
 

@@ -98,7 +98,8 @@ export default function SimplePaymentPage() {
         }
       };
 
-      timer = setInterval(poll, 5000);
+      poll(); // Run immediately on mount
+      timer = setInterval(poll, 2000);
     }
     return () => {
       if (timer) clearInterval(timer);
@@ -762,10 +763,9 @@ export default function SimplePaymentPage() {
                       className="flex flex-col items-center gap-2 group relative"
                     >
                       <div
-                        style={{ backgroundColor: customBg }}
                         className="
                           relative w-20 h-20 sm:w-24 sm:h-24
-                          rounded-2xl shadow-md flex items-center justify-center p-3.5
+                          rounded-2xl bg-white shadow-md flex items-center justify-center p-3.5
                           transition-all duration-300 border border-gray-100/80
                           group-hover:shadow-xl group-hover:-translate-y-2
                         "
@@ -791,9 +791,8 @@ export default function SimplePaymentPage() {
                       </div>
 
                       <span
-                        style={{ color: customText }}
                         className="
-                          text-xs font-bold transition-colors text-center line-clamp-1
+                          text-xs font-bold text-slate-700 transition-colors text-center line-clamp-1 group-hover:text-[#20CFA2]
                         "
                       >
                         {bankName}

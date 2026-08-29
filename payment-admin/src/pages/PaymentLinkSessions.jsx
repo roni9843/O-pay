@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
-import { getPaymentSessionsAdmin, getPaymentSessionDetailsAdmin, listOpayBusinesses, listUsers } from '../lib/api'
+import { getPaymentSessionsAdmin, getPaymentSessionDetailsAdmin, listOpayBusinesses, listUsers, getBankList } from '../lib/api'
 import {
   Link as LinkIcon, ExternalLink, Calendar, Search, Activity, Clock, FileText, Smartphone, User, CheckCircle2, Copy, Check, Globe, ArrowRight, Briefcase, Hash, MessageSquareText, ShieldCheck, MapPin, Network, Monitor, Zap, Info, ArrowUpRight, ShieldAlert, Key, Eye, EyeOff, RefreshCw, Filter, Loader2
 } from 'lucide-react'
@@ -113,8 +113,15 @@ export default function PaymentLinkSessions() {
     verify: 'all'
   })
 
+  const [supportedBanks, setSupportedBanks] = useState([])
+
   useEffect(() => {
     fetchData()
+    getBankList(token).then(res => {
+      if (res && res.success && Array.isArray(res.data)) {
+        setSupportedBanks(res.data)
+      }
+    }).catch(() => {})
   }, [token, page, searchQuery, txnIdFilter, startDate, endDate, statusFilter, appliedFilters])
 
   useEffect(() => {
@@ -953,6 +960,41 @@ export default function PaymentLinkSessions() {
                           <div className="text-[10px] font-mono text-indigo-300 bg-indigo-500/10 p-1.5 rounded truncate border border-indigo-500/20" title={reqToken}>
                             Token: {reqToken}
                           </div>
+                          
+                          {/* Detailed Webhook Payload & Response Log */}
+                          {s.callbackResult ? (
+                            <div className="mt-2.5 bg-black/40 p-2.5 rounded-xl border border-indigo-500/30 text-left font-mono space-y-2">
+                              <div className="flex items-center justify-between border-b border-indigo-500/20 pb-1">
+                                <span className="text-[9px] uppercase font-bold text-indigo-300">📡 Webhook Payload Log</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                  s.callbackResult.success ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                                }`}>
+                                  {s.callbackResult.success ? `Sent (HTTP ${s.callbackResult.httpStatus || 200})` : 'Failed'}
+                                </span>
+                              </div>
+                              
+                              <div>
+                                <span className="text-[8px] uppercase text-indigo-400 font-bold block mb-0.5">Sent JSON Data:</span>
+                                <div className="text-[9px] text-emerald-200 bg-black/60 p-1.5 rounded border border-white/5 whitespace-pre-wrap break-all max-h-28 overflow-y-auto">
+                                  {JSON.stringify(s.callbackResult.payload || {}, null, 2)}
+                                </div>
+                              </div>
+
+                              {s.callbackResult.responseData && (
+                                <div>
+                                  <span className="text-[8px] uppercase text-sky-400 font-bold block mb-0.5">Merchant Server Response:</span>
+                                  <div className="text-[9px] text-sky-200 bg-black/60 p-1.5 rounded border border-white/5 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                                    {typeof s.callbackResult.responseData === 'object' ? JSON.stringify(s.callbackResult.responseData, null, 2) : String(s.callbackResult.responseData)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-[9px] text-slate-500 italic bg-black/20 p-2 rounded text-center">
+                              {s.status === 'paid' ? 'Webhook triggered on completion' : 'Webhook will send upon approval'}
+                            </div>
+                          )}
+
                           <div className="bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20 mt-2">
                             <div className="text-[9px] uppercase font-bold text-indigo-400 mb-1 border-b border-indigo-500/10 pb-1">
                               Generated using this token by:
@@ -988,24 +1030,96 @@ export default function PaymentLinkSessions() {
 
                       <div className="space-y-3 mt-auto mb-auto">
                         <div className="bg-[#050510] rounded-xl p-4 border border-amber-500/10 text-center">
-                          <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Target Number</div>
+                          <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">
+                            {s.bankDetails || s.paymentMethod === 'bank_transfer' ? 'Target Bank Details' : 'Target Number'}
+                          </div>
                           <div className="text-xl font-bold font-mono text-amber-400 tracking-wider">
-                            {targetAgentNumber}
+                            {s.bankDetails?.accountNumber || targetAgentNumber}
                           </div>
-                          <div className="flex justify-center gap-2 mt-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded-md border border-amber-500/30">
-                              {selectedMethod?.provider || s.paymentMessage?.type || 'Unknown'}
-                            </span>
+                          <div className="flex justify-center gap-2 mt-2 flex-wrap items-center">
+                            {(() => {
+                              const bName = s.bankDetails?.bankName;
+                              const matchedBank = supportedBanks.find(
+                                b => b.name?.toLowerCase().trim() === bName?.toLowerCase().trim()
+                              );
+                              let rawLogo = matchedBank?.logo || s.bankDetails?.bankLogo;
+                              if (rawLogo && !rawLogo.startsWith('http')) {
+                                const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+                                rawLogo = `${base}${rawLogo.startsWith('/') ? '' : '/'}${rawLogo}`;
+                              }
+                              return (
+                                <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded-md border border-amber-500/30 flex items-center gap-1.5">
+                                  {rawLogo && (
+                                    <img src={rawLogo} alt="Logo" className="w-3.5 h-3.5 object-contain bg-white rounded p-0.5" />
+                                  )}
+                                  {bName || selectedMethod?.provider || s.paymentMessage?.type || s.paymentMethod || 'Unknown'}
+                                </span>
+                              );
+                            })()}
                             <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-slate-400 px-2 py-0.5 rounded-md border border-white/10">
-                              {selectedMethod?.gateway || 'Unknown Type'}
+                              {s.bankDetails ? 'Bank Transfer' : (selectedMethod?.gateway || 'Unknown Type')}
                             </span>
                           </div>
+                          {s.bankDetails?.accountHolderName && (
+                            <div className="text-xs text-amber-200/80 mt-1 font-bold">
+                              Acc Holder: {s.bankDetails.accountHolderName}
+                            </div>
+                          )}
+                          {/* Proof Screenshots if Bank Transfer */}
+                          {s.bankDetails && (
+                            <div className="mt-3 pt-2 border-t border-white/10 text-left">
+                              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block mb-1.5">
+                                Bank Proof Screenshot(s):
+                              </span>
+                              {(s.bankDetails.proofUrls?.length > 0 || s.bankDetails.proofUrl) ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {(s.bankDetails.proofUrls || [s.bankDetails.proofUrl]).map((url, i) => (
+                                    <a
+                                      key={i}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block rounded-lg overflow-hidden border border-white/20 bg-black/60 h-16 relative hover:scale-105 transition-transform"
+                                    >
+                                      <img src={url} alt={`Proof ${i + 1}`} className="w-full h-full object-cover" />
+                                      <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[8px] px-1 rounded">Zoom 🔍</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 italic">No Screenshot Uploaded</span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Owner Info of Payment Method */}
+                        {/* Owner Info of Payment Method or Bank Transfer Wallet Agent */}
                         <div className="bg-[#050510] rounded-xl p-3 border border-white/5">
-                          <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1.5 mb-2"><User className="w-3 h-3" /> Number Owner Details</span>
-                          {s.resolvedMethod?.owner ? (
+                          <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1.5 mb-2">
+                            <User className="w-3 h-3" /> {s.bankDetails ? 'Bank Agent Owner Details' : 'Number Owner Details'}
+                          </span>
+                          {s.resolvedBankAgent ? (
+                            <div className="text-xs text-slate-300 space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Agent Name:</span>
+                                <strong className="text-emerald-300 font-bold">{s.resolvedBankAgent.name || 'Wallet Agent'}</strong>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Agent Email:</span>
+                                <span className="text-amber-300 font-mono font-bold">{s.resolvedBankAgent.email || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1 border-t border-white/10">
+                                <span className="text-slate-500">Bank Payment Status:</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  s.status === 'paid' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                                  s.status === 'cancelled' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                                  'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                                }`}>
+                                  {s.status === 'paid' ? '✅ Approved' : s.status === 'cancelled' ? '❌ Rejected' : '⏳ Pending'}
+                                </span>
+                              </div>
+                            </div>
+                          ) : s.resolvedMethod?.owner ? (
                             <div className="text-xs text-slate-300 space-y-1">
                               <div className="flex justify-between"><span className="text-slate-500">Name:</span> <strong>{s.resolvedMethod.owner.name}</strong></div>
                               <div className="flex justify-between"><span className="text-slate-500">Email:</span> <span className="text-slate-400 font-mono">{s.resolvedMethod.owner.email}</span></div>

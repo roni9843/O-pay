@@ -79,10 +79,15 @@ router.get('/stats', auth, async (req, res) => {
       return res.json({ success: true, data: statsCache });
     }
 
+    const verifiedVolumeAgg = await PaymentMessage.aggregate([
+      { $match: { verify: true } },
+      { $group: { _id: null, totalVolume: { $sum: '$amount' } } }
+    ]);
+    const verifiedPayments = verifiedVolumeAgg[0]?.totalVolume || 0;
+
     const [
       usersCount, 
       devicesCount, 
-      verifiedPayments, 
       pendingBalanceTopUps, 
       pendingWithdrawals,
       pendingCreditTopUps,
@@ -93,7 +98,6 @@ router.get('/stats', auth, async (req, res) => {
     ] = await Promise.all([
       User.countDocuments(),
       Device.countDocuments(),
-      PaymentMessage.countDocuments({ verify: true }),
       require('../models/BalanceTopUp').countDocuments({ status: 'pending' }),
       MerchantWithdrawal.countDocuments({ status: 'pending' }),
       require('../models/CreditTopupRequest').countDocuments({ status: 'pending' }),
@@ -198,6 +202,11 @@ router.get('/today-stats', auth, async (req, res) => {
       { $sort: { count: -1, amount: -1 } }
     ]);
 
+    const [todayBankDepositsCount, todayAutoWithdrawalsCount] = await Promise.all([
+      OpayBusinessPaymentSession.countDocuments({ status: 'paid', updatedAt: { $gte: startOfToday } }),
+      AutoWithdrawalRequest.countDocuments({ status: 'completed', updatedAt: { $gte: startOfToday } })
+    ]);
+
     // Calculate total and find top user
     let totalAmount = 0;
     let totalTransactions = 0;
@@ -223,6 +232,8 @@ router.get('/today-stats', auth, async (req, res) => {
       data: {
         totalAmount,
         totalTransactions,
+        todayBankDepositsCount,
+        todayAutoWithdrawalsCount,
         topUser: topUser || { count: 0, amount: 0 }
       }
     });
@@ -377,6 +388,14 @@ router.get('/users', auth, async (req, res) => {
       userPaymentStats.set(String(d.owner), prev);
     });
 
+    // Auto-withdrawal transaction volume per wallet agent
+    const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
+    const autoWithdrawalAgg = await AutoWithdrawalRequest.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: '$bookedBy', totalVolume: { $sum: '$amount' } } }
+    ]);
+    const autoWithdrawalVolMap = new Map(autoWithdrawalAgg.map(a => [String(a._id), a.totalVolume]));
+
     // Active subscription per user
     const subs = await UserSubscription.find({ user: { $in: userIds }, active: true }).select('user plan endDate').populate('plan', 'name').lean();
     const subMap = new Map();
@@ -385,8 +404,13 @@ router.get('/users', auth, async (req, res) => {
     const data = users.map(u => {
       const payments = userPaymentStats.get(String(u._id)) || { total: 0, amount: 0 };
       const subscription = subMap.get(String(u._id)) || null;
+      const baseTxVol = autoWithdrawalVolMap.get(String(u._id)) || 0;
+      const totalEffectiveVolume = baseTxVol + (u.autoWithdrawalVolume || 0);
+
       return {
         ...u,
+        autoWithdrawalVolume: totalEffectiveVolume,
+        baseTxVolume: baseTxVol,
         devicesCount: deviceMap.get(String(u._id)) || 0,
         verifiedPayments: payments.total,
         verifiedAmount: payments.amount,
@@ -985,20 +1009,30 @@ router.post('/balance-adjustments', auth, async (req, res) => {
     const parsedAmount = Number(amount);
     const normalizedTargetType = String(targetType || '').trim();
 
-    if (!['wallet_agent', 'merchant', 'paired'].includes(normalizedTargetType)) {
-      return res.status(400).json({ success: false, message: 'targetType must be wallet_agent, merchant, or paired' });
+    if (!['wallet_agent', 'merchant', 'paired', 'agent_withdrawal', 'agent_volume', 'agent_withdrawal_and_volume'].includes(normalizedTargetType)) {
+      return res.status(400).json({ success: false, message: 'targetType must be wallet_agent, merchant, paired, agent_withdrawal, agent_volume, or agent_withdrawal_and_volume' });
     }
 
     if (!['plus', 'minus'].includes(action)) {
       return res.status(400).json({ success: false, message: 'action must be plus or minus' });
     }
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    const { commissionAmount, volumeAmount } = req.body || {};
+    const parsedCommAmount = Number(commissionAmount);
+    const parsedVolAmount = Number(volumeAmount);
+
+    if (normalizedTargetType === 'agent_withdrawal_and_volume') {
+      const hasComm = Number.isFinite(parsedCommAmount) && parsedCommAmount > 0;
+      const hasVol = Number.isFinite(parsedVolAmount) && parsedVolAmount > 0;
+      if (!hasComm && !hasVol) {
+        return res.status(400).json({ success: false, message: 'At least one valid commission or volume amount is required' });
+      }
+    } else if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ success: false, message: 'amount must be a positive number' });
     }
 
-    if (normalizedTargetType === 'wallet_agent' && !walletAgentId) {
-      return res.status(400).json({ success: false, message: 'walletAgentId is required for wallet agent adjustments' });
+    if (['wallet_agent', 'agent_withdrawal', 'agent_volume', 'agent_withdrawal_and_volume'].includes(normalizedTargetType) && !walletAgentId) {
+      return res.status(400).json({ success: false, message: 'walletAgentId is required for agent adjustments' });
     }
     if (normalizedTargetType === 'merchant' && !merchantId) {
       return res.status(400).json({ success: false, message: 'merchantId is required for merchant adjustments' });
@@ -1020,22 +1054,50 @@ router.post('/balance-adjustments', auth, async (req, res) => {
     let updatedAgent = null;
     let updatedMerchant = null;
 
-    if (normalizedTargetType === 'wallet_agent') {
+    if (['wallet_agent', 'agent_withdrawal', 'agent_volume', 'agent_withdrawal_and_volume'].includes(normalizedTargetType)) {
       walletAgent = await User.findOne({ _id: walletAgentId, role: 'wallet_agent' });
       if (!walletAgent) {
         return res.status(404).json({ success: false, message: 'Wallet agent not found' });
       }
 
       walletDelta = action === 'plus' ? parsedAmount : -parsedAmount;
-      walletCreditBefore = Number(walletAgent.credit || 0);
+      let updateDoc = { $inc: { credit: walletDelta } };
+
+      if (normalizedTargetType === 'agent_withdrawal_and_volume') {
+        const commDelta = action === 'plus' ? (parsedCommAmount || 0) : -(parsedCommAmount || 0);
+        const volDelta = action === 'plus' ? (parsedVolAmount || 0) : -(parsedVolAmount || 0);
+        walletCreditBefore = Number(walletAgent.autoWithdrawalCommission || 0);
+        
+        updateDoc = { $inc: {} };
+        if (commDelta !== 0) updateDoc.$inc.autoWithdrawalCommission = commDelta;
+        if (volDelta !== 0) updateDoc.$inc.autoWithdrawalVolume = volDelta;
+      } else if (normalizedTargetType === 'agent_withdrawal') {
+        walletCreditBefore = Number(walletAgent.autoWithdrawalCommission || 0);
+        updateDoc = { $inc: { autoWithdrawalCommission: walletDelta } };
+      } else if (normalizedTargetType === 'agent_volume') {
+        walletCreditBefore = Number(walletAgent.autoWithdrawalVolume || 0);
+        updateDoc = { $inc: { autoWithdrawalVolume: walletDelta } };
+      } else {
+        walletCreditBefore = Number(walletAgent.credit || 0);
+      }
+
       updatedAgent = await User.findByIdAndUpdate(
         walletAgentId,
-        { $inc: { credit: walletDelta } },
+        updateDoc,
         { new: true, runValidators: true }
       ).select('-password');
-      walletCreditAfter = Number(updatedAgent.credit || 0);
 
-      merchant = await OpayBusiness.findById(merchantId).lean();
+      if (normalizedTargetType === 'agent_withdrawal_and_volume' || normalizedTargetType === 'agent_withdrawal') {
+        walletCreditAfter = Number(updatedAgent.autoWithdrawalCommission || 0);
+      } else if (normalizedTargetType === 'agent_volume') {
+        walletCreditAfter = Number(updatedAgent.autoWithdrawalVolume || 0);
+      } else {
+        walletCreditAfter = Number(updatedAgent.credit || 0);
+      }
+
+      if (merchantId) {
+        merchant = await OpayBusiness.findById(merchantId).lean();
+      }
       merchantBalanceBefore = Number(merchant?.balanceAdjustment || 0);
       merchantBalanceAfter = merchantBalanceBefore;
       merchantWalletBefore = merchantBalanceBefore;
@@ -1825,10 +1887,14 @@ router.get('/payment-sessions', auth, async (req, res) => {
     const Device = require('../models/Device');
     const PaymentMessage = require('../models/PaymentMessage');
 
-    // We need to resolve the Device owner and the PaymentMethod Details
     const deviceIds = items.map(i => i.verificationFootprint?.deviceId || i.paymentMessage?.deviceId).filter(Boolean);
     const devices = await Device.find({ deviceCode: { $in: deviceIds } }).populate('owner', 'name email phone').lean();
-    
+
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const bankAccountIds = items.map(i => i.bankDetails?.bankAccountId || i.bankDetails?.agentId).filter(Boolean);
+    const bankAccounts = bankAccountIds.length ? await AgentBankAccount.find({ _id: { $in: bankAccountIds } }).populate('owner', 'name email phone role').lean() : [];
+    const bankAccountMap = new Map(bankAccounts.map(b => [String(b._id), b]));
+
     // We also might want to resolve PaymentMethod by the account number
     const targetNumbers = items.map(i => i.events?.find(e => e.type === 'pay_click')?.meta?.method?.accountNumber || i.paymentMessage?.from || i.paymentMessage?.masking).filter(Boolean);
     const methods = await PaymentMethod.find({ accountNumber: { $in: targetNumbers } }).populate('owner', 'name email phone').lean();
@@ -1872,11 +1938,16 @@ router.get('/payment-sessions', auth, async (req, res) => {
         ? attemptedMessageMap.get(String(attemptedTrxId).toLowerCase()) || null
         : null;
 
+      const targetBankAccId = String(s.bankDetails?.bankAccountId || s.bankDetails?.agentId || '');
+      const resolvedBankAcc = bankAccountMap.get(targetBankAccId) || null;
+      const resolvedBankAgent = resolvedBankAcc?.owner || (s.walletAgentSnapshot ? { name: s.walletAgentSnapshot.agentName, _id: s.walletAgentSnapshot.agentId } : null);
+
       return {
         ...s,
         events: undefined,
         resolvedDevice,
         resolvedMethod,
+        resolvedBankAgent,
         attemptedTrxId,
         attemptedPaymentMessage,
         payment_page_url: `${baseUrl}/payment/${s.code}`,
@@ -3342,16 +3413,87 @@ router.delete('/banks/:id', auth, async (req, res) => {
   }
 });
 
-// --- PENDING BANK PAYMENTS (ADMIN) ---
+// --- ADMIN CRUD FOR AGENT BANK ACCOUNTS ---
+router.get('/agent-bank-accounts', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const accounts = await AgentBankAccount.find({})
+      .populate('owner', 'name email phone role credit')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ success: true, data: accounts });
+  } catch (err) {
+    console.error('Error fetching agent bank accounts:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/agent-bank-accounts/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const { bankName, accountHolderName, accountNumber, branchName, division, district, upazilaThana, routingNumber, status } = req.body;
+    
+    const account = await AgentBankAccount.findById(req.params.id);
+    if (!account) return res.status(404).json({ success: false, message: 'Agent bank account not found' });
+
+    if (bankName) account.bankName = bankName.trim();
+    if (accountHolderName) account.accountHolderName = accountHolderName.trim();
+    if (accountNumber) account.accountNumber = accountNumber.trim();
+    if (branchName !== undefined) account.branchName = branchName.trim();
+    if (division !== undefined) account.division = division.trim();
+    if (district !== undefined) account.district = district.trim();
+    if (upazilaThana !== undefined) account.upazilaThana = upazilaThana.trim();
+    if (routingNumber !== undefined) account.routingNumber = routingNumber.trim();
+    if (status) account.status = status;
+
+    await account.save();
+    return res.json({ success: true, data: account, message: 'Agent bank account updated successfully' });
+  } catch (err) {
+    console.error('Error updating agent bank account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/agent-bank-accounts/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const deleted = await AgentBankAccount.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Bank account not found' });
+    return res.json({ success: true, message: 'Agent bank account deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting agent bank account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- PENDING & HISTORY BANK PAYMENTS (ADMIN) ---
 router.get('/pending-bank-payments', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 50, status } = req.query;
     const pageNum = Math.max(1, Number(page) || 1);
-    const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+    const lim = Math.max(1, Math.min(200, Number(limit) || 50));
     const skip = (pageNum - 1) * lim;
 
-    const query = { status: 'pending_bank' };
+    let matchStatus = { $in: ['pending_bank'] };
+    if (status === 'history') {
+      matchStatus = { $in: ['paid', 'cancelled'] };
+    } else if (status === 'all') {
+      matchStatus = { $in: ['pending_bank', 'paid', 'cancelled'] };
+    }
+
+    const query = { 
+      status: matchStatus,
+      $or: [
+        { paymentMethod: 'bank_transfer' },
+        { bankDetails: { $ne: null } }
+      ]
+    };
+
     const [items, total] = await Promise.all([
       OpayBusinessPaymentSession.find(query)
         .populate('business')
@@ -3362,9 +3504,45 @@ router.get('/pending-bank-payments', auth, async (req, res) => {
       OpayBusinessPaymentSession.countDocuments(query),
     ]);
 
-    return res.json({ success: true, data: items, page: pageNum, total });
+    // Resolve Bank Agent owner details for each session
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const User = require('../models/User');
+    const bankAccIds = items.map(i => i.bankDetails?.bankAccountId || i.bankDetails?.agentId).filter(Boolean);
+    const bankAccounts = bankAccIds.length ? await AgentBankAccount.find({ _id: { $in: bankAccIds } }).populate('owner', 'name email phone role').lean() : [];
+    const bankAccMap = new Map(bankAccounts.map(b => [String(b._id), b]));
+
+    // Fetch all users to match fallback email
+    const allUsers = await User.find({}).select('_id name email phone role').lean();
+    const userMapById = new Map(allUsers.map(u => [String(u._id), u]));
+    const userMapByName = new Map(allUsers.map(u => [String(u.name || '').trim().toLowerCase(), u]));
+
+    const enrichedItems = items.map(session => {
+      const targetBankAccId = String(session.bankDetails?.bankAccountId || session.bankDetails?.agentId || '');
+      const targetAgentId = String(session.bankDetails?.agentId || session.walletAgentSnapshot?.agentId || '');
+      const snapshotName = String(session.walletAgentSnapshot?.agentName || '').trim().toLowerCase();
+      
+      const resolvedBankAcc = bankAccMap.get(targetBankAccId) || null;
+      const directUserById = userMapById.get(targetAgentId) || null;
+      const directUserByName = userMapByName.get(snapshotName) || null;
+
+      const matchedAgent = resolvedBankAcc?.owner || directUserById || directUserByName;
+      
+      const resolvedBankAgent = {
+        name: matchedAgent?.name || session.walletAgentSnapshot?.agentName || 'Wallet Agent',
+        email: matchedAgent?.email || null,
+        phone: matchedAgent?.phone || null,
+        _id: matchedAgent?._id || session.walletAgentSnapshot?.agentId || null
+      };
+
+      return {
+        ...session,
+        resolvedBankAgent
+      };
+    });
+
+    return res.json({ success: true, data: enrichedItems, page: pageNum, total });
   } catch (err) {
-    console.error('Error fetching pending bank sessions:', err);
+    console.error('Error fetching admin bank sessions:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });

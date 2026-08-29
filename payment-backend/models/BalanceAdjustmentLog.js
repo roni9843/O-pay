@@ -19,7 +19,7 @@ const BalanceAdjustmentLogSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['wallet_agent', 'merchant', 'paired'],
+      enum: ['wallet_agent', 'merchant', 'paired', 'agent_withdrawal', 'agent_volume', 'agent_withdrawal_and_volume'],
       required: true,
     },
     action: {

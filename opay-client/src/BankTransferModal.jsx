@@ -150,7 +150,11 @@ export default function BankTransferModal({ account, amount, sessionCode, onBack
             <div className="flex items-center justify-between border-b border-black/10 pb-2.5">
               <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: cardTextColor }}>
                 {account?.bankLogo ? (
-                  <img src={account.bankLogo} alt="Logo" className="w-6 h-6 object-contain bg-white rounded p-0.5" />
+                  <img
+                    src={account.bankLogo.startsWith('http') ? account.bankLogo : `http://localhost:5000${account.bankLogo.startsWith('/') ? '' : '/'}${account.bankLogo}`}
+                    alt="Logo"
+                    className="w-6 h-6 object-contain bg-white rounded p-0.5"
+                  />
                 ) : (
                   '🏦'
                 )}

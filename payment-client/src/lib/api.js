@@ -399,8 +399,9 @@ export async function deleteAgentBankAccount(token, id) {
   });
 }
 
-export async function getAgentPendingBankPayments(token) {
-  return request('/api/dashboard/pending-bank-payments', {
+export async function getAgentPendingBankPayments(token, status) {
+  const query = status ? `?status=${status}` : '';
+  return request(`/api/dashboard/pending-bank-payments${query}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
@@ -440,6 +441,7 @@ export default {
   get,
   post,
   delete: del,
+  getMySubscriptions,
   getMyPaymentMethods,
   getPaymentMethodPages,
   createPaymentMethodPage,
@@ -454,6 +456,7 @@ export default {
   bookAutoWithdrawal,
   rejectAutoWithdrawal,
   getAutoWithdrawalHistory,
+  getAutoWithdrawalStats,
   completeAutoWithdrawal,
   getAgentPendingNagad,
   acceptPendingNagad,

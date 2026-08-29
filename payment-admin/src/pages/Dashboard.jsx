@@ -21,7 +21,9 @@ import {
   Signal,
   TrendingUp,
   Crown,
-  Building
+  Building,
+  Landmark,
+  ArrowDownRight
 } from 'lucide-react'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -215,14 +217,7 @@ export default function Dashboard() {
           color="from-emerald-500 to-teal-600"
         />
 
-        <AnimatedSummaryCard
-          custom={2}
-          title="Verified Vol"
-          value={stats?.verifiedPayments ?? '--'}
-          prefix="BDT "
-          icon={CheckCircle2}
-          color="from-emerald-500 to-teal-600"
-        />
+
         <AnimatedSummaryCard
           custom={3}
           title="Pending Top-ups"
@@ -248,6 +243,23 @@ export default function Dashboard() {
           color="from-cyan-500 to-blue-600"
         />
         
+        <AnimatedSummaryCard
+          custom={6}
+          title="Today Bank Deposits"
+          value={todayStatsData?.todayBankDepositsCount ?? 0}
+          suffix=" txns"
+          icon={Landmark}
+          color="from-emerald-500 to-teal-600"
+        />
+
+        <AnimatedSummaryCard
+          custom={7}
+          title="Today Auto Withdrawals"
+          value={todayStatsData?.todayAutoWithdrawalsCount ?? 0}
+          suffix=" txns"
+          icon={ArrowDownRight}
+          color="from-purple-500 to-indigo-600"
+        />
       </div>
 
          {/* Today's Paid Count by User (stylish, includes wallet agents) */}

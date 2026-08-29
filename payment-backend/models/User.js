@@ -17,6 +17,7 @@ const UserSchema = new mongoose.Schema(
     autoWithdrawalCommissionRate: { type: Number, default: 0 },
     autoWithdrawalCommission: { type: Number, default: 0 },
     autoWithdrawalBonus: { type: Number, default: 0 },
+    autoWithdrawalVolume: { type: Number, default: 0 },
     backgroundColor: { type: String, default: null },
     supportNumber: { type: String, default: null },
     statusTitle: { type: String, default: null },

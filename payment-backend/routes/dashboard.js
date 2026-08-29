@@ -780,31 +780,46 @@ router.delete('/bank-accounts/:id', auth, async (req, res) => {
   }
 });
 
-// --- WALLET AGENT PENDING BANK PAYMENTS ---
+// --- WALLET AGENT PENDING & COMPLETED BANK PAYMENTS HISTORY ---
 router.get('/pending-bank-payments', auth, async (req, res) => {
   try {
     const AgentBankAccount = require('../models/AgentBankAccount');
     const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const statusQuery = req.query.status;
 
     // 1. Get bank account IDs / numbers of this agent
     const bankAccounts = await AgentBankAccount.find({ owner: req.user._id }).select('_id accountNumber').lean();
     const bankAccIds = bankAccounts.map(b => String(b._id));
 
-    // 2. Fetch all sessions with status 'pending_bank'
-    const sessions = await OpayBusinessPaymentSession.find({ status: 'pending_bank' })
+    // 2. Determine status filter
+    let matchStatus = { $in: ['pending_bank'] };
+    if (statusQuery === 'history') {
+      matchStatus = { $in: ['paid', 'cancelled'] };
+    } else if (statusQuery === 'all') {
+      matchStatus = { $in: ['pending_bank', 'paid', 'cancelled'] };
+    }
+
+    // 3. Fetch sessions with paymentMethod bank_transfer or status pending_bank
+    const sessions = await OpayBusinessPaymentSession.find({ 
+      status: matchStatus,
+      $or: [
+        { paymentMethod: 'bank_transfer' },
+        { bankDetails: { $ne: null } }
+      ]
+    })
       .populate('business')
       .sort({ updatedAt: -1 })
       .lean();
 
-    // 3. Filter sessions matching this agent's bank accounts
+    // 4. Filter sessions matching this agent's bank accounts or snapshots
     const filtered = sessions.filter(session => {
-      const targetAgentId = session.bankDetails?.agentId || session.bankDetails?.bankAccountId;
+      const targetAgentId = session.bankDetails?.agentId || session.bankDetails?.bankAccountId || session.walletAgentSnapshot?.agentId;
       return targetAgentId && (String(targetAgentId) === String(req.user._id) || bankAccIds.includes(String(targetAgentId)));
     });
 
     return res.json({ success: true, data: filtered });
   } catch (err) {
-    console.error('Error fetching agent pending bank payments:', err);
+    console.error('Error fetching agent bank payments:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -868,7 +883,12 @@ router.post('/pending-bank-payments/accept', auth, async (req, res) => {
 
     await session.save();
 
-    // Trigger Callback URL
+    // Extract proof images array for bank transfer
+    const proofImages = Array.isArray(session.bankDetails?.proofUrls) && session.bankDetails.proofUrls.length > 0
+      ? session.bankDetails.proofUrls
+      : (session.bankDetails?.proofUrl ? [session.bankDetails.proofUrl] : []);
+
+    // Trigger Callback Webhook URL & Record Full Payload Log
     const payload = {
       status: 'COMPLETED',
       amount: Number(session.amount),
@@ -878,11 +898,46 @@ router.post('/pending-bank-payments/accept', auth, async (req, res) => {
       user_identity: session.userIdentityAddress || null,
       checkout_items: session.checkoutItems || null,
       bank: 'bank_transfer',
+      proof_images: proofImages,
     };
 
     if (session.callbackUrl) {
       const axios = require('axios');
-      axios.post(session.callbackUrl, payload, { timeout: 5000 }).catch(e => console.warn('Callback error:', e.message));
+      try {
+        const cbRes = await axios.post(session.callbackUrl, payload, { timeout: 7000 });
+        session.callbackResult = {
+          success: true,
+          sentAt: new Date(),
+          payload,
+          httpStatus: cbRes.status,
+          responseData: cbRes.data
+        };
+      } catch (cbErr) {
+        console.warn('Bank callback webhook error:', cbErr.message);
+        session.callbackResult = {
+          success: false,
+          sentAt: new Date(),
+          payload,
+          error: cbErr.message,
+          responseData: cbErr.response?.data || null
+        };
+      }
+      await session.save();
+    }
+
+    // Emit Socket IO event for Instant Client Confirmation
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('opay_payment_success', {
+        code: session.code,
+        status: 'paid',
+        redirectUrl: session.successRedirectUrl || session.success_redirect_url
+      });
+      io.emit('payment_completed', {
+        code: session.code,
+        status: 'paid',
+        redirectUrl: session.successRedirectUrl || session.success_redirect_url
+      });
     }
 
     return res.json({ success: true, message: 'Bank payment approved successfully' });
@@ -903,8 +958,30 @@ router.post('/pending-bank-payments/reject', auth, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Pending bank session not found' });
     }
 
+    const User = require('../models/User');
+    const agentUser = await User.findById(req.user._id).select('name credit');
+
     session.status = 'cancelled';
+    if (agentUser) {
+      session.walletAgentSnapshot = {
+        agentId: agentUser._id,
+        agentName: agentUser.name || 'Unknown Agent',
+        creditBefore: agentUser.credit || 0,
+        creditAfter: agentUser.credit || 0,
+        creditDeducted: 0,
+      };
+    }
     await session.save();
+
+    // Emit Socket IO event for Instant Client Rejection Confirmation
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('opay_payment_failed', {
+        code: session.code,
+        status: 'cancelled',
+        message: 'আপনার ব্যাংক পেমেন্ট প্রুফটি রিজেক্ট করা হয়েছে।'
+      });
+    }
 
     return res.json({ success: true, message: 'Bank payment rejected' });
   } catch (err) {

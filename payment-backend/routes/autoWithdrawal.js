@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
@@ -17,8 +18,7 @@ router.get('/pending', auth, async (req, res) => {
     res.setHeader('Expires', '0');
     
     const userId = req.user.id;
-    const mongoose = require('mongoose');
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
     
     // Find requests that are pending
     const pendingRequests = await AutoWithdrawalRequest.find({
@@ -304,25 +304,28 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
 router.get('/stats', auth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+
     const completedRequests = await AutoWithdrawalRequest.find({ 
-      bookedBy: userId, 
+      bookedBy: { $in: [userId, userObjectId] }, 
       status: 'completed'
     }).select('amount agentCommissionAmount').lean();
 
-    const user = await User.findById(userId).select('autoWithdrawalCommission autoWithdrawalBonus autoWithdrawalCommissionRate').lean();
+    const user = await User.findById(userId).select('autoWithdrawalCommission autoWithdrawalBonus autoWithdrawalCommissionRate autoWithdrawalVolume autoWithdrawalCompletedCount').lean();
     const commRate = user?.autoWithdrawalCommissionRate || 3;
 
-    const totalVolume = completedRequests.reduce((sum, r) => sum + (r.amount || 0), 0);
-    const completedCount = completedRequests.length;
+    const calculatedVolume = completedRequests.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const completedCount = completedRequests.length > 0 ? completedRequests.length : (user?.autoWithdrawalCompletedCount || 0);
     
     const calculatedCommission = completedRequests.reduce((sum, r) => {
       const comm = r.agentCommissionAmount !== undefined && r.agentCommissionAmount > 0 
         ? r.agentCommissionAmount 
-        : ((r.amount || 0) * commRate) / 100;
+        : (Number(r.amount || 0) * commRate) / 100;
       return sum + comm;
     }, 0);
 
     const userCommission = (user?.autoWithdrawalCommission || 0) + (user?.autoWithdrawalBonus || 0);
+    const totalVolume = calculatedVolume + (user?.autoWithdrawalVolume || 0);
     const totalCommission = userCommission > 0 ? userCommission : calculatedCommission;
 
     return res.json({
@@ -344,8 +347,9 @@ router.get('/stats', auth, async (req, res) => {
 router.get('/history', auth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
     const history = await AutoWithdrawalRequest.find({ 
-      bookedBy: userId, 
+      bookedBy: { $in: [userId, userObjectId] }, 
       status: { $in: ['completed', 'failed'] } 
     })
     .sort({ createdAt: -1 })
@@ -363,6 +367,7 @@ router.get('/history', auth, async (req, res) => {
       totalCompletedCount
     });
   } catch (err) {
+    console.error('Error fetching history:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
