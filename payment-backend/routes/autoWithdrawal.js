@@ -215,6 +215,8 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
     
     // Add Commission + Bonus to agent's autoWithdrawalCommission card balance
     agent.autoWithdrawalCommission = (agent.autoWithdrawalCommission || 0) + agentCommissionAmount;
+    agent.autoWithdrawalVolume = (agent.autoWithdrawalVolume || 0) + (request.amount || 0);
+    agent.autoWithdrawalCompletedCount = (agent.autoWithdrawalCompletedCount || 0) + 1;
     await agent.save();
 
     // The merchant balance doesn't actually get deducted from an explicit 'balance' field in OpayBusiness

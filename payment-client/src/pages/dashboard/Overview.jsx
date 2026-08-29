@@ -231,17 +231,26 @@ export default function Overview() {
       const activeUser = meRes || user;
       const historyList = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
       const completedList = historyList.filter(h => h.status === 'completed');
-      const totalEarned = completedList.reduce((sum, item) => {
+      
+      const calculatedEarned = completedList.reduce((sum, item) => {
         const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
           ? item.agentCommissionAmount
           : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 0)) / 100;
         return sum + comm;
       }, 0);
-      const totalVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const calculatedVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-      setTotalAgentEarnings(totalEarned);
-      setTotalAgentVolume(totalVol);
-      setCompletedWithdrawalCount(completedList.length);
+      // Use user level totals if available (e.g. from backend User model or history)
+      const userComm = (activeUser?.autoWithdrawalCommission || 0) + (activeUser?.autoWithdrawalBonus || 0);
+      const userVol = activeUser?.autoWithdrawalVolume || 0;
+
+      const finalEarned = userComm > 0 ? userComm : calculatedEarned;
+      const finalVol = userVol > 0 ? userVol : calculatedVol;
+      const finalCount = completedList.length > 0 ? completedList.length : (activeUser?.autoWithdrawalCompletedCount || 0);
+
+      setTotalAgentEarnings(finalEarned);
+      setTotalAgentVolume(finalVol);
+      setCompletedWithdrawalCount(finalCount);
 
       if (meRes) setUser(meRes);
 
