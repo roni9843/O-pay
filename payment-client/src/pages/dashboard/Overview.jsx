@@ -229,15 +229,15 @@ export default function Overview() {
       setPendingAutoWithdrawals(pendingWithdrawalsList);
 
       const activeUser = meRes || user;
-      const historyList = historyRes?.data || [];
+      const historyList = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
       const completedList = historyList.filter(h => h.status === 'completed');
       const totalEarned = completedList.reduce((sum, item) => {
         const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
           ? item.agentCommissionAmount
-          : (item.amount * (activeUser?.autoWithdrawalCommissionRate || 0)) / 100;
+          : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 0)) / 100;
         return sum + comm;
       }, 0);
-      const totalVol = completedList.reduce((sum, item) => sum + (item.amount || 0), 0);
+      const totalVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
       setTotalAgentEarnings(totalEarned);
       setTotalAgentVolume(totalVol);
