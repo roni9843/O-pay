@@ -229,8 +229,11 @@ export default function Overview() {
       setPendingAutoWithdrawals(pendingWithdrawalsList);
 
       const activeUser = meRes || user;
-      const historyList = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
-      const completedList = historyList.filter(h => h.status === 'completed' || h.status === 'COMPLETED');
+      const historyList = Array.isArray(historyRes) 
+        ? historyRes 
+        : (Array.isArray(historyRes?.data) ? historyRes.data : (historyRes?.data?.data || []));
+      
+      const completedList = historyList.filter(h => !h.status || String(h.status).toLowerCase() === 'completed');
       
       const calculatedEarned = completedList.reduce((sum, item) => {
         const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
