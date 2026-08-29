@@ -90,6 +90,7 @@ export default function Overview() {
   const [pendingTopup, setPendingTopup] = React.useState(null);
   const [copyState, setCopyState] = React.useState('');
   const [pendingNagadList, setPendingNagadList] = React.useState([]);
+  const [pendingBankList, setPendingBankList] = React.useState([]);
   const [pendingAutoWithdrawals, setPendingAutoWithdrawals] = React.useState([]);
   const [activeAutoWithdrawal, setActiveAutoWithdrawal] = React.useState(null); // The one currently booked by this agent
   const [completionFiles, setCompletionFiles] = React.useState([]);
@@ -119,6 +120,29 @@ export default function Overview() {
     }
   }
 
+  async function acceptPendingBank(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to APPROVE this Bank Transfer payment? Credit deduction will run.')) return;
+    try {
+      await api.acceptPendingBankPayment(token, code);
+      setPendingBankList(prev => prev.filter(p => p.code !== code));
+      alert('Bank transfer payment approved successfully.');
+    } catch (e) {
+      alert(e.message || 'Accept failed');
+    }
+  }
+
+  async function rejectPendingBank(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to REJECT this Bank Transfer payment session?')) return;
+    try {
+      await api.rejectPendingBankPayment(token, code);
+      setPendingBankList(prev => prev.filter(p => p.code !== code));
+      alert('Bank transfer payment rejected successfully.');
+    } catch (e) {
+      alert(e.message || 'Reject failed');
+    }
+  }
 
   const handleToggleStatus = async () => {
     if (!toggleModal) return;
@@ -153,7 +177,7 @@ export default function Overview() {
       setUser(data);
     } catch (err) {
       console.error("Failed to refresh credit:", err);
-    } finally {
+    } fontally {
       setRefreshingCredit(false);
     }
   };
@@ -166,13 +190,14 @@ export default function Overview() {
   const loadOverviewData = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingWithdrawalsRes, historyRes, meRes] = await Promise.all([
+      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingBankRes, pendingWithdrawalsRes, historyRes, meRes] = await Promise.all([
         api.getDashboardOverview(token).catch(() => ({})),
         api.getMyPaymentMethods(token).catch(() => []),
         api.getPaymentMethodPages(token).catch(() => []),
         api.getMySubscriptions(token).catch(() => []),
         api.getMyCreditTopupRequests(token).catch(() => []),
         api.getAgentPendingNagad(token).catch(() => ({ data: [] })),
+        api.getAgentPendingBankPayments(token).catch(() => ({ data: [] })),
         api.getPendingAutoWithdrawals(token).catch(() => ({ data: [], pending: [], active: null })),
         api.getAutoWithdrawalHistory(token).catch(() => ({ data: [] })),
         api.me(token).catch(() => null)
@@ -195,6 +220,7 @@ export default function Overview() {
       setPendingTopup(pending || null);
 
       setPendingNagadList(pendingNagadRes?.data || []);
+      setPendingBankList(pendingBankRes?.data || []);
       
       const pendingWithdrawalsList = pendingWithdrawalsRes?.pending || [];
       const activeBooking = pendingWithdrawalsRes?.active || null;
@@ -274,6 +300,7 @@ export default function Overview() {
     socket.on("auto_withdrawal_rejected", refreshData);
     socket.on("auto_withdrawal_timeout", refreshData);
     socket.on("auto_withdrawal_updated", refreshData);
+    socket.on("pending_bank_payment_created", refreshData);
 
     return () => {
       socket.disconnect();
@@ -673,6 +700,103 @@ if (user?.role === "wallet_agent") {
           ))}
         </div>
       )}
+
+      {/* Pending Bank Transfer Proofs for Wallet Agent */}
+      {pendingBankList && pendingBankList.length > 0 && (
+        <div className="w-full max-w-md lg:max-w-lg mb-6 animate-in slide-in-from-top-4 duration-500 space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              🏦 Pending Bank Payments ({pendingBankList.length})
+            </h3>
+            <Link to="/dashboard/pending-bank" className="text-xs font-bold text-emerald-600 hover:underline">
+              View All →
+            </Link>
+          </div>
+          {pendingBankList.map(session => {
+            const bDetails = session.bankDetails || {};
+            const proofUrls = Array.isArray(bDetails.proofUrls) && bDetails.proofUrls.length > 0 ? bDetails.proofUrls : (bDetails.proofUrl ? [bDetails.proofUrl] : []);
+
+            return (
+              <div key={session.code} className="bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 p-6 rounded-3xl shadow-2xl border-2 border-emerald-400/50 text-white relative overflow-hidden group">
+                <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                
+                <div className="space-y-4 relative z-10">
+                  <div className="flex items-center justify-between border-b border-white/15 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
+                        🏦
+                      </div>
+                      <div>
+                        <h4 className="font-black text-base leading-tight uppercase tracking-wider">{bDetails.bankName || 'Bank Transfer'}</h4>
+                        <span className="text-[10px] font-mono text-emerald-200">Session #{session.code}</span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] bg-emerald-400 text-slate-950 font-black px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse shadow">
+                      Action Required
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-emerald-100 uppercase tracking-wider font-bold">Transfer Amount</span>
+                    <span className="text-3xl font-black text-white drop-shadow-md">
+                      ৳{Number(session.amount || 0).toLocaleString()} <span className="text-xs font-normal text-emerald-200">BDT</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-black/30 p-3.5 rounded-2xl border border-white/10 space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-emerald-200 font-sans text-[11px]">Account Holder:</span>
+                      <strong className="text-white font-bold">{bDetails.accountHolderName || 'N/A'}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-200 font-sans text-[11px]">Account Number:</span>
+                      <strong className="text-emerald-300 font-bold">{bDetails.accountNumber || 'N/A'}</strong>
+                    </div>
+                  </div>
+
+                  {/* Proof Screenshots Preview */}
+                  {proofUrls.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 block">Screenshot Proof ({proofUrls.length}):</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {proofUrls.map((url, idx) => (
+                          <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-xl overflow-hidden border border-white/20 bg-black/40 h-24 relative group/img"
+                          >
+                            <img src={url} alt={`Proof ${idx + 1}`} className="w-full h-full object-cover transition-transform group-hover/img:scale-105" />
+                            <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                              Zoom 🔍
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={() => acceptPendingBank(session.code)}
+                      className="flex-1 py-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Approve Payment
+                    </button>
+                    <button
+                      onClick={() => rejectPendingBank(session.code)}
+                      className="px-4 py-3 bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <AlertCircle className="w-4 h-4" /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
       {/* Active Auto Withdrawal (Booked by Me) */}
       {activeAutoWithdrawal && (
