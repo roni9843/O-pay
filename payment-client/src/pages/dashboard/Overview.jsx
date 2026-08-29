@@ -230,22 +230,21 @@ export default function Overview() {
 
       const activeUser = meRes || user;
       const historyList = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
-      const completedList = historyList.filter(h => h.status === 'completed');
+      const completedList = historyList.filter(h => h.status === 'completed' || h.status === 'COMPLETED');
       
       const calculatedEarned = completedList.reduce((sum, item) => {
         const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
           ? item.agentCommissionAmount
-          : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 0)) / 100;
+          : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 3)) / 100;
         return sum + comm;
       }, 0);
       const calculatedVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-      // Use user level totals if available (e.g. from backend User model or history)
       const userComm = (activeUser?.autoWithdrawalCommission || 0) + (activeUser?.autoWithdrawalBonus || 0);
       const userVol = activeUser?.autoWithdrawalVolume || 0;
 
-      const finalEarned = userComm > 0 ? userComm : calculatedEarned;
-      const finalVol = userVol > 0 ? userVol : calculatedVol;
+      const finalEarned = calculatedEarned > 0 ? calculatedEarned : userComm;
+      const finalVol = calculatedVol > 0 ? calculatedVol : userVol;
       const finalCount = completedList.length > 0 ? completedList.length : (activeUser?.autoWithdrawalCompletedCount || 0);
 
       setTotalAgentEarnings(finalEarned);
