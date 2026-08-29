@@ -330,6 +330,12 @@ export async function getAutoWithdrawalHistory(token) {
   });
 }
 
+export async function getAutoWithdrawalStats(token) {
+  return request("/api/auto-withdrawal/stats", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export async function completeAutoWithdrawal(token, id, proofImages) {
   const formData = new FormData();
   if (proofImages && proofImages.length > 0) {

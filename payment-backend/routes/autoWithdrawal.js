@@ -300,6 +300,46 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
   }
 });
 
+// Dedicated Agent Stats Endpoint
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const completedRequests = await AutoWithdrawalRequest.find({ 
+      bookedBy: userId, 
+      status: 'completed'
+    }).select('amount agentCommissionAmount').lean();
+
+    const user = await User.findById(userId).select('autoWithdrawalCommission autoWithdrawalBonus autoWithdrawalCommissionRate').lean();
+    const commRate = user?.autoWithdrawalCommissionRate || 3;
+
+    const totalVolume = completedRequests.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const completedCount = completedRequests.length;
+    
+    const calculatedCommission = completedRequests.reduce((sum, r) => {
+      const comm = r.agentCommissionAmount !== undefined && r.agentCommissionAmount > 0 
+        ? r.agentCommissionAmount 
+        : ((r.amount || 0) * commRate) / 100;
+      return sum + comm;
+    }, 0);
+
+    const userCommission = (user?.autoWithdrawalCommission || 0) + (user?.autoWithdrawalBonus || 0);
+    const totalCommission = userCommission > 0 ? userCommission : calculatedCommission;
+
+    return res.json({
+      success: true,
+      data: {
+        totalVolume,
+        completedCount,
+        totalCommission,
+        commissionRate: commRate
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching agent stats:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Agent History
 router.get('/history', auth, async (req, res) => {
   try {

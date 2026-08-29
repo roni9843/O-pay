@@ -190,7 +190,7 @@ export default function Overview() {
   const loadOverviewData = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingBankRes, pendingWithdrawalsRes, historyRes, meRes] = await Promise.all([
+      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingBankRes, pendingWithdrawalsRes, historyRes, agentStatsRes, meRes] = await Promise.all([
         api.getDashboardOverview(token).catch(() => ({})),
         api.getMyPaymentMethods(token).catch(() => []),
         api.getPaymentMethodPages(token).catch(() => []),
@@ -200,6 +200,7 @@ export default function Overview() {
         api.getAgentPendingBankPayments(token).catch(() => ({ data: [] })),
         api.getPendingAutoWithdrawals(token).catch(() => ({ data: [], pending: [], active: null })),
         api.getAutoWithdrawalHistory(token).catch(() => ({ data: [] })),
+        api.getAutoWithdrawalStats(token).catch(() => ({ success: false })),
         api.me(token).catch(() => null)
       ]);
 
@@ -245,9 +246,11 @@ export default function Overview() {
       const userVol = activeUser?.autoWithdrawalVolume || 0;
       const userCount = activeUser?.autoWithdrawalCompletedCount || 0;
 
-      const finalVol = historyRes?.totalCompletedVolume ?? (calculatedVol > 0 ? calculatedVol : userVol);
-      const finalCount = historyRes?.totalCompletedCount ?? (completedList.length > 0 ? completedList.length : userCount);
-      const finalEarned = userComm > 0 ? userComm : calculatedEarned;
+      // If dedicated stats API returned data, use it; otherwise fallback
+      const agentStats = agentStatsRes?.data || {};
+      const finalVol = agentStats.totalVolume ?? (calculatedVol > 0 ? calculatedVol : userVol);
+      const finalCount = agentStats.completedCount ?? (completedList.length > 0 ? completedList.length : userCount);
+      const finalEarned = agentStats.totalCommission ?? (userComm > 0 ? userComm : calculatedEarned);
 
       setTotalAgentEarnings(finalEarned);
       setTotalAgentVolume(finalVol);
