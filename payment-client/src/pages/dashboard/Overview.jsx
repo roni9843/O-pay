@@ -252,6 +252,17 @@ export default function Overview() {
         return end < tenDaysLater;
       });
       setExpiringSubs(warnings);
+
+      // Check active subscription for wallet agent card
+      const activeSub = (subsRes || []).find(s => s.active && new Date(s.endDate) > now);
+      if (activeSub) {
+        setWalletSubActive(true);
+        setWalletSubEnd(activeSub.endDate);
+      } else {
+        const latestSub = (subsRes || []).sort((a, b) => new Date(b.endDate) - new Date(a.endDate))[0];
+        setWalletSubActive(false);
+        setWalletSubEnd(latestSub?.endDate || null);
+      }
     } catch (err) {
       console.error("Overview data load error:", err);
     } finally {
@@ -530,7 +541,7 @@ if (user?.role === "wallet_agent") {
     { to: "/dashboard/auto-withdrawal-history", label: "Auto Withdrawals History", icon: History },
   ];
 
-  const isCardActive = walletSubActive && new Date(walletSubEnd) > new Date();
+  const isCardActive = (user?.credit > 0) || (walletSubActive && new Date(walletSubEnd) > new Date());
 
   // Redirect to topup if credit is 0 AND NO pending request
   if ((!user?.credit || user.credit <= 0) && !pendingTopup) {
