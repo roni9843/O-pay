@@ -229,26 +229,25 @@ export default function Overview() {
       setPendingAutoWithdrawals(pendingWithdrawalsList);
 
       const activeUser = meRes || user;
-      const historyList = Array.isArray(historyRes) 
-        ? historyRes 
-        : (Array.isArray(historyRes?.data) ? historyRes.data : (historyRes?.data?.data || []));
-      
-      const completedList = historyList.filter(h => !h.status || String(h.status).toLowerCase() === 'completed');
-      
+      const rawHistory = historyRes?.data || historyRes || [];
+      const historyList = Array.isArray(rawHistory) ? rawHistory : [];
+      const completedList = historyList.filter(h => String(h.status).toLowerCase() === 'completed');
+
+      const calculatedVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const calculatedEarned = completedList.reduce((sum, item) => {
         const comm = item.agentCommissionAmount !== undefined && item.agentCommissionAmount > 0
           ? item.agentCommissionAmount
           : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 3)) / 100;
         return sum + comm;
       }, 0);
-      const calculatedVol = historyRes?.totalCompletedVolume ?? completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
       const userComm = (activeUser?.autoWithdrawalCommission || 0) + (activeUser?.autoWithdrawalBonus || 0);
       const userVol = activeUser?.autoWithdrawalVolume || 0;
+      const userCount = activeUser?.autoWithdrawalCompletedCount || 0;
 
-      const finalEarned = calculatedEarned > 0 ? calculatedEarned : userComm;
-      const finalVol = calculatedVol > 0 ? calculatedVol : (userVol > 0 ? userVol : 0);
-      const finalCount = historyRes?.totalCompletedCount ?? (completedList.length > 0 ? completedList.length : (activeUser?.autoWithdrawalCompletedCount || 0));
+      const finalVol = historyRes?.totalCompletedVolume ?? (calculatedVol > 0 ? calculatedVol : userVol);
+      const finalCount = historyRes?.totalCompletedCount ?? (completedList.length > 0 ? completedList.length : userCount);
+      const finalEarned = userComm > 0 ? userComm : calculatedEarned;
 
       setTotalAgentEarnings(finalEarned);
       setTotalAgentVolume(finalVol);
