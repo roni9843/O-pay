@@ -177,7 +177,7 @@ export default function Overview() {
       setUser(data);
     } catch (err) {
       console.error("Failed to refresh credit:", err);
-    } fontally {
+    } finally {
       setRefreshingCredit(false);
     }
   };
