@@ -241,14 +241,14 @@ export default function Overview() {
           : (Number(item.amount || 0) * (activeUser?.autoWithdrawalCommissionRate || 3)) / 100;
         return sum + comm;
       }, 0);
-      const calculatedVol = completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const calculatedVol = historyRes?.totalCompletedVolume ?? completedList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
       const userComm = (activeUser?.autoWithdrawalCommission || 0) + (activeUser?.autoWithdrawalBonus || 0);
       const userVol = activeUser?.autoWithdrawalVolume || 0;
 
       const finalEarned = calculatedEarned > 0 ? calculatedEarned : userComm;
-      const finalVol = calculatedVol > 0 ? calculatedVol : userVol;
-      const finalCount = completedList.length > 0 ? completedList.length : (activeUser?.autoWithdrawalCompletedCount || 0);
+      const finalVol = calculatedVol > 0 ? calculatedVol : (userVol > 0 ? userVol : 0);
+      const finalCount = historyRes?.totalCompletedCount ?? (completedList.length > 0 ? completedList.length : (activeUser?.autoWithdrawalCompletedCount || 0));
 
       setTotalAgentEarnings(finalEarned);
       setTotalAgentVolume(finalVol);

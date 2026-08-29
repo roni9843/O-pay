@@ -312,7 +312,16 @@ router.get('/history', auth, async (req, res) => {
     .populate('merchant', 'name logo')
     .lean();
 
-    return res.json({ success: true, data: history });
+    const completed = history.filter(h => h.status === 'completed');
+    const totalCompletedVolume = completed.reduce((sum, h) => sum + (h.amount || 0), 0);
+    const totalCompletedCount = completed.length;
+
+    return res.json({ 
+      success: true, 
+      data: history,
+      totalCompletedVolume,
+      totalCompletedCount
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
