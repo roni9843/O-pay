@@ -69,6 +69,7 @@ export default function SimplePaymentPage() {
   const [isPendingNagad, setIsPendingNagad] = useState(false);
   const [isPendingBank, setIsPendingBank] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [visibleBankCount, setVisibleBankCount] = useState(9);
 
   useEffect(() => {
     let timer;
@@ -267,6 +268,7 @@ export default function SimplePaymentPage() {
   }, []);
 
   const [supportedBanks, setSupportedBanks] = useState([]);
+  const [allBanks, setAllBanks] = useState([]);
 
   // Load Admin supported banks list dynamically
   useEffect(() => {
@@ -276,6 +278,7 @@ export default function SimplePaymentPage() {
         const data = await res.json();
         if (res.ok && data.success && Array.isArray(data.data)) {
           setSupportedBanks(data.data);
+          setAllBanks(data.allBanks || data.data);
         }
       } catch (_) {}
     }
@@ -418,6 +421,7 @@ export default function SimplePaymentPage() {
         account={selectedAccount}
         amount={payableAmount}
         sessionCode={sessionCode}
+        supportedBanks={allBanks}
         onBack={() => setShowBankModal(false)}
         onSubmitProof={async (proofUrl, bankDetails, proofUrls) => {
           try {
@@ -727,7 +731,7 @@ export default function SimplePaymentPage() {
           {activeTab === 0 && (
             <>
               <div className="grid grid-cols-3 gap-6">
-                {(supportedBanks.length > 0 ? supportedBanks : bankWallets).map((wallet) => {
+                {(supportedBanks.length > 0 ? supportedBanks : bankWallets).slice(0, visibleBankCount).map((wallet) => {
                   const bankName = wallet.name;
                   const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
 
@@ -801,6 +805,20 @@ export default function SimplePaymentPage() {
                   );
                 })}
               </div>
+              
+              {(supportedBanks.length > 0 ? supportedBanks : bankWallets).length > visibleBankCount && (
+                <div className="mt-6 flex justify-center w-full">
+                  <button 
+                    onClick={() => setVisibleBankCount(prev => prev + 9)}
+                    className="px-8 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 font-bold rounded-full shadow-sm border border-gray-200 transition-all text-sm flex items-center gap-2"
+                  >
+                    Load More
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </>
           )}
 

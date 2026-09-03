@@ -620,8 +620,18 @@ router.get('/wallet-status', async (req, res) => {
 router.get('/supported-banks', async (_req, res) => {
   try {
     const BankList = require('../models/BankList');
-    const banks = await BankList.find({ status: 'active' }).sort({ sortOrder: 1, name: 1 }).lean();
-    return res.json({ success: true, data: banks });
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    
+    const banks = await BankList.find({ status: 'active' }).lean();
+    const activeAccounts = await AgentBankAccount.find({ status: 'active' }).distinct('bankName');
+    const activeBankNamesLower = activeAccounts.map(n => n.toLowerCase());
+    
+    let filteredBanks = banks.filter(b => activeBankNamesLower.includes(b.name.toLowerCase()));
+    
+    // Shuffle the banks randomly
+    filteredBanks = filteredBanks.sort(() => Math.random() - 0.5);
+    
+    return res.json({ success: true, data: filteredBanks, allBanks: banks });
   } catch (err) {
     console.error('opay-business supported-banks error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading supported banks' });
@@ -665,12 +675,6 @@ router.get('/random-payment-method', async (req, res) => {
       }
       if (session.status === 'cancelled' || session.status === 'expired' || (session.expiresAt && session.expiresAt < new Date())) {
         return res.status(410).json({ success: false, message: 'Payment session expired' });
-      }
-      if (session.firstOpenedAt) {
-        const timeSinceFirstOpen = new Date() - new Date(session.firstOpenedAt);
-        if (timeSinceFirstOpen > 30 * 1000) {
-          return res.status(410).json({ success: false, message: 'This payment link has already been used and is no longer valid.' });
-        }
       }
       requiredAmount = session.amount || 0;
     }
@@ -2717,6 +2721,119 @@ router.get('/topup-history', opayBusinessAuth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching merchant topup history:', err);
     return res.status(500).json({ success: false, message: 'Server error fetching topup history' });
+  }
+});
+
+// Simple in-memory store for OTPs (in production, use Redis or DB with TTL)
+const bankOtpStore = new Map();
+
+// POST /api/opay-business/send-bank-otp
+// Public endpoint for sending OTP during bank transfer
+router.post('/send-bank-otp', async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) return res.status(400).json({ success: false, message: 'Phone number is required' });
+
+    // Ensure proper BD number format (e.g., 88017XXXXXXXX)
+    // The user input should be validated in frontend, but we ensure it matches the API requirement.
+    let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
+    if (formattedNumber.length === 11 && formattedNumber.startsWith('01')) {
+      formattedNumber = '88' + formattedNumber;
+    } else if (formattedNumber.length === 13 && formattedNumber.startsWith('8801')) {
+      // Already OK
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid Bangladeshi phone number' });
+    }
+
+    const response = await fetch("https://api.o-sms.com/api/service/send-otp", {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer 4cd4c55e26d7571c49f553efba7890db14dadbd3b260a6d39a75ea1373f0b316',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        phoneNumber: formattedNumber
+      })
+    });
+
+    const data = await response.json();
+    if (data && data.success && data.otp) {
+      // Store OTP in memory against the phone number (valid for 5 minutes)
+      bankOtpStore.set(phoneNumber, { otp: String(data.otp), expires: Date.now() + 5 * 60 * 1000 });
+      return res.json({ success: true, message: 'OTP sent successfully' });
+    } else {
+      console.error('SMS API Error:', data);
+      return res.status(500).json({ success: false, message: 'Failed to send OTP via SMS Gateway' });
+    }
+  } catch (err) {
+    console.error('Error sending OTP:', err);
+    return res.status(500).json({ success: false, message: 'Server error sending OTP' });
+  }
+});
+
+// POST /api/opay-business/verify-bank-otp
+router.post('/verify-bank-otp', async (req, res) => {
+  try {
+    const { phoneNumber, otp, bankName, amount } = req.body;
+    if (!phoneNumber || !otp || !bankName) {
+      return res.status(400).json({ success: false, message: 'Phone number, OTP, and Bank Name are required' });
+    }
+
+    const stored = bankOtpStore.get(phoneNumber);
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'No OTP found for this number' });
+    }
+
+    if (Date.now() > stored.expires) {
+      bankOtpStore.delete(phoneNumber);
+      return res.status(400).json({ success: false, message: 'OTP has expired' });
+    }
+
+    if (stored.otp === String(otp)) {
+      bankOtpStore.delete(phoneNumber); // OTP used successfully
+
+      // Fetch a random eligible agent account for this bank
+      const AgentBankAccount = require('../models/AgentBankAccount');
+      const UserSubscription = require('../models/UserSubscription');
+      const now = new Date();
+      const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).select('user').lean();
+      const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
+
+      const bankAccounts = await AgentBankAccount.find({ status: 'active', bankName }).populate('owner').lean();
+      const eligibleBanks = bankAccounts.filter((b) => {
+        if (!b.owner || b.owner.role !== 'wallet_agent') return false;
+        if (!activeUserIds.has(b.owner._id.toString())) return false;
+        const availCredit = (b.owner.credit || 0) - (b.owner.minimumCredit || 0);
+        return availCredit >= (Number(amount) || 0);
+      });
+
+      if (!eligibleBanks.length) {
+        return res.status(404).json({ success: false, message: 'No active agent account available for this bank' });
+      }
+
+      const chosenBank = eligibleBanks[Math.floor(Math.random() * eligibleBanks.length)];
+
+      const agentAccountDetails = {
+        bankName: chosenBank.bankName,
+        accountHolderName: chosenBank.accountHolderName,
+        accountNumber: chosenBank.accountNumber,
+        branchName: chosenBank.branchName,
+        division: chosenBank.division,
+        district: chosenBank.district,
+        upazilaThana: chosenBank.upazilaThana,
+        routingNumber: chosenBank.routingNumber,
+        agentId: chosenBank.owner._id,
+        bankAccountId: chosenBank._id,
+        ownerName: chosenBank.owner.name,
+      };
+
+      return res.json({ success: true, message: 'OTP Verified', agentAccount: agentAccountDetails });
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+  } catch (err) {
+    console.error('Error verifying OTP:', err);
+    return res.status(500).json({ success: false, message: 'Server error verifying OTP' });
   }
 });
 

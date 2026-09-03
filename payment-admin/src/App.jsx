@@ -39,6 +39,9 @@ import AdminLayout from './layouts/AdminLayout'
 import { Toaster } from 'react-hot-toast'
 
 import BankManagement from './pages/BankManagement'
+import BankAdd from './pages/BankAdd'
+import BankEdit from './pages/BankEdit'
+import BankDetail from './pages/BankDetail'
 import PendingBankPayments from './pages/PendingBankPayments'
 
 export default function App() {
@@ -72,7 +75,13 @@ export default function App() {
         <Route path="/pending-balances" element={<PendingBalances />} />
         <Route path="/pending-nagad" element={<PendingNagad />} />
         <Route path="/pending-bank-payments" element={<PendingBankPayments />} />
+        
+        {/* Bank Management Routes */}
         <Route path="/bank-management" element={<BankManagement />} />
+        <Route path="/bank-management/add" element={<BankAdd />} />
+        <Route path="/bank-management/edit/:id" element={<BankEdit />} />
+        <Route path="/bank-management/:id" element={<BankDetail />} />
+
         <Route path="/balance-adjustment" element={<BalanceAdjustment />} />
 
         <Route path="/credit-plans" element={<CreditPlans />} />

@@ -24,6 +24,8 @@ docs/OPAY_API_BUSINESS_DOCS_VIDEO.mp4
 !.env.example
 serviceAccountKey.json
 *.json.key
+*.zip
+*.timestamp-*.mjs
 
 # Editor and OS files
 .vscode/*
