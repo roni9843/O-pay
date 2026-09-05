@@ -174,41 +174,66 @@ export default function PendingBankPayments() {
                           }
 
                           return (
-                            <div className="flex items-center gap-2.5">
-                              {rawLogo ? (
-                                <div className="w-8 h-8 rounded-xl bg-black border border-white/10 p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                  <img src={rawLogo} alt={bd.bankName} className="w-full h-full object-contain" />
+                            <div className="flex flex-col gap-2">
+                              {/* Source to Target Row */}
+                              <div className="flex items-center gap-3">
+                                {/* Source Bank */}
+                                <div className="flex-1 flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/10">
+                                  {rawLogo ? (
+                                    <div className="w-8 h-8 rounded-lg bg-black p-1 flex shrink-0 items-center justify-center">
+                                      <img src={rawLogo} alt={bd.bankName} className="w-full h-full object-contain" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex shrink-0 items-center justify-center">
+                                      🏦
+                                    </div>
+                                  )}
+                                  <div className="truncate">
+                                    <div className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">From User</div>
+                                    <div className="font-bold text-white text-xs truncate" title={bd.bankName}>{bd.bankName || 'Bank Transfer'}</div>
+                                    <div className="text-[10px] text-indigo-300 font-mono mt-0.5 truncate">Acc: {bd.accountNumber || 'N/A'}</div>
+                                    {bd.accountHolderName && <div className="text-[9px] text-slate-400 truncate">Holder: {bd.accountHolderName}</div>}
+                                  </div>
                                 </div>
-                              ) : (
-                                <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-base flex-shrink-0">
-                                  🏦
+
+                                {/* Arrow */}
+                                <div className="flex-shrink-0">
+                                  <svg className="w-5 h-5 text-emerald-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                  </svg>
                                 </div>
-                              )}
-                              <div>
-                                <div className="font-bold text-white text-base">{bd.bankName || 'Bank Transfer'}</div>
-                                <div className="text-xs text-indigo-300 font-mono mt-0.5">Acc: {bd.accountNumber || 'N/A'}</div>
+
+                                {/* Target Bank */}
+                                <div className="flex-1 flex flex-row-reverse items-center gap-2 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 text-right">
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex shrink-0 items-center justify-center">
+                                    🏦
+                                  </div>
+                                  <div className="truncate">
+                                    <div className="text-[9px] text-emerald-200 uppercase font-bold tracking-wider">To Agent</div>
+                                    <div className="font-bold text-emerald-50 text-xs truncate" title={bd.agentAccount?.bankName}>{bd.agentAccount?.bankName || 'Target Bank'}</div>
+                                    <div className="text-[10px] text-emerald-300 font-mono mt-0.5 truncate">Acc: {bd.agentAccount?.accountNumber || 'N/A'}</div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Agent Details */}
+                              <div className="bg-black/40 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
+                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                  🏦 Wallet Agent:
+                                </span>
+                                {agentInfo ? (
+                                  <div className="text-right">
+                                    <div className="text-amber-300 font-bold font-mono text-[11px]">{agentInfo.agentName || agentInfo.name || 'Wallet Agent'}</div>
+                                    {agentInfo.email && <div className="text-slate-300 text-[10px] font-mono mt-0.5">{agentInfo.email}</div>}
+                                    {agentInfo.phone && <div className="text-slate-400 text-[10px] font-mono">{agentInfo.phone}</div>}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-500 italic text-[10px]">Unlinked</span>
+                                )}
                               </div>
                             </div>
                           );
                         })()}
-                        {bd.accountHolderName && (
-                          <div className="text-[11px] text-slate-400 mt-1">Holder: {bd.accountHolderName}</div>
-                        )}
-                        {/* Wallet Agent Email & Info Display */}
-                        <div className="mt-2 bg-black/40 p-2.5 rounded-xl border border-white/10 text-[11px] text-left">
-                          <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider mb-1">
-                            🏦 Wallet Agent Target:
-                          </span>
-                          {agentInfo ? (
-                            <div>
-                              <div className="text-amber-300 font-bold font-mono">{agentInfo.agentName || agentInfo.name || 'Wallet Agent'}</div>
-                              {agentInfo.email && <div className="text-slate-300 text-[10px] font-mono font-bold mt-0.5">{agentInfo.email}</div>}
-                              {agentInfo.phone && <div className="text-slate-400 text-[10px] font-mono">{agentInfo.phone}</div>}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500 italic text-[10px]">Unlinked Agent Account</span>
-                          )}
-                        </div>
                       </td>
                       <td className="p-4">
                         {proofUrls.length > 0 ? (

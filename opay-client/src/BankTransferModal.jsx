@@ -102,6 +102,8 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
     }
   };
 
+  const [accountHolderName, setAccountHolderName] = useState('');
+
   const handleVerifyOtp = async () => {
     if (!otp) return showCustomAlert('Please enter OTP', 'error');
     
@@ -111,7 +113,7 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
       const res = await fetch(`${base}/api/opay-business/verify-bank-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: mobileNumber, otp, bankName: selectedBank?.name, amount })
+        body: JSON.stringify({ phoneNumber: mobileNumber, otp, bankName: selectedBank?.name, amount, agentBankAccountId: account?.bankAccountId })
       });
       const data = await res.json();
       if (data.success) {
@@ -145,14 +147,32 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
     if (!selectedBank || !accountNumber || !mobileNumber || !isOtpVerified) {
       return showCustomAlert('Please fill in all details and verify OTP.', 'error');
     }
-    // Note: In production, upload proofFile to a server and get the real URL
-    const finalProofUrl = proofPreview || 'https://dummy-proof-url.com/proof.png';
     
     setSubmitting(true);
     try {
+      let finalProofUrl = 'https://dummy-proof-url.com/proof.png';
+      
+      // Upload proofFile to the server
+      if (proofFile) {
+        const formData = new FormData();
+        formData.append('proofs', proofFile);
+        const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+        const uploadRes = await fetch(`${base}/api/uploads/bank-proof`, {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.urls && uploadData.urls.length > 0) {
+          finalProofUrl = uploadData.urls[0];
+        } else {
+          throw new Error('Image upload failed');
+        }
+      }
+
       await onSubmitProof(finalProofUrl, {
         selectedBank: selectedBank.name,
         accountNumber,
+        accountHolderName,
         mobileNumber,
         otp,
         agentAccount: verifiedAgentAccount
@@ -249,7 +269,7 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
             <div className="bg-[#783ce2] text-white rounded-[16px] p-3 pl-4 flex items-center shadow-md">
                <div>
                   <p className="text-[9px] uppercase tracking-wider font-semibold opacity-80 mb-0.5">Payment Method</p>
-                  <p className="font-bold text-sm tracking-wide">BANK DEPOSIT (NPSB)</p>
+                  <p className="font-bold text-sm tracking-wide">{account?.bankName || 'BANK DEPOSIT (NPSB)'}</p>
                </div>
             </div>
           )}
@@ -353,6 +373,29 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                      </svg>
                    </button>
+                 </div>
+               </div>
+            </div>
+
+            {/* Account Holder Name */}
+            <div className="flex gap-4 items-start relative z-10">
+               <div className="flex-shrink-0 mt-1 w-10 h-10 rounded-full bg-[#e23c8f] flex items-center justify-center text-white shadow-md">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+               </div>
+               <div className="flex-1">
+                 <label className="text-xs font-bold text-[#5c6999] mb-1.5 flex justify-between items-center">
+                   <span>একাউন্ট হোল্ডারের নাম লিখুন (ঐচ্ছিক)</span>
+                 </label>
+                 <div className="relative">
+                   <input 
+                      type="text" 
+                      value={accountHolderName}
+                      onChange={(e) => setAccountHolderName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-800 bg-white shadow-sm focus:border-[#0EB78C] focus:ring-1 focus:ring-[#0EB78C] outline-none"
+                   />
                  </div>
                </div>
             </div>

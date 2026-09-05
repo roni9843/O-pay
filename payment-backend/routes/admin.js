@@ -3507,7 +3507,7 @@ router.get('/pending-bank-payments', auth, async (req, res) => {
     // Resolve Bank Agent owner details for each session
     const AgentBankAccount = require('../models/AgentBankAccount');
     const User = require('../models/User');
-    const bankAccIds = items.map(i => i.bankDetails?.bankAccountId || i.bankDetails?.agentId).filter(Boolean);
+    const bankAccIds = items.map(i => i.bankDetails?.agentAccount?.bankAccountId || i.bankDetails?.bankAccountId || i.bankDetails?.agentAccount?.agentId || i.bankDetails?.agentId).filter(Boolean);
     const bankAccounts = bankAccIds.length ? await AgentBankAccount.find({ _id: { $in: bankAccIds } }).populate('owner', 'name email phone role').lean() : [];
     const bankAccMap = new Map(bankAccounts.map(b => [String(b._id), b]));
 
@@ -3517,8 +3517,8 @@ router.get('/pending-bank-payments', auth, async (req, res) => {
     const userMapByName = new Map(allUsers.map(u => [String(u.name || '').trim().toLowerCase(), u]));
 
     const enrichedItems = items.map(session => {
-      const targetBankAccId = String(session.bankDetails?.bankAccountId || session.bankDetails?.agentId || '');
-      const targetAgentId = String(session.bankDetails?.agentId || session.walletAgentSnapshot?.agentId || '');
+      const targetBankAccId = String(session.bankDetails?.agentAccount?.bankAccountId || session.bankDetails?.bankAccountId || session.bankDetails?.agentAccount?.agentId || session.bankDetails?.agentId || '');
+      const targetAgentId = String(session.bankDetails?.agentAccount?.agentId || session.bankDetails?.agentId || session.walletAgentSnapshot?.agentId || '');
       const snapshotName = String(session.walletAgentSnapshot?.agentName || '').trim().toLowerCase();
       
       const resolvedBankAcc = bankAccMap.get(targetBankAccId) || null;

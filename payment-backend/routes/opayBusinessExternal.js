@@ -2774,7 +2774,7 @@ router.post('/send-bank-otp', async (req, res) => {
 // POST /api/opay-business/verify-bank-otp
 router.post('/verify-bank-otp', async (req, res) => {
   try {
-    const { phoneNumber, otp, bankName, amount } = req.body;
+    const { phoneNumber, otp, bankName, amount, agentBankAccountId } = req.body;
     if (!phoneNumber || !otp || !bankName) {
       return res.status(400).json({ success: false, message: 'Phone number, OTP, and Bank Name are required' });
     }
@@ -2792,26 +2792,40 @@ router.post('/verify-bank-otp', async (req, res) => {
     if (stored.otp === String(otp)) {
       bankOtpStore.delete(phoneNumber); // OTP used successfully
 
-      // Fetch a random eligible agent account for this bank
       const AgentBankAccount = require('../models/AgentBankAccount');
-      const UserSubscription = require('../models/UserSubscription');
-      const now = new Date();
-      const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).select('user').lean();
-      const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
+      let chosenBank = null;
 
-      const bankAccounts = await AgentBankAccount.find({ status: 'active', bankName }).populate('owner').lean();
-      const eligibleBanks = bankAccounts.filter((b) => {
-        if (!b.owner || b.owner.role !== 'wallet_agent') return false;
-        if (!activeUserIds.has(b.owner._id.toString())) return false;
-        const availCredit = (b.owner.credit || 0) - (b.owner.minimumCredit || 0);
-        return availCredit >= (Number(amount) || 0);
-      });
-
-      if (!eligibleBanks.length) {
-        return res.status(404).json({ success: false, message: 'No active agent account available for this bank' });
+      if (agentBankAccountId) {
+        chosenBank = await AgentBankAccount.findById(agentBankAccountId).populate('owner').lean();
       }
 
-      const chosenBank = eligibleBanks[Math.floor(Math.random() * eligibleBanks.length)];
+      if (!chosenBank) {
+        // Fallback: Fetch a random eligible agent account for this bank
+        const UserSubscription = require('../models/UserSubscription');
+        const now = new Date();
+        const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).select('user').lean();
+        const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
+
+        const bankAccounts = await AgentBankAccount.find({ status: 'active', bankName }).populate('owner').lean();
+        let eligibleBanks = bankAccounts.filter((b) => {
+          if (!b.owner || b.owner.role !== 'wallet_agent') return false;
+          if (!activeUserIds.has(b.owner._id.toString())) return false;
+          const availCredit = (b.owner.credit || 0) - (b.owner.minimumCredit || 0);
+          return availCredit >= (Number(amount) || 0);
+        });
+
+        if (!eligibleBanks.length && process.env.NODE_ENV === 'development') {
+          // In dev mode, relax constraints: ignore active subscription and credit limits
+          // Just pick any wallet agent account that has this bank added
+          eligibleBanks = bankAccounts.filter(b => b.owner && b.owner.role === 'wallet_agent');
+        }
+
+        if (!eligibleBanks.length) {
+          return res.status(404).json({ success: false, message: 'No active agent account available for this bank. Please ensure an agent has added this bank account.' });
+        }
+
+        chosenBank = eligibleBanks[Math.floor(Math.random() * eligibleBanks.length)];
+      }
 
       const agentAccountDetails = {
         bankName: chosenBank.bankName,

@@ -762,22 +762,46 @@ export default function Overview() {
 
                   <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between border-b border-white/15 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-white/20 border border-white/20 p-1.5 flex items-center justify-center text-xl shadow-inner flex-shrink-0">
-                          {rawLogo ? (
-                            <img src={rawLogo} alt={bDetails.bankName} className="w-full h-full object-contain" />
-                          ) : (
-                            '🏦'
-                          )}
+                      <div className="flex items-center gap-2 w-[70%]">
+                        {/* Source Bank */}
+                        <div className="flex flex-col flex-1 w-1/2">
+                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">From</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-8 h-8 rounded-xl bg-white/20 p-1 flex shrink-0">
+                              {rawLogo ? <img src={rawLogo} alt={bDetails.bankName} className="w-full h-full object-contain" /> : '🏦'}
+                            </div>
+                            <h4 className="font-bold text-xs truncate" title={bDetails.bankName || 'Bank Transfer'}>
+                              {bDetails.bankName || 'Bank Transfer'}
+                            </h4>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-black text-base leading-tight uppercase tracking-wider">{bDetails.bankName || 'Bank Transfer'}</h4>
-                          <span className="text-[10px] font-mono text-emerald-200">Session #{session.code}</span>
+
+                        {/* Arrow */}
+                        <div className="flex items-center justify-center px-1">
+                          <svg className="w-4 h-4 text-emerald-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                        </div>
+
+                        {/* Target Bank */}
+                        <div className="flex flex-col flex-1 w-1/2 text-right items-end">
+                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">To</span>
+                          <div className="flex items-center justify-end gap-2 mt-1">
+                            <h4 className="font-bold text-xs truncate text-emerald-50" title={bDetails.agentAccount?.bankName || 'Your Bank'}>
+                              {bDetails.agentAccount?.bankName || 'Your Bank'}
+                            </h4>
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 p-1 flex shrink-0 items-center justify-center">
+                              🏦
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <span className="text-[9px] bg-emerald-400 text-slate-950 font-black px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse shadow">
-                        Action Required
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] bg-emerald-400 text-slate-950 font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
+                          Action
+                        </span>
+                        <span className="text-[9px] font-mono text-emerald-200 mt-1">#{session.code}</span>
+                      </div>
                     </div>
 
                     <div className="flex items-baseline justify-between">

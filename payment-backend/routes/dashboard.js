@@ -813,7 +813,7 @@ router.get('/pending-bank-payments', auth, async (req, res) => {
 
     // 4. Filter sessions matching this agent's bank accounts or snapshots
     const filtered = sessions.filter(session => {
-      const targetAgentId = session.bankDetails?.agentId || session.bankDetails?.bankAccountId || session.walletAgentSnapshot?.agentId;
+      const targetAgentId = session.bankDetails?.agentAccount?.agentId || session.bankDetails?.agentAccount?.bankAccountId || session.bankDetails?.agentId || session.bankDetails?.bankAccountId || session.walletAgentSnapshot?.agentId;
       return targetAgentId && (String(targetAgentId) === String(req.user._id) || bankAccIds.includes(String(targetAgentId)));
     });
 
