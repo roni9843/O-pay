@@ -43,6 +43,59 @@ async function getWithdrawalConfig() {
   };
 }
 
+async function getEligibleAgentIds(req) {
+  const UserSubscription = require('../models/UserSubscription');
+  const Device = require('../models/Device');
+  
+  let requiredAmount = 0;
+  if (req.query.code) {
+    const session = await OpayBusinessPaymentSession.findOne({ code: req.query.code });
+    if (session) requiredAmount = session.amount || 0;
+  } else if (req.query.amount) {
+    requiredAmount = Number(req.query.amount) || 0;
+  }
+
+  const now = new Date();
+  const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).populate('user').lean();
+  
+  const eligibleIds = new Set();
+  const presenceMap = req.app.get('onlineDevices') || new Map();
+  const isProd = req.query.env === 'production';
+  
+  for (const sub of activeSubs) {
+    if (!sub.user || sub.user.role !== 'wallet_agent') continue;
+    
+    // Check credit
+    const availCredit = (sub.user.credit || 0) - (sub.user.minimumCredit || 0);
+    if (availCredit < requiredAmount) continue;
+    
+    const ownerIdStr = sub.user._id.toString();
+    
+    if (!isProd) {
+      eligibleIds.add(ownerIdStr);
+      continue;
+    }
+    
+    // Production: Check device online
+    const devices = await Device.find({ owner: sub.user._id, state: true }).lean();
+    let isOnline = false;
+    for (const d of devices) {
+       const isOnlineByCode = d.deviceCode && presenceMap.has(String(d.deviceCode)) && presenceMap.get(String(d.deviceCode))?.active;
+       const isOnlineById = presenceMap.has(d._id.toString()) && presenceMap.get(d._id.toString())?.active;
+       if (isOnlineByCode || isOnlineById) {
+         isOnline = true;
+         break;
+       }
+    }
+    
+    if (isOnline) {
+      eligibleIds.add(ownerIdStr);
+    }
+  }
+  
+  return eligibleIds;
+}
+
 // Lightweight IP geo lookup helper (best-effort; failures are ignored)
 async function lookupIpLocation(ip) {
   if (!ip) return null;
@@ -564,20 +617,24 @@ router.get('/wallet-status', async (req, res) => {
 
     const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
 
-    const providers = { bkash: false, nagad: false, rocket: false, upay: false, bank: false };
+    const eligibleAgentIds = await getEligibleAgentIds(req);
+    const providers = { bkash: false, nagad: false, rocket: false, upay: false, bank: false, crypto: false };
 
     // Check if any online Agent has active Bank Account
     const AgentBankAccount = require('../models/AgentBankAccount');
-    const bankAccounts = await AgentBankAccount.find({ status: 'active' }).populate('owner').lean();
-    for (const bankAcc of bankAccounts) {
-      if (!bankAcc.owner || bankAcc.owner.role !== 'wallet_agent') continue;
-      if (!activeUserIds.has(bankAcc.owner._id.toString())) continue;
-      const availCredit = (bankAcc.owner.credit || 0) - (bankAcc.owner.minimumCredit || 0);
-      if (availCredit >= requiredAmount) {
-        providers.bank = true;
-        break;
-      }
-    }
+    const bankCount = await AgentBankAccount.countDocuments({
+      status: 'active',
+      owner: { $in: Array.from(eligibleAgentIds) }
+    });
+    if (bankCount > 0) providers.bank = true;
+
+    // Check if any online Agent has active Crypto Account
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const cryptoCount = await AgentCryptoAccount.countDocuments({
+      status: 'active',
+      owner: { $in: Array.from(eligibleAgentIds) }
+    });
+    if (cryptoCount > 0) providers.crypto = true;
 
     for (const pm of methods) {
       if (!pm.owner || pm.owner.role !== 'wallet_agent') continue;
@@ -617,21 +674,31 @@ router.get('/wallet-status', async (req, res) => {
 
 // GET /api/opay-business/supported-banks
 // Public read-only: returns list of active supported banks for client payment pages
-router.get('/supported-banks', async (_req, res) => {
+router.get('/supported-banks', async (req, res) => {
   try {
     const BankList = require('../models/BankList');
     const AgentBankAccount = require('../models/AgentBankAccount');
     
     const banks = await BankList.find({ status: 'active' }).lean();
-    const activeAccounts = await AgentBankAccount.find({ status: 'active' }).distinct('bankName');
+    
+    const eligibleAgentIds = await getEligibleAgentIds(req);
+    const activeAccounts = await AgentBankAccount.find({ 
+      status: 'active',
+      owner: { $in: Array.from(eligibleAgentIds) }
+    }).distinct('bankName');
+    
     const activeBankNamesLower = activeAccounts.map(n => n.toLowerCase());
     
     let filteredBanks = banks.filter(b => activeBankNamesLower.includes(b.name.toLowerCase()));
     
+    const allAgentAccounts = await AgentBankAccount.find({ status: 'active' }).distinct('bankName');
+    const allAgentBankNamesLower = allAgentAccounts.map(n => n.toLowerCase());
+    const finalAllBanks = banks.filter(b => allAgentBankNamesLower.includes(b.name.toLowerCase()));
+    
     // Shuffle the banks randomly
     filteredBanks = filteredBanks.sort(() => Math.random() - 0.5);
     
-    return res.json({ success: true, data: filteredBanks, allBanks: banks });
+    return res.json({ success: true, data: filteredBanks, allBanks: finalAllBanks });
   } catch (err) {
     console.error('opay-business supported-banks error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading supported banks' });
@@ -681,18 +748,15 @@ router.get('/random-payment-method', async (req, res) => {
 
     if (providerRaw === 'bank') {
       const AgentBankAccount = require('../models/AgentBankAccount');
-      const UserSubscription = require('../models/UserSubscription');
-      const now = new Date();
-      const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).select('user').lean();
-      const activeUserIds = new Set(activeSubs.map(s => s.user.toString()));
+      
+      const eligibleAgentIds = await getEligibleAgentIds(req);
 
-      const bankAccounts = await AgentBankAccount.find({ status: 'active' }).populate('owner').lean();
-      const eligibleBanks = bankAccounts.filter((b) => {
-        if (!b.owner || b.owner.role !== 'wallet_agent') return false;
-        if (!activeUserIds.has(b.owner._id.toString())) return false;
-        const availCredit = (b.owner.credit || 0) - (b.owner.minimumCredit || 0);
-        return availCredit >= requiredAmount;
-      });
+      const bankNameQuery = req.query.bankName;
+      const query = { status: 'active', owner: { $in: Array.from(eligibleAgentIds) } };
+      if (bankNameQuery) query.bankName = bankNameQuery;
+
+      const bankAccounts = await AgentBankAccount.find(query).populate('owner').lean();
+      const eligibleBanks = bankAccounts;
 
       if (!eligibleBanks.length) {
         return res.status(404).json({ success: false, message: 'No active wallet agent bank account available' });
@@ -1965,9 +2029,12 @@ router.post('/verify-bank-payment', async (req, res) => {
 
     const allProofs = Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls : [finalProofUrl];
 
+    const normalizedBankName = bankDetails?.selectedBank || bankDetails?.bankName || 'Bank Transfer';
+
     session.status = 'pending_bank';
     session.bankDetails = {
       ...(bankDetails || {}),
+      bankName: normalizedBankName,
       proofUrl: finalProofUrl,
       proofUrls: allProofs,
       submittedAt: new Date(),
@@ -2851,4 +2918,340 @@ router.post('/verify-bank-otp', async (req, res) => {
   }
 });
 
+// GET /api/opay-business/supported-cryptos
+// Public read-only: returns list of active supported crypto options
+router.get('/supported-cryptos', async (req, res) => {
+  try {
+    const CryptoList = require('../models/CryptoList');
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    
+    const cryptos = await CryptoList.find({ status: 'active' }).sort({ sortOrder: 1, name: 1 }).lean();
+    
+    const eligibleAgentIds = await getEligibleAgentIds(req);
+    const activeAccounts = await AgentCryptoAccount.find({ 
+      status: 'active',
+      owner: { $in: Array.from(eligibleAgentIds) }
+    }).distinct('cryptoName');
+    
+    const activeCryptoNamesLower = activeAccounts.map(n => n.toLowerCase());
+    
+    let filteredCryptos = cryptos.filter(c => activeCryptoNamesLower.includes(c.name.toLowerCase()));
+
+    const allAgentAccounts = await AgentCryptoAccount.find({ status: 'active' }).distinct('cryptoName');
+    const allAgentCryptoNamesLower = allAgentAccounts.map(n => n.toLowerCase());
+    const finalAllCryptos = cryptos.filter(c => allAgentCryptoNamesLower.includes(c.name.toLowerCase()));
+
+    filteredCryptos = filteredCryptos.sort(() => Math.random() - 0.5);
+    
+    return res.json({ success: true, data: filteredCryptos, allCryptos: finalAllCryptos });
+  } catch (err) {
+    console.error('opay-business supported-cryptos error:', err);
+    return res.status(500).json({ success: false, message: 'Server error loading supported cryptos' });
+  }
+});
+
+// GET /api/opay-business/random-crypto-account?cryptoName=USDT&amount=500
+// Returns an active wallet agent crypto account for the chosen crypto name
+router.get('/random-crypto-account', async (req, res) => {
+  try {
+    const { cryptoName, amount } = req.query;
+    if (!cryptoName) {
+      return res.status(400).json({ success: false, message: 'cryptoName parameter is required' });
+    }
+
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const eligibleAgentIds = await getEligibleAgentIds(req);
+    
+    const accounts = await AgentCryptoAccount.find({ 
+      status: 'active',
+      cryptoName: { $regex: new RegExp(`^${cryptoName.trim()}$`, 'i') },
+      owner: { $in: Array.from(eligibleAgentIds) }
+    }).populate('owner').lean();
+
+    let eligibleAccounts = accounts;
+
+    if (!eligibleAccounts.length && process.env.NODE_ENV === 'development') {
+      // In dev mode, relax constraints: ignore active subscription and credit limits
+      const allAccounts = await AgentCryptoAccount.find({ 
+        status: 'active',
+        cryptoName: { $regex: new RegExp(`^${cryptoName.trim()}$`, 'i') }
+      }).populate('owner').lean();
+      eligibleAccounts = allAccounts.filter(b => b.owner && b.owner.role === 'wallet_agent');
+    }
+
+    if (!eligibleAccounts.length) {
+      return res.status(404).json({ success: false, message: 'No active agent crypto account available with sufficient credit.' });
+    }
+
+    const chosen = eligibleAccounts[Math.floor(Math.random() * eligibleAccounts.length)];
+    return res.json({
+      success: true,
+      account: {
+        _id: chosen._id,
+        cryptoName: chosen.cryptoName,
+        currency: chosen.currency,
+        accountNumber: chosen.accountNumber,
+        accountHolderName: chosen.accountHolderName,
+        qrCodeLogo: chosen.qrCodeLogo,
+        agentId: chosen.owner?._id,
+        ownerName: chosen.owner?.name
+      }
+    });
+  } catch (err) {
+    console.error('random-crypto-account error:', err);
+    return res.status(500).json({ success: false, message: 'Server error fetching crypto account' });
+  }
+});
+
+// POST /api/opay-business/submit-crypto-proof
+// Submit crypto payment proof for a session
+router.post('/submit-crypto-proof', async (req, res) => {
+  try {
+    const { code, cryptoName, proofUrl, proofUrls, agentAccountId, trxid, userPayAmount, cryptoCurrency } = req.body;
+    if (!code || (!proofUrl && (!proofUrls || !proofUrls.length))) {
+      return res.status(400).json({ success: false, message: 'Session code and screenshot proof are required' });
+    }
+
+    const session = await OpayBusinessPaymentSession.findOne({ code });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Payment session not found' });
+    }
+
+    if (session.status === 'paid') {
+      return res.status(400).json({ success: false, message: 'Payment session already paid' });
+    }
+
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    let agentAcc = null;
+    if (agentAccountId) {
+      agentAcc = await AgentCryptoAccount.findById(agentAccountId).populate('owner').lean();
+    }
+
+    const finalProofUrls = Array.isArray(proofUrls) && proofUrls.length > 0 ? proofUrls : [proofUrl];
+
+    session.paymentMethod = 'crypto_transfer';
+    session.status = 'pending_crypto';
+    session.cryptoDetails = {
+      cryptoName: cryptoName || 'Crypto Payment',
+      accountNumber: agentAcc?.accountNumber || 'Crypto Address',
+      accountHolderName: agentAcc?.accountHolderName || cryptoCurrency || 'Crypto',
+      trxid: trxid || `CRYPTO-${code.toUpperCase()}`,
+      userPayAmount: userPayAmount || session.amount,
+      currency: cryptoCurrency || 'USDT',
+      proofUrl: finalProofUrls[0],
+      proofUrls: finalProofUrls,
+      agentId: agentAcc?.owner?._id || agentAcc?.owner,
+      agentAccount: agentAcc ? {
+        cryptoAccountId: agentAcc._id,
+        agentId: agentAcc.owner?._id || agentAcc.owner,
+        cryptoName: cryptoName,
+        accountNumber: agentAcc.accountNumber
+      } : null
+    };
+
+    session.events.push({
+      type: 'crypto_proof_uploaded',
+      at: new Date(),
+      meta: { cryptoName, proofUrl: finalProofUrls[0], userPayAmount, cryptoCurrency }
+    });
+
+    await session.save();
+
+    // Broadcast Socket event to Admin & Agents
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('pending_crypto_payment_created', session);
+    }
+
+    // ── Send FCM Mobile Push Notification ──
+    try {
+      const { admin: firebaseAdmin, isFirebaseInitialized } = require('../firebase');
+      const Device = require('../models/Device');
+      const PushLog = require('../models/PushLog');
+
+      const amountFormatted = Number(session.amount || 0).toLocaleString();
+
+      const devices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
+      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+
+      if (isFirebaseInitialized && firebaseAdmin && tokens.length > 0) {
+        const payload = {
+          notification: {
+            title: `🪙 নতুন ক্রিপ্টো পেমেন্ট প্রুফ (৳${amountFormatted})`,
+            body: `${cryptoName || 'Crypto'} পেমেন্ট প্রুফ সাবমিট করা হয়েছে। অনুগ্রহ করে যাচাই করুন।`
+          },
+          data: {
+            type: "crypto_payment_proof",
+            code: session.code,
+            amount: String(session.amount),
+            bankName: cryptoName || 'Crypto',
+            title: `🪙 নতুন ক্রিপ্টো পেমেন্ট প্রুফ (৳${amountFormatted})`,
+            message: `${cryptoName || 'Crypto'} পেমেন্ট প্রুফ সাবমিট করা হয়েছে।`
+          },
+          android: {
+            priority: "high"
+          }
+        };
+
+        const response = await firebaseAdmin.messaging().sendMulticast({
+          tokens: tokens,
+          ...payload
+        });
+
+        const newLog = new PushLog({
+          title: payload.notification.title,
+          message: payload.notification.body,
+          targetDevices: tokens.length,
+          successCount: response.successCount,
+          failureCount: response.failureCount,
+          sentBy: 'System (Crypto Payment)',
+          metadata: { code: session.code, type: payload.data.type }
+        });
+        await newLog.save();
+      }
+    } catch (pushErr) {
+      console.error('FCM Push failed for crypto payment:', pushErr);
+    }
+
+    return res.json({ success: true, message: 'Crypto payment proof submitted successfully', session });
+  } catch (err) {
+    console.error('submit-crypto-proof error:', err);
+    return res.status(500).json({ success: false, message: 'Server error submitting crypto proof' });
+  }
+});
+
+// POST /api/opay-business/test-webhook
+router.post('/test-webhook', async (req, res) => {
+  try {
+    const token = req.headers['x-opay-business-token'];
+    if (!token) return res.status(401).json({ success: false, message: 'Missing X-Opay-Business-Token header' });
+
+    const OpayBusiness = require('../models/OpayBusiness');
+    const business = await OpayBusiness.findOne({ apiToken: token });
+    if (!business) return res.status(401).json({ success: false, message: 'Invalid or inactive API token' });
+
+    const { callback_url, amount, bank, status } = req.body;
+    if (!callback_url) return res.status(400).json({ success: false, message: 'callback_url is required' });
+
+    const selectedBank = bank || 'bkash';
+    const selectedStatus = status || 'COMPLETED';
+
+    const payload = {
+      status: selectedStatus,
+      amount: Number(amount || 500),
+      transaction_id: 'TEST-TRX-' + Math.floor(Math.random() * 1000000),
+      invoice_number: 'API-TEST-XXX',
+      session_code: 'test_session_code',
+      user_identity: 'test_user@example.com',
+      bank: selectedBank,
+      footprint: 'https://secure.oraclepay.org/proof/test',
+      message: 'This is a test webhook from OraclePay Business'
+    };
+
+    if (['bank_transfer', 'crypto_transfer'].includes(selectedBank)) {
+      payload.proof_images = ['https://api.oraclepay.org/test-proof.png'];
+    }
+
+    if (['REJECTED', 'CANCELLED'].includes(selectedStatus)) {
+      payload.reason = 'Test Rejection / Cancellation Reason';
+    }
+
+    const axios = require('axios');
+    let responseStatus;
+    let responseData;
+    
+    try {
+      const cbRes = await axios.post(callback_url, payload, { timeout: 10000 });
+      responseStatus = cbRes.status;
+      responseData = cbRes.data;
+    } catch (cbErr) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Webhook test failed!',
+        error: cbErr.message,
+        response: cbErr.response?.data || null,
+        status: cbErr.response?.status || 'Network Error'
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'Webhook test successful!', 
+      httpStatus: responseStatus,
+      responseData 
+    });
+  } catch (err) {
+    console.error('test-webhook error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during webhook test' });
+  }
+});
+
+// POST /api/opay-business/test-withdrawal-webhook
+router.post('/test-withdrawal-webhook', async (req, res) => {
+  try {
+    const token = req.headers['x-opay-business-token'];
+    if (!token) return res.status(401).json({ success: false, message: 'Missing X-Opay-Business-Token header' });
+
+    const OpayBusiness = require('../models/OpayBusiness');
+    const business = await OpayBusiness.findOne({ apiToken: token });
+    if (!business) return res.status(401).json({ success: false, message: 'Invalid or inactive API token' });
+
+    const { callback_url, amount, payment_method, status } = req.body;
+    if (!callback_url) return res.status(400).json({ success: false, message: 'callback_url is required' });
+
+    const selectedStatus = status || 'COMPLETED';
+
+    const payload = {
+      status: selectedStatus,
+      withdrawal_id: '6a9123cc5c451c86f49e' + Math.floor(Math.random() * 9999),
+      amount: Number(amount || 1000),
+      payment_method: payment_method || 'bkash',
+      user_identity_address: '017XXXXXXXX',
+      account_number: '017XXXXXXXX',
+      checkout_items: [
+        { "userId": "9992" },
+        { "withdrawal_type": "affiliate" }
+      ]
+    };
+
+    if (selectedStatus === 'COMPLETED') {
+      payload.date_and_time = new Date().toISOString();
+      payload.proof_images = ["https://api.oraclepay.org/test-proof.png"];
+    }
+
+    if (selectedStatus === 'REJECTED') {
+      payload.reason = 'Test Rejection by Administrator';
+    }
+
+    const axios = require('axios');
+    let responseStatus;
+    let responseData;
+    
+    try {
+      const cbRes = await axios.post(callback_url, payload, { timeout: 10000 });
+      responseStatus = cbRes.status;
+      responseData = cbRes.data;
+    } catch (cbErr) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Withdrawal webhook test failed!',
+        error: cbErr.message,
+        response: cbErr.response?.data || null,
+        status: cbErr.response?.status || 'Network Error'
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'Withdrawal webhook test successful!', 
+      httpStatus: responseStatus,
+      responseData 
+    });
+  } catch (err) {
+    console.error('test-withdrawal-webhook error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during withdrawal webhook test' });
+  }
+});
+
 module.exports = router;
+
