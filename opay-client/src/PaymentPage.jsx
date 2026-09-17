@@ -10,6 +10,7 @@ import bypitLogo from "./assets/Bypit.png";
 import binanceLogo from "./assets/binance.png";
 
 import BankTransferModal from "./BankTransferModal";
+import CryptoPayModal from "./CryptoPayModal";
 
 const mobileWallets = [
   { name: "bKash", providerKey: "bkash" },
@@ -60,6 +61,7 @@ export default function SimplePaymentPage() {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [walletTemplates, setWalletTemplates] = useState({});
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentSuccessType, setPaymentSuccessType] = useState('instant');
   const [redirectTarget, setRedirectTarget] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState(null);
@@ -69,6 +71,10 @@ export default function SimplePaymentPage() {
   const [isPendingNagad, setIsPendingNagad] = useState(false);
   const [isPendingBank, setIsPendingBank] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [showCryptoModal, setShowCryptoModal] = useState(false);
+  const [selectedCryptoName, setSelectedCryptoName] = useState(null);
+  const [loadingBankName, setLoadingBankName] = useState(null);
+  const [loadingCryptoName, setLoadingCryptoName] = useState(null);
   const [visibleBankCount, setVisibleBankCount] = useState(9);
 
   useEffect(() => {
@@ -120,12 +126,13 @@ export default function SimplePaymentPage() {
 
   useEffect(() => {
     if (paymentSuccess && redirectTarget) {
+      const delay = paymentSuccessType === 'manual' ? 8000 : 3500;
       const timer = setTimeout(() => {
         window.location.href = redirectTarget;
-      }, 3500);
+      }, delay);
       return () => clearTimeout(timer);
     }
-  }, [paymentSuccess, redirectTarget]);
+  }, [paymentSuccess, redirectTarget, paymentSuccessType]);
 
   const logSessionEvent = useCallback(
     async (type, extraMeta = {}) => {
@@ -267,18 +274,28 @@ export default function SimplePaymentPage() {
     loadWalletStatus();
   }, []);
 
-  const [supportedBanks, setSupportedBanks] = useState([]);
-  const [allBanks, setAllBanks] = useState([]);
+  const [supportedBanks, setSupportedBanks] = useState(null);
+  const [allBanks, setAllBanks] = useState(null);
+  const [supportedCryptos, setSupportedCryptos] = useState(null);
+  const [allCryptos, setAllCryptos] = useState(null);
 
   // Load Admin supported banks list dynamically
   useEffect(() => {
     async function loadSupportedBanks() {
       try {
-        const res = await fetch(`${API_URL}/api/opay-business/supported-banks`);
+        const env = import.meta.env.VITE_APP_ENV || 'local';
+        const res = await fetch(`${API_URL}/api/opay-business/supported-banks?env=${env}`);
         const data = await res.json();
         if (res.ok && data.success && Array.isArray(data.data)) {
           setSupportedBanks(data.data);
           setAllBanks(data.allBanks || data.data);
+        }
+
+        const resCrypto = await fetch(`${API_URL}/api/opay-business/supported-cryptos?env=${env}`);
+        const dataCrypto = await resCrypto.json();
+        if (resCrypto.ok && dataCrypto.success && Array.isArray(dataCrypto.data)) {
+          setSupportedCryptos(dataCrypto.data);
+          setAllCryptos(dataCrypto.allCryptos || dataCrypto.data);
         }
       } catch (_) {}
     }
@@ -415,13 +432,29 @@ export default function SimplePaymentPage() {
     );
   }
 
+  if (showCryptoModal) {
+    return (
+      <CryptoPayModal
+        amount={payableAmount}
+        sessionCode={sessionCode}
+        initialCryptoName={selectedCryptoName}
+        onBack={() => setShowCryptoModal(false)}
+        onSubmitSuccess={() => {
+          setShowCryptoModal(false);
+          setPaymentSuccessType('manual');
+          setPaymentSuccess(true);
+        }}
+      />
+    );
+  }
+
   if (showBankModal && selectedAccount) {
     return (
       <BankTransferModal
         account={selectedAccount}
         amount={payableAmount}
         sessionCode={sessionCode}
-        supportedBanks={allBanks}
+        supportedBanks={supportedBanks}
         onBack={() => setShowBankModal(false)}
         onSubmitProof={async (proofUrl, bankDetails, proofUrls) => {
           try {
@@ -438,7 +471,8 @@ export default function SimplePaymentPage() {
             const data = await res.json();
             if (res.ok && data.success) {
               setShowBankModal(false);
-              setIsPendingBank(true);
+              setPaymentSuccessType('manual');
+              setPaymentSuccess(true);
             } else {
               alert(data.message || 'Failed to submit proof.');
             }
@@ -730,12 +764,21 @@ export default function SimplePaymentPage() {
 
           {activeTab === 0 && (
             <>
+              {allBanks === null ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <svg className="animate-spin h-8 w-8 text-[#20CFA2] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <p className="text-sm font-medium">Loading banks...</p>
+                </div>
+              ) : (
               <div className="grid grid-cols-3 gap-6">
-                {(supportedBanks.length > 0 ? supportedBanks : bankWallets).slice(0, visibleBankCount).map((wallet) => {
+                {allBanks.slice(0, visibleBankCount).map((wallet) => {
+                  const isActive = supportedBanks !== null && supportedBanks.some(b => b.name === wallet.name);
                   const bankName = wallet.name;
                   const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
 
                   const handleBankClick = async () => {
+                    if (loadingBankName) return;
+                    setLoadingBankName(bankName);
                     try {
                       const env = import.meta.env.VITE_APP_ENV || 'local';
                       const res = await fetch(`${API_URL}/api/opay-business/random-payment-method?provider=bank&code=${sessionCode || ''}&env=${env}`);
@@ -754,6 +797,8 @@ export default function SimplePaymentPage() {
                       }
                     } catch (e) {
                       handleUnavailableClick(bankName);
+                    } finally {
+                      setLoadingBankName(null);
                     }
                   };
 
@@ -763,8 +808,9 @@ export default function SimplePaymentPage() {
                   return (
                     <button
                       key={wallet._id || bankName}
-                      onClick={handleBankClick}
-                      className="flex flex-col items-center gap-2 group relative"
+                      onClick={isActive ? handleBankClick : () => handleUnavailableClick(bankName)}
+                      className={`flex flex-col items-center gap-2 group relative ${loadingBankName === bankName ? 'cursor-not-allowed' : ''}`}
+                      disabled={loadingBankName === bankName}
                     >
                       <div
                         className="
@@ -780,7 +826,7 @@ export default function SimplePaymentPage() {
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
 
-                        {activeProviders.bank && (
+                        {isActive && (
                           <div
                             className="
                               absolute -top-1 -right-1
@@ -805,8 +851,9 @@ export default function SimplePaymentPage() {
                   );
                 })}
               </div>
+              )}
               
-              {(supportedBanks.length > 0 ? supportedBanks : bankWallets).length > visibleBankCount && (
+              {allBanks !== null && allBanks.length > visibleBankCount && (
                 <div className="mt-6 flex justify-center w-full">
                   <button 
                     onClick={() => setVisibleBankCount(prev => prev + 9)}
@@ -824,12 +871,19 @@ export default function SimplePaymentPage() {
 
           {activeTab === 2 && (
             <>
+              {allCryptos === null ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <svg className="animate-spin h-8 w-8 text-[#20CFA2] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <p className="text-sm font-medium">Loading crypto...</p>
+                </div>
+              ) : (
               <div className="grid grid-cols-3 gap-6">
-                {cryptoWallets.map((wallet) => {
+                {allCryptos.map((wallet) => {
+                  const isActive = supportedCryptos !== null && supportedCryptos.some(c => c.name === wallet.name);
                   return (
                     <button
                       key={wallet.name}
-                      onClick={() => handleUnavailableClick(wallet.name)}
+                      onClick={isActive ? () => { setSelectedCryptoName(wallet.name); setShowCryptoModal(true); } : () => handleUnavailableClick(wallet.name)}
                       className="flex flex-col items-center gap-2 group relative"
                     >
                       <div
@@ -845,6 +899,11 @@ export default function SimplePaymentPage() {
                           alt={wallet.name}
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
+                        {isActive && (
+                          <div className="absolute -top-1 -right-1 px-2 py-0.5 text-[9px] font-bold bg-green-100 text-green-800 rounded-full shadow-md border border-green-300">
+                            Active
+                          </div>
+                        )}
                       </div>
 
                       <span
@@ -859,6 +918,7 @@ export default function SimplePaymentPage() {
                   );
                 })}
               </div>
+              )}
             </>
           )}
         </div>
@@ -1061,13 +1121,13 @@ export default function SimplePaymentPage() {
                {checkoutItems?.customSuccess?.title || "পেমেন্ট সফল হয়েছে!"}
              </h2>
              <p className="text-lg opacity-85" style={{ color: checkoutItems?.customSuccess?.textColor || '#475569' }}>
-               {checkoutItems?.customSuccess?.message || "মার্চেন্টে রিডাইরেক্ট করা হচ্ছে..."}
+               {paymentSuccessType === 'manual' ? "আপনার পেমেন্টটি যাচাই করতে ৫ মিনিট থেকে ১ ঘণ্টা সময় লাগতে পারে। ৮ সেকেন্ড পর স্বয়ংক্রিয়ভাবে রিডাইরেক্ট হবে।" : (checkoutItems?.customSuccess?.message || "মার্চেন্টে রিডাইরেক্ট করা হচ্ছে...")}
              </p>
              
              <div className="mt-8 text-xs opacity-70" style={{ color: checkoutItems?.customSuccess?.textColor || '#94a3b8' }}>
                <p>যদি স্বয়ংক্রিয়ভাবে রিডাইরেক্ট না হয়,</p>
                <a href={redirectTarget} className="underline font-bold transition-all hover:opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#059669' }}>
-                 এগিয়ে যেতে এখানে ক্লিক করুন
+                 {paymentSuccessType === 'manual' ? "মার্চেন্ট ওয়েবসাইটে ফিরে যান" : "এগিয়ে যেতে এখানে ক্লিক করুন"}
                </a>
              </div>
            </div>
