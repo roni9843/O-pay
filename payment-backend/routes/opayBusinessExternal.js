@@ -693,7 +693,7 @@ router.get('/supported-banks', async (req, res) => {
     
     const allAgentAccounts = await AgentBankAccount.find({ status: 'active' }).distinct('bankName');
     const allAgentBankNamesLower = allAgentAccounts.map(n => n.toLowerCase());
-    const finalAllBanks = banks.filter(b => allAgentBankNamesLower.includes(b.name.toLowerCase()));
+    const finalAllBanks = await BankList.find().lean();
     
     // Shuffle the banks randomly
     filteredBanks = filteredBanks.sort(() => Math.random() - 0.5);
@@ -2056,8 +2056,8 @@ router.post('/verify-bank-payment', async (req, res) => {
       const bankName = session.bankDetails?.bankName || 'Bank';
       const amountFormatted = Number(session.amount || 0).toLocaleString();
 
-      const agentDevices = session.bankDetails?.agentId 
-        ? await Device.find({ owner: session.bankDetails.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+      const agentDevices = session.bankDetails?.agentAccount?.agentId 
+        ? await Device.find({ owner: session.bankDetails.agentAccount.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
         : [];
       const tokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
@@ -2936,7 +2936,7 @@ router.get('/supported-cryptos', async (req, res) => {
 
     const allAgentAccounts = await AgentCryptoAccount.find({ status: 'active' }).distinct('cryptoName');
     const allAgentCryptoNamesLower = allAgentAccounts.map(n => n.toLowerCase());
-    const finalAllCryptos = cryptos.filter(c => allAgentCryptoNamesLower.includes(c.name.toLowerCase()));
+    const finalAllCryptos = await CryptoList.find().sort({ sortOrder: 1, name: 1 }).lean();
 
     filteredCryptos = filteredCryptos.sort(() => Math.random() - 0.5);
     
