@@ -322,7 +322,7 @@ export default function BankTransferModal({ account, amount, sessionCode, suppor
                      <div className="p-2 border-b border-gray-100 bg-gray-50">
                        <input
                          type="text"
-                         placeholder="Search bank..."
+                         placeholder="যে ব্যাংক থেকে টাকা পাঠাবেন সেই ব্যাংক সিলেক্ট করুন..."
                          value={bankSearch}
                          onChange={(e) => setBankSearch(e.target.value)}
                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#0EB78C]"
