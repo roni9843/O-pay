@@ -76,6 +76,7 @@ export default function SimplePaymentPage() {
   const [loadingBankName, setLoadingBankName] = useState(null);
   const [loadingCryptoName, setLoadingCryptoName] = useState(null);
   const [visibleBankCount, setVisibleBankCount] = useState(9);
+  const [bankSearchTerm, setBankSearchTerm] = useState('');
 
   useEffect(() => {
     let timer;
@@ -770,13 +771,24 @@ export default function SimplePaymentPage() {
                   <p className="text-sm font-medium">Loading banks...</p>
                 </div>
               ) : (
-              <div className="grid grid-cols-3 gap-6">
-                {allBanks.slice(0, visibleBankCount).map((wallet) => {
-                  const isActive = supportedBanks !== null && supportedBanks.some(b => b.name === wallet.name);
-                  const bankName = wallet.name;
-                  const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
-
-                  const handleBankClick = async () => {
+              <div className="flex flex-col gap-4 w-full">
+                <input
+                  type="text"
+                  placeholder="যে ব্যাংক থেকে টাকা পাঠাবেন সেই ব্যাংক খুঁজুন..."
+                  value={bankSearchTerm}
+                  onChange={(e) => setBankSearchTerm(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#20CFA2] focus:border-transparent transition-all shadow-sm text-sm"
+                />
+                
+                <div className="grid grid-cols-3 gap-6">
+                  {allBanks
+                    .filter(b => b.name.toLowerCase().includes(bankSearchTerm.toLowerCase()))
+                    .slice(0, visibleBankCount).map((wallet) => {
+                    const isActive = supportedBanks !== null && supportedBanks.some(b => b.name === wallet.name);
+                    const bankName = wallet.name;
+                    const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
+  
+                    const handleBankClick = async () => {
                     if (loadingBankName) return;
                     setLoadingBankName(bankName);
                     try {
@@ -850,10 +862,11 @@ export default function SimplePaymentPage() {
                     </button>
                   );
                 })}
+                </div>
               </div>
               )}
               
-              {allBanks !== null && allBanks.length > visibleBankCount && (
+              {allBanks !== null && allBanks.filter(b => b.name.toLowerCase().includes(bankSearchTerm.toLowerCase())).length > visibleBankCount && (
                 <div className="mt-6 flex justify-center w-full">
                   <button 
                     onClick={() => setVisibleBankCount(prev => prev + 9)}
