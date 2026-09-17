@@ -2056,22 +2056,19 @@ router.post('/verify-bank-payment', async (req, res) => {
       const bankName = session.bankDetails?.bankName || 'Bank';
       const amountFormatted = Number(session.amount || 0).toLocaleString();
 
-      const devices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
-      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+      const agentDevices = session.bankDetails?.agentId 
+        ? await Device.find({ owner: session.bankDetails.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+        : [];
+      const tokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
       if (isFirebaseInitialized && firebaseAdmin && tokens.length > 0) {
         const payload = {
-          notification: {
-            title: `🏦 নতুন ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
-            body: `${bankName} ব্যাংক পেমেন্ট প্রুফ সাবমিট করা হয়েছে। অনুগ্রহ করে যাচাই করুন।`
-          },
           data: {
-            type: "bank_payment_proof",
-            code: session.code,
-            amount: String(session.amount),
-            bankName: bankName,
-            title: `🏦 নতুন ব্যাংক পেমেন্ট প্রuফ (৳${amountFormatted})`,
-            message: `${bankName} ব্যাংক পেমেন্ট প্রুফ সাবমিট করা হয়েছে।`
+            type: "notification",
+            title: `ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
+            message: `${bankName} এর মাধ্যমে একটি পেমেন্ট এসেছে। দয়া করে যাচাই করুন।`,
+            sessionId: session._id.toString(),
+            paymentType: "bank_payment_proof"
           },
           android: {
             priority: "high"
@@ -2088,10 +2085,10 @@ router.post('/verify-bank-payment', async (req, res) => {
           response.responses.forEach((resp, index) => {
             if (resp.success) {
               logsToInsert.push({
-                device: devices[index]._id,
+                device: agentDevices[index]._id,
                 type: 'notification',
-                title: `🏦 নতুন ব্যাংক পেমেন্ট প্রুফ (৳${amountFormatted})`,
-                message: `${bankName} ব্যাংক পement প্রুফ সাবমিট করা হয়েছে।`,
+                title: payload.data.title,
+                message: payload.data.message,
                 status: 'sent'
               });
             }
@@ -3071,22 +3068,19 @@ router.post('/submit-crypto-proof', async (req, res) => {
 
       const amountFormatted = Number(session.amount || 0).toLocaleString();
 
-      const devices = await Device.find({ fcmToken: { $ne: null } }).select('_id fcmToken').lean();
-      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+      const agentDevices = session.cryptoDetails?.agentId 
+        ? await Device.find({ owner: session.cryptoDetails.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+        : [];
+      const tokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
       if (isFirebaseInitialized && firebaseAdmin && tokens.length > 0) {
         const payload = {
-          notification: {
-            title: `🪙 নতুন ক্রিপ্টো পেমেন্ট প্রুফ (৳${amountFormatted})`,
-            body: `${cryptoName || 'Crypto'} পেমেন্ট প্রুফ সাবমিট করা হয়েছে। অনুগ্রহ করে যাচাই করুন।`
-          },
           data: {
-            type: "crypto_payment_proof",
-            code: session.code,
-            amount: String(session.amount),
-            bankName: cryptoName || 'Crypto',
-            title: `🪙 নতুন ক্রিপ্টো পেমেন্ট প্রুফ (৳${amountFormatted})`,
-            message: `${cryptoName || 'Crypto'} পেমেন্ট প্রুফ সাবমিট করা হয়েছে।`
+            type: "notification",
+            title: `ক্রিপ্টো পেমেন্ট প্রুফ (৳${amountFormatted})`,
+            message: `${cryptoName || 'Crypto'} এর মাধ্যমে একটি পেমেন্ট এসেছে। দয়া করে যাচাই করুন।`,
+            sessionId: session._id.toString(),
+            paymentType: "crypto_payment_proof"
           },
           android: {
             priority: "high"
@@ -3099,8 +3093,8 @@ router.post('/submit-crypto-proof', async (req, res) => {
         });
 
         const newLog = new PushLog({
-          title: payload.notification.title,
-          message: payload.notification.body,
+          title: payload.data.title,
+          message: payload.data.message,
           targetDevices: tokens.length,
           successCount: response.successCount,
           failureCount: response.failureCount,
