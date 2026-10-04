@@ -12,6 +12,20 @@ export default function AgentPendingBank() {
 
   const [supportedBanks, setSupportedBanks] = useState([]);
 
+  const getFullUrl = (path) => {
+    if (!path) return '';
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    
+    if (path.startsWith('http')) {
+      if (path.includes('localhost') || path.startsWith('http://api.oraclepay.org')) {
+        const filename = path.split('/').pop();
+        return `${base}/uploads/${filename}`;
+      }
+      return path.replace('http://', 'https://');
+    }
+    return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -125,7 +139,7 @@ export default function AgentPendingBank() {
                 <tbody className="divide-y divide-gray-800">
                   {sessions.map((s) => {
                     const bd = s.bankDetails || {};
-                    const proofUrls = Array.isArray(bd.proofUrls) && bd.proofUrls.length > 0 ? bd.proofUrls : (bd.proofUrl ? [bd.proofUrl] : []);
+                    const proofUrls = (Array.isArray(bd.proofUrls) && bd.proofUrls.length > 0 ? bd.proofUrls : (bd.proofUrl ? [bd.proofUrl] : [])).map(getFullUrl);
 
                     const matchedBank = supportedBanks.find(
                       b => b.name?.toLowerCase().trim() === bd.bankName?.toLowerCase().trim()
@@ -146,22 +160,33 @@ export default function AgentPendingBank() {
                           ৳{s.amount?.toLocaleString()}
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center gap-2.5">
-                            {rawLogo ? (
-                              <div className="w-8 h-8 rounded-xl bg-white border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <img src={rawLogo} alt={bd.bankName} className="w-full h-full object-contain" />
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] uppercase font-bold text-gray-500 mb-1">From (Customer)</span>
+                                {rawLogo ? (
+                                  <div className="w-8 h-8 rounded-xl bg-white border border-gray-700 p-1 flex items-center justify-center shadow-sm">
+                                    <img src={rawLogo} alt={bd.selectedBank || bd.bankName} className="w-full h-full object-contain" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-base">🏦</div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-base flex-shrink-0">
-                                🏦
+                              <div className="pt-4">
+                                <div className="font-bold text-white text-sm">{bd.selectedBank || bd.bankName || 'Bank Transfer'}</div>
+                                <div className="text-[11px] text-gray-400 mt-0.5">{bd.accountHolderName}</div>
+                                <div className="text-xs text-indigo-300 font-mono">Acc: {bd.accountNumber || 'N/A'}</div>
                               </div>
-                            )}
-                            <div>
-                              <div className="font-bold text-white text-sm">{bd.bankName || 'Bank Transfer'}</div>
-                              <div className="text-xs text-indigo-300 font-mono">Acc: {bd.accountNumber || 'N/A'}</div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2.5 opacity-80 pl-2 border-l-2 border-gray-700 ml-4">
+                              <div className="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center text-xs">🏦</div>
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">To (Agent Bank)</span>
+                                <div className="font-bold text-gray-300 text-xs">{bd.agentAccount?.bankName || 'Your Bank'}</div>
+                              </div>
                             </div>
                           </div>
-                          <div className="text-[11px] text-gray-400 mt-1 pl-10">{bd.accountHolderName}</div>
                         </td>
                         <td className="p-4">
                           {proofUrls.length > 0 ? (
@@ -220,7 +245,7 @@ export default function AgentPendingBank() {
             <div className="block md:hidden divide-y divide-gray-800">
               {sessions.map((s) => {
                 const bd = s.bankDetails || {};
-                const proofUrls = Array.isArray(bd.proofUrls) && bd.proofUrls.length > 0 ? bd.proofUrls : (bd.proofUrl ? [bd.proofUrl] : []);
+                const proofUrls = (Array.isArray(bd.proofUrls) && bd.proofUrls.length > 0 ? bd.proofUrls : (bd.proofUrl ? [bd.proofUrl] : [])).map(getFullUrl);
 
                 const matchedBank = supportedBanks.find(
                   b => b.name?.toLowerCase().trim() === bd.bankName?.toLowerCase().trim()
@@ -243,20 +268,28 @@ export default function AgentPendingBank() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 bg-black/40 p-3 rounded-2xl border border-gray-800">
-                      {rawLogo ? (
-                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
-                          <img src={rawLogo} alt={bd.bankName} className="w-full h-full object-contain" />
+                    <div className="bg-black/40 p-3 rounded-2xl border border-gray-800 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[8px] uppercase font-bold text-gray-500 mb-1">From (Customer)</span>
+                          {rawLogo ? (
+                            <div className="w-10 h-10 rounded-xl bg-white border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
+                              <img src={rawLogo} alt={bd.selectedBank || bd.bankName} className="w-full h-full object-contain" />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-lg flex-shrink-0">🏦</div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-lg flex-shrink-0">
-                          🏦
+                        <div className="min-w-0 flex-1 pt-3">
+                          <h4 className="font-bold text-white text-sm truncate">{bd.selectedBank || bd.bankName || 'Bank Transfer'}</h4>
+                          <div className="text-[11px] text-gray-400 truncate">{bd.accountHolderName}</div>
+                          <div className="text-xs text-indigo-300 font-mono font-semibold truncate">Acc: {bd.accountNumber || 'N/A'}</div>
                         </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-white text-sm truncate">{bd.bankName || 'Bank Transfer'}</h4>
-                        <div className="text-xs text-indigo-300 font-mono font-semibold truncate">Acc: {bd.accountNumber || 'N/A'}</div>
-                        <div className="text-[11px] text-gray-400 truncate">{bd.accountHolderName}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-gray-900/50 p-2 rounded-xl border border-gray-800">
+                        <span className="text-[9px] uppercase font-bold text-gray-500 flex-shrink-0">To (Agent):</span>
+                        <h4 className="font-bold text-gray-300 text-xs truncate">{bd.agentAccount?.bankName || 'Your Bank'}</h4>
                       </div>
                     </div>
 

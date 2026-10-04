@@ -25,6 +25,7 @@ import {
   History,
   Box,
   Layers,
+  Bell,
 } from 'lucide-react'
 
 const navItems = [
@@ -48,6 +49,8 @@ const navItems = [
   { to: '/pending-nagad', label: 'Pending Nagad', icon: Clock, accent: 'from-orange-500 to-rose-500', badgeKey: 'pendingNagad' },
   { to: '/pending-bank-payments', label: 'Pending Bank', icon: Landmark, accent: 'from-indigo-500 to-purple-500', badgeKey: 'pendingBank' },
   { to: '/bank-management', label: 'Bank Management', icon: Landmark, accent: 'from-cyan-500 to-blue-500' },
+  { to: '/crypto-management', label: 'Crypto Management', icon: Coins, accent: 'from-emerald-500 to-teal-500' },
+
   { to: '/balance-adjustment', label: 'Balance Adjustment', icon: Coins, accent: 'from-teal-500 to-emerald-500' },
   { to: '/binance-address', label: 'Binance Address', icon: Coins, accent: 'from-yellow-400 to-orange-500' },
   { to: '/credit-plans', label: 'Credit Panel', icon: CreditCard, accent: 'from-violet-500 to-fuchsia-500' },
@@ -55,6 +58,8 @@ const navItems = [
   { to: '/credit-topup-requests', label: 'Topup Requests', icon: Wallet, accent: 'from-emerald-500 to-green-500', badgeKey: 'pendingCreditTopUps' },
   { to: '/add-payment-method', label: 'Add Payment Method', icon: CreditCard, accent: 'from-violet-500 to-indigo-500' },
   { to: '/admin-status', label: 'Status Message', icon: MessageSquareText, accent: 'from-fuchsia-500 to-pink-500' },
+  { to: '/withdrawals', label: 'Merchant Withdrawals', icon: CreditCard, accent: 'from-orange-500 to-amber-500' },
+  { to: '/user-withdrawals', label: 'User Withdrawals', icon: CreditCard, accent: 'from-blue-500 to-indigo-500' },
 
   { to: '/settings', label: 'Settings', icon: SettingsIcon, accent: 'from-slate-500 to-slate-400' },
 ]

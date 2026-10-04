@@ -10,6 +10,7 @@ const BankListSchema = new mongoose.Schema(
     bgColor: { type: String, trim: true, default: '#ffffff' },
     textColor: { type: String, trim: true, default: '#1e293b' },
     labelColor: { type: String, trim: true, default: '#94a3b8' },
+    minAmount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

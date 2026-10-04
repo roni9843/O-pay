@@ -231,3 +231,56 @@ router.patch('/:id/api-key/callback', auth, async (req, res) => {
     res.status(500).json({ message: err.message || 'Server error' });
   }
 });
+
+// Test webhook callback URL
+router.post('/:id/api-key/test-callback', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sub = await UserSubscription.findById(id);
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+    if (String(sub.user) !== String(req.user._id)) return res.status(403).json({ message: 'Forbidden' });
+    
+    if (!sub.apiCallbackUrl) {
+      return res.status(400).json({ message: 'No callback URL saved to test' });
+    }
+
+    const payload = {
+      status: 'COMPLETED',
+      amount: 500,
+      transaction_id: 'TEST-TRX-' + Math.floor(Math.random() * 1000000),
+      session_code: 'test_session_code',
+      user_identity: 'test_user@example.com',
+      bank: 'test_bank_transfer',
+      proof_images: ['https://api.oraclepay.org/test-proof.png'],
+      message: 'This is a test webhook from OraclePay Business'
+    };
+
+    const axios = require('axios');
+    let responseStatus;
+    let responseData;
+    
+    try {
+      const cbRes = await axios.post(sub.apiCallbackUrl, payload, { timeout: 10000 });
+      responseStatus = cbRes.status;
+      responseData = cbRes.data;
+    } catch (cbErr) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Webhook test failed!',
+        error: cbErr.message,
+        response: cbErr.response?.data || null,
+        status: cbErr.response?.status || 'Network Error'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Webhook test successful!', 
+      httpStatus: responseStatus,
+      responseData 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});

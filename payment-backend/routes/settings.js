@@ -233,4 +233,68 @@ router.post('/admin-profile', auth, async (req, res) => {
   }
 });
 
+// Admin: get global min bank tnx
+router.get('/global-min-bank-tnx', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const s = await Setting.findOne({ key: 'global_min_bank_tnx' });
+    return res.json({ success: true, amount: Number(s?.value || 0) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: set global min bank tnx
+router.post('/global-min-bank-tnx', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { amount } = req.body || {};
+    if (amount === undefined || isNaN(amount) || Number(amount) < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+    const s = await Setting.findOneAndUpdate(
+      { key: 'global_min_bank_tnx' },
+      { $set: { value: Number(amount) } },
+      { upsert: true, new: true }
+    );
+    return res.json({ success: true, amount: Number(s.value) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: get global min crypto tnx
+router.get('/global-min-crypto-tnx', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const s = await Setting.findOne({ key: 'global_min_crypto_tnx' });
+    return res.json({ success: true, amount: Number(s?.value || 0) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
+// Admin: set global min crypto tnx
+router.post('/global-min-crypto-tnx', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const { amount } = req.body || {};
+    if (amount === undefined || isNaN(amount) || Number(amount) < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+    const s = await Setting.findOneAndUpdate(
+      { key: 'global_min_crypto_tnx' },
+      { $set: { value: Number(amount) } },
+      { upsert: true, new: true }
+    );
+    return res.json({ success: true, amount: Number(s.value) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+});
+
 module.exports = router;

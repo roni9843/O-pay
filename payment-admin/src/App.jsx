@@ -25,6 +25,7 @@ import WalletAgentDetail from './pages/WalletAgentDetail'
 import PendingNagad from './pages/PendingNagad'
 
 
+
 import OpayBusiness from './pages/OpayBusiness'
 import OpayBusinessDetail from './pages/OpayBusinessDetail'
 import OpayBusinessHistory from './pages/OpayBusinessHistory'
@@ -43,6 +44,11 @@ import BankAdd from './pages/BankAdd'
 import BankEdit from './pages/BankEdit'
 import BankDetail from './pages/BankDetail'
 import PendingBankPayments from './pages/PendingBankPayments'
+
+import CryptoManagement from './pages/CryptoManagement'
+import CryptoAdd from './pages/CryptoAdd'
+import CryptoEdit from './pages/CryptoEdit'
+
 
 export default function App() {
   return (
@@ -81,6 +87,12 @@ export default function App() {
         <Route path="/bank-management/add" element={<BankAdd />} />
         <Route path="/bank-management/edit/:id" element={<BankEdit />} />
         <Route path="/bank-management/:id" element={<BankDetail />} />
+
+        {/* Crypto Management Routes */}
+        <Route path="/crypto-management" element={<CryptoManagement />} />
+        <Route path="/crypto-management/add" element={<CryptoAdd />} />
+        <Route path="/crypto-management/edit/:id" element={<CryptoEdit />} />
+
 
         <Route path="/balance-adjustment" element={<BalanceAdjustment />} />
 

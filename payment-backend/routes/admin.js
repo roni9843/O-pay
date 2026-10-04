@@ -861,10 +861,14 @@ router.post('/push-notification', auth, async (req, res) => {
       };
     } else {
       payload = {
+        notification: {
+          title: title || "Notification",
+          body: body || ""
+        },
         data: {
           type: "notification",
-          title: title,
-          message: body
+          title: title || "Notification",
+          message: body || ""
         },
         android: {
           priority: "high"
@@ -1891,7 +1895,7 @@ router.get('/payment-sessions', auth, async (req, res) => {
     const devices = await Device.find({ deviceCode: { $in: deviceIds } }).populate('owner', 'name email phone').lean();
 
     const AgentBankAccount = require('../models/AgentBankAccount');
-    const bankAccountIds = items.map(i => i.bankDetails?.bankAccountId || i.bankDetails?.agentId).filter(Boolean);
+    const bankAccountIds = items.map(i => i.bankDetails?.bankAccountId || i.bankDetails?.agentAccount?.bankAccountId || i.bankDetails?.agentId || i.bankDetails?.agentAccount?._id).filter(Boolean);
     const bankAccounts = bankAccountIds.length ? await AgentBankAccount.find({ _id: { $in: bankAccountIds } }).populate('owner', 'name email phone role').lean() : [];
     const bankAccountMap = new Map(bankAccounts.map(b => [String(b._id), b]));
 
@@ -1938,7 +1942,7 @@ router.get('/payment-sessions', auth, async (req, res) => {
         ? attemptedMessageMap.get(String(attemptedTrxId).toLowerCase()) || null
         : null;
 
-      const targetBankAccId = String(s.bankDetails?.bankAccountId || s.bankDetails?.agentId || '');
+      const targetBankAccId = String(s.bankDetails?.bankAccountId || s.bankDetails?.agentAccount?.bankAccountId || s.bankDetails?.agentId || s.bankDetails?.agentAccount?._id || '');
       const resolvedBankAcc = bankAccountMap.get(targetBankAccId) || null;
       const resolvedBankAgent = resolvedBankAcc?.owner || (s.walletAgentSnapshot ? { name: s.walletAgentSnapshot.agentName, _id: s.walletAgentSnapshot.agentId } : null);
 
@@ -2070,10 +2074,43 @@ router.get('/payment-sessions/:id', auth, async (req, res) => {
 
     const baseUrl = (process.env.OPAY_PAYMENT_PAGE_BASE_URL || 'http://localhost:5174').replace(/\/+$/, '');
     
+    let resolvedBankAgent = null;
+    const UserModel = require('../models/User');
+
+    // First try to resolve from the walletAgentSnapshot which is set when an agent approves/rejects
+    if (session.walletAgentSnapshot && session.walletAgentSnapshot.agentId) {
+      resolvedBankAgent = await UserModel.findById(session.walletAgentSnapshot.agentId).select('name email phone').lean();
+    }
+
+    // Fallback: If not found in snapshot, try to resolve from bank/crypto account references
+    if (!resolvedBankAgent && session.bankDetails) {
+      const AgentBankAccount = require('../models/AgentBankAccount');
+      const targetBankAccId = String(session.bankDetails?.bankAccountId || session.bankDetails?.agentAccount?.bankAccountId || session.bankDetails?.agentId || session.bankDetails?.agentAccount?._id || '');
+      if (targetBankAccId && targetBankAccId.length === 24) {
+        const resolvedBankAcc = await AgentBankAccount.findById(targetBankAccId).populate('owner', 'name email phone').lean();
+        resolvedBankAgent = resolvedBankAcc?.owner || null;
+      }
+    }
+    
+    if (!resolvedBankAgent && session.cryptoDetails) {
+      const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+      const targetCryptoAccId = String(session.cryptoDetails?.cryptoAccountId || session.cryptoDetails?.agentAccount?.cryptoAccountId || session.cryptoDetails?.agentId || session.cryptoDetails?.agentAccount?._id || '');
+      if (targetCryptoAccId && targetCryptoAccId.length === 24) {
+        const resolvedCryptoAcc = await AgentCryptoAccount.findById(targetCryptoAccId).populate('owner', 'name email phone').lean();
+        resolvedBankAgent = resolvedCryptoAcc?.owner || null;
+      }
+    }
+
+    // Ultimate fallback if agent was deleted but snapshot exists
+    if (!resolvedBankAgent && session.walletAgentSnapshot) {
+      resolvedBankAgent = { name: session.walletAgentSnapshot.agentName, _id: session.walletAgentSnapshot.agentId };
+    }
+
     const returnData = {
       ...session,
       resolvedDevice,
       resolvedMethod,
+      resolvedBankAgent,
       attemptedTrxId,
       attemptedPaymentMessage,
       payment_page_url: isBusiness ? `${baseUrl}/payment/${session.code}` : `${baseUrl}/payment/${session.token}`,
@@ -3351,7 +3388,7 @@ router.post('/banks', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const { name, code, logo, status, sortOrder, bgColor, textColor, labelColor } = req.body;
+    const { name, code, logo, status, sortOrder, bgColor, textColor, labelColor, minAmount } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Bank name is required' });
     }
@@ -3364,6 +3401,7 @@ router.post('/banks', auth, async (req, res) => {
       bgColor: bgColor ? bgColor.trim() : '#ffffff',
       textColor: textColor ? textColor.trim() : '#1e293b',
       labelColor: labelColor ? labelColor.trim() : '#94a3b8',
+      minAmount: Number(minAmount) || 0,
     });
     return res.json({ success: true, data: bank });
   } catch (err) {
@@ -3379,7 +3417,7 @@ router.put('/banks/:id', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
-    const { name, code, logo, status, sortOrder, bgColor, textColor, labelColor } = req.body;
+    const { name, code, logo, status, sortOrder, bgColor, textColor, labelColor, minAmount } = req.body;
     
     const bank = await BankList.findById(req.params.id);
     if (!bank) return res.status(404).json({ success: false, message: 'Bank not found' });
@@ -3392,6 +3430,7 @@ router.put('/banks/:id', auth, async (req, res) => {
     if (bgColor !== undefined) bank.bgColor = bgColor.trim();
     if (textColor !== undefined) bank.textColor = textColor.trim();
     if (labelColor !== undefined) bank.labelColor = labelColor.trim();
+    if (minAmount !== undefined) bank.minAmount = Number(minAmount) || 0;
 
     await bank.save();
     return res.json({ success: true, data: bank });
@@ -3401,7 +3440,166 @@ router.put('/banks/:id', auth, async (req, res) => {
   }
 });
 
+
+// --- CRYPTO LIST MANAGEMENT (ADMIN) ---
+router.get('/cryptos', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const CryptoList = require('../models/CryptoList');
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    
+    const cryptos = await CryptoList.find({}).sort({ sortOrder: 1, name: 1 }).lean();
+
+    const counts = await AgentCryptoAccount.aggregate([
+      { $group: { _id: '$cryptoName', totalAccounts: { $sum: 1 } } }
+    ]);
+    const countMap = new Map(counts.map(c => [c._id, c.totalAccounts]));
+
+    const result = cryptos.map(c => ({
+      ...c,
+      agentAccountCount: countMap.get(c.name) || 0
+    }));
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('Error fetching crypto list:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/cryptos', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const CryptoList = require('../models/CryptoList');
+    const { name, code, logo, status, currency, rate, chargePercent, sortOrder, bgColor, textColor, labelColor, instructions, minAmount } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Crypto name is required' });
+    }
+    const crypto = await CryptoList.create({
+      name: name.trim(),
+      code: code ? code.trim() : '',
+      logo: logo ? logo.trim() : '',
+      status: status === 'inactive' ? 'inactive' : 'active',
+      currency: currency ? currency.trim() : 'USDT',
+      rate: Number(rate) > 0 ? Number(rate) : 1,
+      chargePercent: Number(chargePercent) >= 0 ? Number(chargePercent) : 0,
+      sortOrder: Number(sortOrder) || 0,
+      bgColor: bgColor ? bgColor.trim() : '#0f172a',
+      textColor: textColor ? textColor.trim() : '#ffffff',
+      labelColor: labelColor ? labelColor.trim() : '#94a3b8',
+      instructions: instructions ? instructions.trim() : '',
+      minAmount: Number(minAmount) || 0,
+    });
+    return res.json({ success: true, data: crypto });
+  } catch (err) {
+    console.error('Error creating crypto:', err);
+    if (err.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Crypto name already exists' });
+    }
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/cryptos/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const CryptoList = require('../models/CryptoList');
+    const { name, code, logo, status, currency, rate, chargePercent, sortOrder, bgColor, textColor, labelColor, instructions, minAmount } = req.body;
+    
+    const crypto = await CryptoList.findById(req.params.id);
+    if (!crypto) return res.status(404).json({ success: false, message: 'Crypto not found' });
+
+    if (name) crypto.name = name.trim();
+    if (code !== undefined) crypto.code = code.trim();
+    if (logo !== undefined) crypto.logo = logo.trim();
+    if (status) crypto.status = status === 'inactive' ? 'inactive' : 'active';
+    if (currency !== undefined) crypto.currency = currency.trim();
+    if (rate !== undefined && Number(rate) > 0) crypto.rate = Number(rate);
+    if (chargePercent !== undefined) crypto.chargePercent = Number(chargePercent) || 0;
+    if (sortOrder !== undefined) crypto.sortOrder = Number(sortOrder) || 0;
+    if (bgColor !== undefined) crypto.bgColor = bgColor.trim();
+    if (textColor !== undefined) crypto.textColor = textColor.trim();
+    if (labelColor !== undefined) crypto.labelColor = labelColor.trim();
+    if (instructions !== undefined) crypto.instructions = instructions.trim();
+    if (minAmount !== undefined) crypto.minAmount = Number(minAmount) || 0;
+
+    await crypto.save();
+    return res.json({ success: true, data: crypto });
+  } catch (err) {
+    console.error('Error updating crypto:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/cryptos/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const CryptoList = require('../models/CryptoList');
+    await CryptoList.findByIdAndDelete(req.params.id);
+    return res.json({ success: true, message: 'Crypto deleted' });
+  } catch (err) {
+    console.error('Error deleting crypto:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- ADMIN CRUD FOR AGENT CRYPTO ACCOUNTS ---
+router.get('/agent-crypto-accounts', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const accounts = await AgentCryptoAccount.find({})
+      .populate('owner', 'name email phone role credit')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ success: true, data: accounts });
+  } catch (err) {
+    console.error('Error fetching agent crypto accounts:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/agent-crypto-accounts/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const { cryptoName, currency, accountNumber, accountHolderName, qrCodeLogo, status, minAmount } = req.body;
+    
+    const account = await AgentCryptoAccount.findById(req.params.id);
+    if (!account) return res.status(404).json({ success: false, message: 'Agent crypto account not found' });
+
+    if (cryptoName) account.cryptoName = cryptoName.trim();
+    if (currency !== undefined) account.currency = currency.trim();
+    if (accountNumber) account.accountNumber = accountNumber.trim();
+    if (accountHolderName !== undefined) account.accountHolderName = accountHolderName.trim();
+    if (qrCodeLogo !== undefined) account.qrCodeLogo = qrCodeLogo.trim();
+    if (status) account.status = status;
+    if (minAmount !== undefined) account.minAmount = Number(minAmount) || 0;
+
+    await account.save();
+    return res.json({ success: true, data: account, message: 'Agent crypto account updated successfully' });
+  } catch (err) {
+    console.error('Error updating agent crypto account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/agent-crypto-accounts/:id', auth, async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const deleted = await AgentCryptoAccount.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Crypto account not found' });
+    return res.json({ success: true, message: 'Agent crypto account deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting agent crypto account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.delete('/banks/:id', auth, async (req, res) => {
+
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const BankList = require('../models/BankList');
@@ -3434,7 +3632,7 @@ router.put('/agent-bank-accounts/:id', auth, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ success: false, message: 'Admin only' });
     const AgentBankAccount = require('../models/AgentBankAccount');
-    const { bankName, accountHolderName, accountNumber, branchName, division, district, upazilaThana, routingNumber, status } = req.body;
+    const { bankName, accountHolderName, accountNumber, branchName, division, district, upazilaThana, routingNumber, status, minAmount } = req.body;
     
     const account = await AgentBankAccount.findById(req.params.id);
     if (!account) return res.status(404).json({ success: false, message: 'Agent bank account not found' });
@@ -3448,6 +3646,7 @@ router.put('/agent-bank-accounts/:id', auth, async (req, res) => {
     if (upazilaThana !== undefined) account.upazilaThana = upazilaThana.trim();
     if (routingNumber !== undefined) account.routingNumber = routingNumber.trim();
     if (status) account.status = status;
+    if (minAmount !== undefined) account.minAmount = Number(minAmount) || 0;
 
     await account.save();
     return res.json({ success: true, data: account, message: 'Agent bank account updated successfully' });

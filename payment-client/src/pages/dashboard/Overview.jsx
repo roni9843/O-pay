@@ -49,6 +49,21 @@ function formatDate(value) {
   });
 }
 
+function getFullUrl(path) {
+  if (!path) return '';
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+  
+  if (path.startsWith('http')) {
+    // If it's a localhost url from DB but app is live, or if it's http://api.oraclepay.org, replace base
+    if (path.includes('localhost') || path.startsWith('http://api.oraclepay.org')) {
+      const filename = path.split('/').pop();
+      return `${base}/uploads/${filename}`;
+    }
+    return path.replace('http://', 'https://');
+  }
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
 function CountdownTimer({ bookedAt }) {
   const [timeLeft, setTimeLeft] = React.useState('');
 
@@ -91,9 +106,11 @@ export default function Overview() {
   const [copyState, setCopyState] = React.useState('');
   const [pendingNagadList, setPendingNagadList] = React.useState([]);
   const [pendingBankList, setPendingBankList] = React.useState([]);
+  const [pendingCryptoList, setPendingCryptoList] = React.useState([]);
   const [pendingAutoWithdrawals, setPendingAutoWithdrawals] = React.useState([]);
   const [activeAutoWithdrawal, setActiveAutoWithdrawal] = React.useState(null); // The one currently booked by this agent
   const [completionFiles, setCompletionFiles] = React.useState([]);
+  const [proofText, setProofText] = React.useState('');
   const [completingWithdrawal, setCompletingWithdrawal] = React.useState(false);
 
   async function acceptPendingNagad(code) {
@@ -144,6 +161,30 @@ export default function Overview() {
     }
   }
 
+  async function acceptPendingCrypto(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to APPROVE this Crypto payment? Credit deduction will run.')) return;
+    try {
+      await api.acceptPendingCryptoPayment(token, code);
+      setPendingCryptoList(prev => prev.filter(p => p.code !== code));
+      alert('Crypto payment approved successfully.');
+    } catch (e) {
+      alert(e.message || 'Accept failed');
+    }
+  }
+
+  async function rejectPendingCrypto(code) {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to REJECT this Crypto payment session?')) return;
+    try {
+      await api.rejectPendingCryptoPayment(token, code);
+      setPendingCryptoList(prev => prev.filter(p => p.code !== code));
+      alert('Crypto payment rejected successfully.');
+    } catch (e) {
+      alert(e.message || 'Reject failed');
+    }
+  }
+
   const handleToggleStatus = async () => {
     if (!toggleModal) return;
     const { id, currentStatus } = toggleModal;
@@ -188,11 +229,12 @@ export default function Overview() {
   const [completedWithdrawalCount, setCompletedWithdrawalCount] = React.useState(0);
 
   const [supportedBanksList, setSupportedBanksList] = React.useState([]);
+  const [supportedCryptosList, setSupportedCryptosList] = React.useState([]);
 
   const loadOverviewData = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingBankRes, pendingWithdrawalsRes, historyRes, agentStatsRes, meRes, banksRes] = await Promise.all([
+      const [dashboardRes, methodsRes, pagesRes, subsRes, topupRes, pendingNagadRes, pendingBankRes, pendingCryptoRes, pendingWithdrawalsRes, historyRes, agentStatsRes, meRes, banksRes, cryptosRes] = await Promise.all([
         api.getDashboardOverview(token).catch(() => ({})),
         api.getMyPaymentMethods(token).catch(() => []),
         api.getPaymentMethodPages(token).catch(() => []),
@@ -200,15 +242,22 @@ export default function Overview() {
         api.getMyCreditTopupRequests(token).catch(() => []),
         api.getAgentPendingNagad(token).catch(() => ({ data: [] })),
         api.getAgentPendingBankPayments(token).catch(() => ({ data: [] })),
+        api.getAgentPendingCryptoPayments(token).catch(() => ({ data: [] })),
         api.getPendingAutoWithdrawals(token).catch(() => ({ data: [], pending: [], active: null })),
         api.getAutoWithdrawalHistory(token).catch(() => ({ data: [] })),
         api.getAutoWithdrawalStats(token).catch(() => ({ success: false })),
         api.me(token).catch(() => null),
-        api.getSupportedBanks().catch(() => ({ data: [] }))
+        api.getSupportedBanks().catch(() => ({ data: [] })),
+        api.getSupportedCryptos().catch(() => ({ data: [] }))
       ]);
 
       if (banksRes && Array.isArray(banksRes.data)) {
         setSupportedBanksList(banksRes.data);
+      }
+      if (cryptosRes && Array.isArray(cryptosRes.data)) {
+        setSupportedCryptosList(cryptosRes.data);
+      } else if (cryptosRes && Array.isArray(cryptosRes.allCryptos)) {
+        setSupportedCryptosList(cryptosRes.allCryptos);
       }
 
       setStats({
@@ -229,6 +278,7 @@ export default function Overview() {
 
       setPendingNagadList(pendingNagadRes?.data || []);
       setPendingBankList(pendingBankRes?.data || []);
+      setPendingCryptoList(pendingCryptoRes?.data || []);
 
       const pendingWithdrawalsList = pendingWithdrawalsRes?.pending || [];
       const activeBooking = pendingWithdrawalsRes?.active || null;
@@ -335,6 +385,7 @@ export default function Overview() {
     socket.on("auto_withdrawal_timeout", refreshData);
     socket.on("auto_withdrawal_updated", refreshData);
     socket.on("pending_bank_payment_created", refreshData);
+    socket.on("pending_crypto_payment_created", refreshData);
 
     return () => {
       socket.disconnect();
@@ -465,15 +516,16 @@ export default function Overview() {
 
   const handleCompleteWithdrawal = async () => {
     if (!activeAutoWithdrawal) return;
-    if (completionFiles.length === 0) {
-      return alert("Please select at least one screenshot proof.");
+    if (!proofText || !proofText.trim()) {
+      return alert("ট্রানজেকশন আইডি / প্রুফ টেক্সট দেওয়া বাধ্যতামূলক। (Proof text/Trx ID is required)");
     }
     setCompletingWithdrawal(true);
     try {
-      await api.completeAutoWithdrawal(token, activeAutoWithdrawal._id, completionFiles);
+      await api.completeAutoWithdrawal(token, activeAutoWithdrawal._id, completionFiles, proofText.trim());
       alert("Withdrawal completed successfully! Commission & Bonus added to your Auto Withdrawal Commission card.");
       setActiveAutoWithdrawal(null);
       setCompletionFiles([]);
+      setProofText('');
       handleRefreshCredit(); // Refresh credit
     } catch (err) {
       alert(err.message || "Failed to complete");
@@ -649,10 +701,10 @@ export default function Overview() {
                       </div>
 
 
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={() => handleBookWithdrawal(w._id)}
-                          className="flex-1 bg-white text-orange-600 hover:bg-orange-50 hover:scale-[1.02] text-sm font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider flex justify-center items-center gap-2"
+                          className="flex-1 bg-white text-orange-600 hover:bg-orange-50 hover:scale-[1.02] text-sm font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wider flex justify-center items-center gap-2 whitespace-nowrap"
                         >
                           Accept Transfer <ArrowUpRight className="w-5 h-5" />
                         </button>
@@ -711,7 +763,7 @@ export default function Overview() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-3 border-t border-white/20 mt-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 border-t border-white/20 mt-3">
                       <button
                         onClick={() => acceptPendingNagad(session.code)}
                         className="flex-1 px-4 py-2 bg-green-500/90 hover:bg-green-500 text-white font-bold text-xs uppercase tracking-wide rounded-xl shadow-lg transition-all flex items-center justify-center gap-1"
@@ -745,7 +797,7 @@ export default function Overview() {
             </div>
             {pendingBankList.map(session => {
               const bDetails = session.bankDetails || {};
-              const proofUrls = Array.isArray(bDetails.proofUrls) && bDetails.proofUrls.length > 0 ? bDetails.proofUrls : (bDetails.proofUrl ? [bDetails.proofUrl] : []);
+              const proofUrls = (Array.isArray(bDetails.proofUrls) && bDetails.proofUrls.length > 0 ? bDetails.proofUrls : (bDetails.proofUrl ? [bDetails.proofUrl] : [])).map(getFullUrl);
 
               const matchedBank = supportedBanksList.find(
                 b => b.name?.toLowerCase().trim() === bDetails.bankName?.toLowerCase().trim()
@@ -761,46 +813,49 @@ export default function Overview() {
                   <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
                   <div className="space-y-4 relative z-10">
-                    <div className="flex items-center justify-between border-b border-white/15 pb-3">
-                      <div className="flex items-center gap-2 w-[70%]">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/15 pb-3 gap-3 sm:gap-0">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full min-w-0 pr-0 sm:pr-2">
                         {/* Source Bank */}
-                        <div className="flex flex-col flex-1 w-1/2">
-                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">From</span>
-                          <div className="flex items-center gap-2 mt-1">
+                        <div className="flex flex-col flex-1 w-full sm:w-1/2 min-w-0">
+                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">From (Customer)</span>
+                          <div className="flex items-center gap-2 mt-1 min-w-0">
                             <div className="w-8 h-8 rounded-xl bg-white/20 p-1 flex shrink-0">
-                              {rawLogo ? <img src={rawLogo} alt={bDetails.bankName} className="w-full h-full object-contain" /> : '🏦'}
+                              {rawLogo ? <img src={rawLogo} alt={bDetails.bankName || bDetails.selectedBank} className="w-full h-full object-contain" /> : '🏦'}
                             </div>
-                            <h4 className="font-bold text-xs truncate" title={bDetails.bankName || 'Bank Transfer'}>
-                              {bDetails.bankName || 'Bank Transfer'}
+                            <h4 className="font-bold text-xs truncate flex-1 min-w-0" title={bDetails.selectedBank || bDetails.bankName || 'Bank Transfer'}>
+                              {bDetails.selectedBank || bDetails.bankName || 'Bank Transfer'}
                             </h4>
                           </div>
                         </div>
 
                         {/* Arrow */}
-                        <div className="flex items-center justify-center px-1">
+                        <div className="hidden sm:flex items-center justify-center px-1 shrink-0">
                           <svg className="w-4 h-4 text-emerald-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                           </svg>
                         </div>
 
                         {/* Target Bank */}
-                        <div className="flex flex-col flex-1 w-1/2 text-right items-end">
-                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">To</span>
-                          <div className="flex items-center justify-end gap-2 mt-1">
-                            <h4 className="font-bold text-xs truncate text-emerald-50" title={bDetails.agentAccount?.bankName || 'Your Bank'}>
+                        <div className="flex flex-col flex-1 w-full sm:w-1/2 text-left sm:text-right items-start sm:items-end min-w-0 pt-2 sm:pt-0 border-t border-white/10 sm:border-0">
+                          <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider">To (Agent)</span>
+                          <div className="flex items-center justify-start sm:justify-end gap-2 mt-1 min-w-0 w-full">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 p-1 flex shrink-0 items-center justify-center sm:hidden">
+                              🏦
+                            </div>
+                            <h4 className="font-bold text-xs truncate text-emerald-50 flex-1 min-w-0 text-left sm:text-right" title={bDetails.agentAccount?.bankName || 'Your Bank'}>
                               {bDetails.agentAccount?.bankName || 'Your Bank'}
                             </h4>
-                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 p-1 flex shrink-0 items-center justify-center">
+                            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-emerald-500/20 p-1 shrink-0 items-center justify-center">
                               🏦
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end">
+                      <div className="flex sm:flex-col items-center justify-between sm:items-end w-full sm:w-auto shrink-0 border-t border-white/10 sm:border-0 pt-2 sm:pt-0">
                         <span className="text-[9px] bg-emerald-400 text-slate-950 font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
                           Action
                         </span>
-                        <span className="text-[9px] font-mono text-emerald-200 mt-1">#{session.code}</span>
+                        <span className="text-[9px] font-mono text-emerald-200 mt-0 sm:mt-1">#{session.code}</span>
                       </div>
                     </div>
 
@@ -846,15 +901,153 @@ export default function Overview() {
                     )}
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                       <button
                         onClick={() => acceptPendingBank(session.code)}
-                        className="flex-1 py-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="flex-1 py-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
                         <CheckCircle className="w-4 h-4" /> Approve Payment
                       </button>
                       <button
                         onClick={() => rejectPendingBank(session.code)}
+                        className="px-4 py-3 bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <AlertCircle className="w-4 h-4" /> Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pending Crypto Proofs for Wallet Agent */}
+        {pendingCryptoList && pendingCryptoList.length > 0 && (
+          <div className="w-full max-w-md lg:max-w-lg mb-6 animate-in slide-in-from-top-4 duration-500 space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                🪙 Pending Crypto Payments ({pendingCryptoList.length})
+              </h3>
+              <Link to="/dashboard/pending-crypto" className="text-xs font-bold text-indigo-600 hover:underline">
+                View All →
+              </Link>
+            </div>
+            {pendingCryptoList.map(session => {
+              const cDetails = session.cryptoDetails || {};
+              const proofUrls = (Array.isArray(cDetails.proofUrls) && cDetails.proofUrls.length > 0 ? cDetails.proofUrls : (cDetails.proofUrl ? [cDetails.proofUrl] : [])).map(getFullUrl);
+
+              const matchedCrypto = supportedCryptosList.find(
+                b => b.name?.toLowerCase().trim() === cDetails.cryptoName?.toLowerCase().trim()
+              );
+              let rawLogo = matchedCrypto?.logo || cDetails.cryptoLogo;
+              if (rawLogo && !rawLogo.startsWith('http')) {
+                const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+                rawLogo = `${base}${rawLogo.startsWith('/') ? '' : '/'}${rawLogo}`;
+              }
+
+              return (
+                <div key={session.code} className="bg-gradient-to-br from-indigo-600 via-violet-700 to-slate-900 p-6 rounded-3xl shadow-2xl border-2 border-indigo-400/50 text-white relative overflow-hidden group">
+                  <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+                  <div className="space-y-4 relative z-10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/15 pb-3 gap-3 sm:gap-0">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full min-w-0 pr-0 sm:pr-2">
+                        {/* Source Crypto */}
+                        <div className="flex flex-col flex-1 w-full sm:w-1/2 min-w-0">
+                          <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">From (Customer)</span>
+                          <div className="flex items-center gap-2 mt-1 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-white/20 p-1 flex shrink-0">
+                              {rawLogo ? <img src={rawLogo} alt={cDetails.cryptoName || cDetails.selectedCrypto} className="w-full h-full object-contain" /> : '🪙'}
+                            </div>
+                            <h4 className="font-bold text-xs truncate flex-1 min-w-0" title={cDetails.selectedCrypto || cDetails.cryptoName || 'Crypto Transfer'}>
+                              {cDetails.selectedCrypto || cDetails.cryptoName || 'Crypto Transfer'}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <div className="hidden sm:flex items-center justify-center px-1 shrink-0">
+                          <svg className="w-4 h-4 text-indigo-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                        </div>
+
+                        {/* Target Crypto */}
+                        <div className="flex flex-col flex-1 w-full sm:w-1/2 text-left sm:text-right items-start sm:items-end min-w-0 pt-2 sm:pt-0 border-t border-white/10 sm:border-0">
+                          <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">To (Agent)</span>
+                          <div className="flex items-center justify-start sm:justify-end gap-2 mt-1 min-w-0 w-full">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 p-1 flex shrink-0 items-center justify-center sm:hidden">
+                              🪙
+                            </div>
+                            <h4 className="font-bold text-xs truncate text-indigo-50 flex-1 min-w-0 text-left sm:text-right" title={cDetails.agentAccount?.cryptoName || 'Your Wallet'}>
+                              {cDetails.agentAccount?.cryptoName || 'Your Wallet'}
+                            </h4>
+                            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-indigo-500/20 p-1 shrink-0 items-center justify-center">
+                              🪙
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex sm:flex-col items-center justify-between sm:items-end w-full sm:w-auto shrink-0 border-t border-white/10 sm:border-0 pt-2 sm:pt-0">
+                        <span className="text-[9px] bg-indigo-400 text-slate-950 font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
+                          Action
+                        </span>
+                        <span className="text-[9px] font-mono text-indigo-200 mt-0 sm:mt-1">#{session.code}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-indigo-100 uppercase tracking-wider font-bold">Transfer Amount</span>
+                      <span className="text-3xl font-black text-white drop-shadow-md">
+                        ৳{Number(session.amount || 0).toLocaleString()} <span className="text-xs font-normal text-indigo-200">BDT</span>
+                      </span>
+                    </div>
+
+                    <div className="bg-black/30 p-3.5 rounded-2xl border border-white/10 space-y-1.5 text-xs font-mono">
+                      <div className="flex justify-between">
+                        <span className="text-indigo-200 font-sans text-[11px]">Account Holder:</span>
+                        <strong className="text-white font-bold">{cDetails.accountHolderName || 'N/A'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-indigo-200 font-sans text-[11px]">Tx ID:</span>
+                        <strong className="text-indigo-300 font-bold break-all">{cDetails.trxid || 'N/A'}</strong>
+                      </div>
+                    </div>
+
+                    {/* Proof Screenshots Preview */}
+                    {proofUrls.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Screenshot Proof ({proofUrls.length}):</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          {proofUrls.map((url, idx) => (
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block rounded-xl overflow-hidden border border-white/20 bg-black/40 h-24 relative group/img"
+                            >
+                              <img src={url} alt={`Proof ${idx + 1}`} className="w-full h-full object-cover transition-transform group-hover/img:scale-105" />
+                              <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                                Zoom 🔍
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+                      <button
+                        onClick={() => acceptPendingCrypto(session.code)}
+                        className="flex-1 py-3 bg-indigo-400 hover:bg-indigo-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Approve Payment
+                      </button>
+                      <button
+                        onClick={() => rejectPendingCrypto(session.code)}
                         className="px-4 py-3 bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <AlertCircle className="w-4 h-4" /> Reject
@@ -886,17 +1079,17 @@ export default function Overview() {
                 <div className="flex justify-between items-end border-b border-white/20 pb-3">
                   <div>
                     <div className="text-[10px] uppercase tracking-wider opacity-80 mb-1">Send To ({activeAutoWithdrawal.paymentMethod})</div>
-                    <div className="text-xl font-mono font-bold tracking-widest">{activeAutoWithdrawal.userIdentityAddress}</div>
+                    <div className="text-xl font-mono font-bold tracking-widest break-all pr-2">{activeAutoWithdrawal.userIdentityAddress}</div>
                     {activeAutoWithdrawal.accountNumber && (
-                      <div className="flex items-center gap-2 mt-2 bg-black/20 p-2 rounded-lg border border-white/10">
-                        <div className="font-mono text-sm text-white font-bold flex-1">Acc: {activeAutoWithdrawal.accountNumber}</div>
+                      <div className="flex items-center gap-2 mt-2 bg-black/20 p-2 rounded-lg border border-white/10 min-w-0">
+                        <div className="font-mono text-sm text-white font-bold flex-1 truncate">Acc: {activeAutoWithdrawal.accountNumber}</div>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(activeAutoWithdrawal.accountNumber);
                             setCopyState(`active-${activeAutoWithdrawal._id}`);
                             setTimeout(() => setCopyState(''), 2000);
                           }}
-                          className="p-1 hover:bg-white/20 rounded transition-colors text-white flex items-center gap-1 text-[10px] font-bold uppercase"
+                          className="p-1 hover:bg-white/20 rounded transition-colors text-white flex items-center gap-1 text-[10px] font-bold uppercase shrink-0"
                         >
                           <Copy className="w-3.5 h-3.5" />
                           {copyState === `active-${activeAutoWithdrawal._id}` ? 'Copied' : 'Copy'}
@@ -915,9 +1108,9 @@ export default function Overview() {
                     <p className="text-[10px] text-white/70 font-bold uppercase mb-2">Checkout Items</p>
                     <div className="space-y-1">
                       {activeAutoWithdrawal.checkoutItems.map((item, idx) => (
-                        <div key={idx} className="flex gap-2 text-xs font-mono text-white/90">
+                        <div key={idx} className="flex flex-wrap gap-2 text-xs font-mono text-white/90">
                           {Object.entries(item).map(([k, v]) => (
-                            <span key={k}><span className="font-bold text-white/50">{k}:</span> {v}</span>
+                            <span key={k} className="break-all"><span className="font-bold text-white/50">{k}:</span> {v}</span>
                           ))}
                         </div>
                       ))}
@@ -925,15 +1118,30 @@ export default function Overview() {
                   </div>
                 )}
 
-                <div className="pt-2">
-                  <label className="block text-xs font-medium opacity-90 mb-2">Upload Payment Screenshot (Max 5)</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => setCompletionFiles(Array.from(e.target.files))}
-                    className="block w-full text-xs text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white file:text-indigo-700 hover:file:bg-indigo-50"
-                  />
+                <div className="pt-2 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1">
+                      ট্রানজেকশন আইডি / প্রুফ টেক্সট (বাধ্যতামূলক / Required) <span className="text-rose-300">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter Trx ID or Payment Proof Text..."
+                      value={proofText}
+                      onChange={(e) => setProofText(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/30 text-white placeholder-white/40 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium opacity-90 mb-1.5">Upload Payment Screenshot (Optional / ঐচ্ছিক - Max 5)</label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => setCompletionFiles(Array.from(e.target.files))}
+                      className="block w-full text-xs text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white file:text-indigo-700 hover:file:bg-indigo-50"
+                    />
+                  </div>
                   {completionFiles.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {completionFiles.map((file, index) => (
@@ -1491,7 +1699,7 @@ export default function Overview() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6 overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4 sm:p-6 overflow-x-hidden relative">
       {/* Animated Background Blobs */}
       <div className="fixed inset-0 pointer-events-none opacity-30">
         <div className="absolute top-10 left-20 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
@@ -1619,7 +1827,7 @@ export default function Overview() {
                 </div>
 
                 {/* Recent Transactions */}
-                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl overflow-hidden">
+                <div className="rounded-3xl backdrop-blur-2xl bg-white/10 border border-white/20 shadow-2xl">
                   <div className="p-6 sm:p-8 border-b border-white/10 flex items-center justify-between">
                     <div>
                       <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -1631,14 +1839,14 @@ export default function Overview() {
                       View All <ArrowUpRight className="w-4 h-4" />
                     </Link>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto w-full pb-4">
                     {stats.recent.length === 0 ? (
                       <div className="p-12 text-center text-purple-300">
                         <Clock className="w-16 h-16 mx-auto mb-4 opacity-50" />
                         <p>No transactions yet. Waiting for first payment...</p>
                       </div>
                     ) : (
-                      <table className="w-full">
+                      <table className="w-full min-w-[600px]">
                         <thead>
                           <tr className="text-left text-xs uppercase tracking-wider text-purple-300 border-b border-white/10">
                             <th className="pb-4 pl-8">TrxID</th>
@@ -1659,12 +1867,12 @@ export default function Overview() {
                               <td className="py-5 text-sm text-purple-200">{formatDate(item.createdAt)}</td>
                               <td className="py-5 pr-8">
                                 {item.verify ? (
-                                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
-                                    <CheckCircle className="w-4 h-4" /> Verified
+                                  <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-400/10 px-2 py-1 rounded-lg w-max">
+                                    <CheckCircle className="w-4 h-4" /> SUCCESS
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium">
-                                    <AlertCircle className="w-4 h-4" /> Pending
+                                  <span className="flex items-center gap-1.5 text-xs text-orange-400 font-bold bg-orange-400/10 px-2 py-1 rounded-lg w-max">
+                                    <Clock className="w-4 h-4 animate-spin-slow" /> PENDING
                                   </span>
                                 )}
                               </td>
@@ -1801,3 +2009,5 @@ export default function Overview() {
     </div>
   );
 }
+
+

@@ -1057,12 +1057,17 @@ export default function PaymentLinkSessions() {
                               );
                             })()}
                             <span className="text-[10px] font-black uppercase tracking-widest bg-white/5 text-slate-400 px-2 py-0.5 rounded-md border border-white/10">
-                              {s.bankDetails ? 'Bank Transfer' : (selectedMethod?.gateway || 'Unknown Type')}
+                              {s.bankDetails ? 'Bank Transfer' : s.cryptoDetails ? 'Crypto Transfer' : (selectedMethod?.gateway || 'Unknown Type')}
                             </span>
                           </div>
                           {s.bankDetails?.accountHolderName && (
                             <div className="text-xs text-amber-200/80 mt-1 font-bold">
                               Acc Holder: {s.bankDetails.accountHolderName}
+                            </div>
+                          )}
+                          {s.bankDetails?.mobileNumber && (
+                            <div className="text-xs text-amber-300 mt-0.5 font-bold font-mono">
+                              Customer Phone: {s.bankDetails.mobileNumber}
                             </div>
                           )}
                           {/* Proof Screenshots if Bank Transfer */}
@@ -1093,12 +1098,13 @@ export default function PaymentLinkSessions() {
                           )}
                         </div>
 
-                        {/* Owner Info of Payment Method or Bank Transfer Wallet Agent */}
+                        {/* Agent/Owner Info */}
                         <div className="bg-[#050510] rounded-xl p-3 border border-white/5">
                           <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1.5 mb-2">
-                            <User className="w-3 h-3" /> {s.bankDetails ? 'Bank Agent Owner Details' : 'Number Owner Details'}
+                            <User className="w-3 h-3" /> {(s.bankDetails || s.cryptoDetails) ? 'Agent Owner Details' : 'Number Owner Details'}
                           </span>
-                          {s.resolvedBankAgent ? (
+                          {/* If it's a bank/crypto payment and we have the agent resolved */}
+                          {(s.bankDetails || s.cryptoDetails) && s.resolvedBankAgent ? (
                             <div className="text-xs text-slate-300 space-y-1.5">
                               <div className="flex justify-between items-center">
                                 <span className="text-slate-500">Agent Name:</span>
@@ -1108,8 +1114,12 @@ export default function PaymentLinkSessions() {
                                 <span className="text-slate-500">Agent Email:</span>
                                 <span className="text-amber-300 font-mono font-bold">{s.resolvedBankAgent.email || 'N/A'}</span>
                               </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Agent Phone:</span>
+                                <span className="text-cyan-300 font-mono font-bold">{s.resolvedBankAgent.phone || 'N/A'}</span>
+                              </div>
                               <div className="flex justify-between items-center pt-1 border-t border-white/10">
-                                <span className="text-slate-500">Bank Payment Status:</span>
+                                <span className="text-slate-500">{s.cryptoDetails ? 'Crypto Payment Status:' : 'Bank Payment Status:'}</span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                   s.status === 'paid' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
                                   s.status === 'cancelled' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
@@ -1120,27 +1130,44 @@ export default function PaymentLinkSessions() {
                               </div>
                             </div>
                           ) : s.resolvedMethod?.owner ? (
-                            <div className="text-xs text-slate-300 space-y-1">
-                              <div className="flex justify-between"><span className="text-slate-500">Name:</span> <strong>{s.resolvedMethod.owner.name}</strong></div>
-                              <div className="flex justify-between"><span className="text-slate-500">Email:</span> <span className="text-slate-400 font-mono">{s.resolvedMethod.owner.email}</span></div>
+                            // For Automated SMS methods
+                            <div className="text-xs text-slate-300 space-y-1.5">
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Name:</span> <strong>{s.resolvedMethod.owner.name}</strong></div>
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Email:</span> <span className="text-amber-300 font-mono font-bold">{s.resolvedMethod.owner.email || 'N/A'}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Phone:</span> <span className="text-cyan-300 font-mono font-bold">{s.resolvedMethod.owner.phone || s.resolvedMethod.owner.supportNumber || s.resolvedMethod.accountNumber || 'N/A'}</span></div>
+                            </div>
+                          ) : s.resolvedBankAgent ? (
+                            // Ultimate fallback (e.g., if resolvedMethod is missing but we have snapshot)
+                            <div className="text-xs text-slate-300 space-y-1.5">
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Name:</span> <strong>{s.resolvedBankAgent.name}</strong></div>
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Email:</span> <span className="text-amber-300 font-mono font-bold">{s.resolvedBankAgent.email || 'N/A'}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-500">Agent Phone:</span> <span className="text-cyan-300 font-mono font-bold">{s.resolvedBankAgent.phone || s.resolvedBankAgent.supportNumber || 'N/A'}</span></div>
                             </div>
                           ) : (
                             <div className="text-xs text-slate-500 text-center italic py-2">System or Unlinked Account</div>
                           )}
                         </div>
 
-                        {/* Owner Info of Device Received */}
-                        <div className="bg-purple-500/5 rounded-xl p-3 border border-purple-500/10">
-                          <span className="text-[10px] uppercase font-bold text-purple-400 flex items-center gap-1.5 mb-2"><Smartphone className="w-3 h-3" /> Active Device Name</span>
-                          <div className="text-sm font-bold text-purple-200 text-center mb-2">
-                            {s.verificationFootprint?.deviceName || s.paymentMessage?.deviceName || 'Waiting/Unknown Mobile'}
-                          </div>
-                          {s.resolvedDevice?.owner ? (
-                            <div className="text-xs text-purple-300/70 border-t border-purple-500/10 pt-2 flex justify-between">
-                              <span>Device Owner:</span> <strong className="text-purple-300">{s.resolvedDevice.owner.name}</strong>
+                        {/* Owner Info of Device Received (Hidden for Manual Payments) */}
+                        {!(s.bankDetails || s.cryptoDetails || s.paymentMethod === 'bank_transfer' || s.paymentMethod === 'crypto_transfer') ? (
+                          <div className="bg-purple-500/5 rounded-xl p-3 border border-purple-500/10">
+                            <span className="text-[10px] uppercase font-bold text-purple-400 flex items-center gap-1.5 mb-2"><Smartphone className="w-3 h-3" /> Active Device Name</span>
+                            <div className="text-sm font-bold text-purple-200 text-center mb-2">
+                              {s.verificationFootprint?.deviceName || s.paymentMessage?.deviceName || 'Waiting/Unknown Mobile'}
                             </div>
-                          ) : null}
-                        </div>
+                            {s.resolvedDevice?.owner ? (
+                              <div className="text-xs text-purple-300/70 border-t border-purple-500/10 pt-2 flex justify-between">
+                                <span>Device Owner:</span> <strong className="text-purple-300">{s.resolvedDevice.owner.name}</strong>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10 flex flex-col items-center justify-center">
+                            <ShieldCheck className="w-6 h-6 text-emerald-500/50 mb-1" />
+                            <span className="text-xs font-bold text-emerald-400">Manual Payment</span>
+                            <span className="text-[10px] text-emerald-500/70">Processed via Web Dashboard</span>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
 

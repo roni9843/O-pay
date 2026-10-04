@@ -121,6 +121,21 @@ const params = [
   { name: 'checkout_items', type: 'array', required: false, desc: 'আপনার সিস্টেমে ট্র্যাকিংয়ের কাস্টম অবজেক্ট অ্যারে (User ID, Type ইত্যাদি)' },
 ];
 
+const webhookParams = [
+  { name: 'status', type: 'string', reqBadge: 'Required', isReq: true, desc: 'ট্রানজেকশনের বর্তমান অবস্থা ("COMPLETED", "PROCESSING", বা "REJECTED")' },
+  { name: 'withdrawal_id', type: 'string', reqBadge: 'Required', isReq: true, desc: 'OraclePay সিস্টেমের প্রধান Auto Withdrawal ID' },
+  { name: 'amount', type: 'number', reqBadge: 'Required', isReq: true, desc: 'পেআউটের টাকার পরিমাণ (BDT)' },
+  { name: 'payment_method', type: 'string', reqBadge: 'Required', isReq: true, desc: 'মোবাইল ওয়ালেট মেথড ("bkash", "nagad", "rocket", "upay")' },
+  { name: 'user_identity_address', type: 'string', reqBadge: 'Required', isReq: true, desc: 'আপনার সিস্টেমে প্রেরিত গ্রাহক আইডেন্টিটি বা ওয়ালেট এড্রেস' },
+  { name: 'account_number', type: 'string', reqBadge: 'Required', isReq: true, desc: 'গ্রাহকের মোবাইল ব্যাংকিং নম্বর (যেখানে টাকা পাঠানো হয়েছে)' },
+  { name: 'transaction_id', type: 'string', reqBadge: 'Required (COMPLETED)', isReq: true, desc: 'এজেন্টের সাবমিট করা আসল ট্রানজেকশন আইডি (Trx ID / Reference)' },
+  { name: 'proof_text', type: 'string', reqBadge: 'Required (COMPLETED)', isReq: true, desc: 'এজেন্টের সাবমিট করা ট্রানজেকশন আইডি (transaction_id-এর অনুরূপ)' },
+  { name: 'date_and_time', type: 'string', reqBadge: 'Required (COMPLETED)', isReq: true, desc: 'পেআউট সম্পন্ন হওয়ার টাইমস্ট্যাম্প (ISO string)' },
+  { name: 'checkout_items', type: 'array / object', reqBadge: 'Optional', isReq: false, desc: 'রিকোয়েস্ট করার সময় পাঠানো কাস্টম অবজেক্ট/ডেটা (না থাকলে ফাঁকা)' },
+  { name: 'proof_images', type: 'array', reqBadge: 'Optional', isReq: false, desc: 'এজেন্টের আপলোড করা প্রুফ স্ক্রিনশট ছবির লিংক (ছবি না দিলে ফাঁকা অ্যারে [])' },
+  { name: 'reason', type: 'string', reqBadge: 'Optional (REJECTED)', isReq: false, desc: 'বাতিলের কারণ (শুধুমাত্র REJECTED স্ট্যাটাসে)' },
+];
+
 function Section({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -150,6 +165,36 @@ export default function AutoWithdrawalDocs() {
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [testError, setTestError] = useState('');
+
+  // Webhook Test State
+  const [webhookTestUrl, setWebhookTestUrl] = useState('');
+  const [webhookTesting, setWebhookTesting] = useState(false);
+  const [webhookTestStatus, setWebhookTestStatus] = useState('PROCESSING');
+
+  const handleWebhookTest = async () => {
+    if (!webhookTestUrl) {
+      alert('Please enter a callback URL to test.');
+      return;
+    }
+    setWebhookTesting(true);
+    try {
+      const res = await axios.post(`${API_BASE}/test-withdrawal-webhook`, {
+        callback_url: webhookTestUrl,
+        amount: testAmount || 1000,
+        payment_method: testMethod,
+        status: webhookTestStatus
+      }, {
+        headers: { 'X-Opay-Business-Token': user?.apiToken }
+      });
+      if (res.data.success) {
+        alert(`✅ Test Successful!\n\nHTTP Status: ${res.data.httpStatus}\nYour Server Response: ${JSON.stringify(res.data.responseData)}`);
+      }
+    } catch (err) {
+      alert(`❌ Test Failed!\n\nError: ${err.response?.data?.message || err.message}\nServer Status: ${err.response?.data?.status || 'Unknown'}\nServer Response: ${JSON.stringify(err.response?.data?.response || null)}`);
+    } finally {
+      setWebhookTesting(false);
+    }
+  };
 
   const handleLiveTest = async (e) => {
     e.preventDefault();
@@ -345,7 +390,7 @@ export default function AutoWithdrawalDocs() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">Event 2</span>
-              <h4 className="text-xs font-bold text-emerald-700">COMPLETED (যখন সফলভাবে ক্যাশ-আউট প্রসেস সম্পন্ন হয় এবং প্রুফ জমা পড়ে)</h4>
+              <h4 className="text-xs font-bold text-emerald-700">COMPLETED (যখন সফলভাবে ক্যাশ-আউট প্রসেস সম্পন্ন হয় এবং Trx ID প্রুফ জমা পড়ে)</h4>
             </div>
             <CodeBlock code={`{
   "status": "COMPLETED",
@@ -359,6 +404,8 @@ export default function AutoWithdrawalDocs() {
     { "userId": "9992" },
     { "withdrawal_type": "affiliate" }
   ],
+  "transaction_id": "8K2H3AB99",
+  "proof_text": "8K2H3AB99",
   "proof_images": [
     "http://api.oraclepay.org/uploads/proof-16900012.png"
   ]
@@ -378,12 +425,41 @@ export default function AutoWithdrawalDocs() {
   "payment_method": "bkash",
   "user_identity_address": "017XXXXXXXX",
   "account_number": "017XXXXXXXX",
-  "checkout_items": [
-    { "userId": "9992" },
-    { "withdrawal_type": "affiliate" }
-  ],
   "reason": "Rejected by administrator"
 }`} lang="JSON Webhook (REJECTED)" />
+          </div>
+
+          {/* Webhook Payload Fields Table */}
+          <div className="pt-4 space-y-3">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              📋 Webhook Callback Payload Fields (Required vs Optional)
+            </h4>
+            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold">
+                    <th className="py-3 px-3">Field</th>
+                    <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Requirement</th>
+                    <th className="py-3 px-3">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {webhookParams.map(p => (
+                    <tr key={p.name} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-3 font-mono font-bold text-indigo-700 bg-indigo-50/50 rounded">{p.name}</td>
+                      <td className="py-3 px-3 font-mono text-slate-500">{p.type}</td>
+                      <td className="py-3 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${p.isReq ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {p.reqBadge}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-600 font-medium">{p.desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Server Handler Code Example */}
@@ -407,6 +483,81 @@ export default function AutoWithdrawalDocs() {
 
   res.status(200).send('OK'); 
 });`} lang="Express Webhook Handler" />
+          </div>
+        </div>
+      </Section>
+
+      {/* Webhook Test Section */}
+      <Section title="🔗 Test Your Webhook">
+        <div className="p-6 bg-indigo-50/50 border border-indigo-100 rounded-[2.5rem] space-y-5 relative overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
+              <Terminal className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <span className="font-black text-indigo-900 tracking-tight block">Simulate Webhook POST</span>
+              <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Test Your Integration</span>
+            </div>
+          </div>
+          <p className="text-xs text-indigo-700 font-medium leading-relaxed">
+            আপনার সার্ভারে Webhook ঠিকমত কাজ করছে কিনা তা চেক করতে নিচের ফিল্ডে আপনার <span className="font-black underline italic">callback_url</span> দিয়ে টেস্ট করুন।
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-4">
+            <select
+              value={webhookTestStatus}
+              onChange={(e) => setWebhookTestStatus(e.target.value)}
+              className="w-full sm:w-auto px-4 py-3 rounded-xl border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 outline-none font-bold text-xs bg-white text-indigo-800 shadow-sm"
+            >
+              <option value="PROCESSING">⏳ PROCESSING</option>
+              <option value="COMPLETED">✅ COMPLETED</option>
+              <option value="REJECTED">❌ REJECTED</option>
+            </select>
+
+            <input
+              type="url"
+              value={webhookTestUrl}
+              onChange={(e) => setWebhookTestUrl(e.target.value)}
+              placeholder="https://your-server.com/auto-withdraw-webhook"
+              className="w-full sm:flex-1 px-4 py-3 rounded-xl border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 outline-none font-mono text-[11px] bg-white shadow-sm"
+            />
+            <button
+              onClick={handleWebhookTest}
+              disabled={webhookTesting || !user?.apiToken}
+              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap shadow-md shadow-indigo-200"
+            >
+              {webhookTesting ? 'Testing...' : 'Test Webhook'}
+            </button>
+          </div>
+          
+          <div className="mt-4">
+            <p className="text-[10px] text-indigo-500 font-medium leading-relaxed mb-2">
+              * টেস্ট বাটনে ক্লিক করলে নিচের JSON payload টি আপনার দেওয়া URL-এ POST করা হবে।
+            </p>
+            <CodeBlock
+              lang="Test Webhook Payload Preview"
+              code={JSON.stringify({
+                status: webhookTestStatus,
+                withdrawal_id: '6a9123cc5c451c86f49e' + Math.floor(Math.random() * 9999),
+                amount: Number(testAmount || 1000),
+                payment_method: testMethod || 'bkash',
+                user_identity_address: '017XXXXXXXX',
+                account_number: testNumber || '017XXXXXXXX',
+                checkout_items: [
+                  { "userId": "9992" },
+                  { "withdrawal_type": "affiliate" }
+                ],
+                ...(webhookTestStatus === 'COMPLETED' ? {
+                  date_and_time: new Date().toISOString(),
+                  transaction_id: 'TRX' + Math.floor(Math.random() * 899999 + 100000),
+                  proof_text: 'TRX' + Math.floor(Math.random() * 899999 + 100000),
+                  proof_images: ["https://api.oraclepay.org/test-proof.png"]
+                } : {}),
+                ...(webhookTestStatus === 'REJECTED' ? {
+                  reason: 'Test Rejection by Administrator'
+                } : {})
+              }, null, 2)}
+            />
           </div>
         </div>
       </Section>

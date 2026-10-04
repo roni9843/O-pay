@@ -191,7 +191,37 @@ export default function ApiDocs() {
     const [testResult, setTestResult] = useState(null);
     const [testError, setTestError] = useState('');
 
+    const [webhookTestUrl, setWebhookTestUrl] = useState('');
+    const [webhookTesting, setWebhookTesting] = useState(false);
+    const [webhookTestStatus, setWebhookTestStatus] = useState('COMPLETED');
+    const [webhookTestMethod, setWebhookTestMethod] = useState('bkash');
+
     const toggleSection = (key) => setExpandSection(prev => ({ ...prev, [key]: !prev[key] }));
+
+    const handleWebhookTest = async () => {
+        if (!webhookTestUrl) {
+            alert('Please enter a callback URL to test.');
+            return;
+        }
+        setWebhookTesting(true);
+        try {
+            const res = await axios.post(`${API_BASE}/test-webhook`, {
+                callback_url: webhookTestUrl,
+                amount: testAmount || 500,
+                bank: webhookTestMethod,
+                status: webhookTestStatus
+            }, {
+                headers: { 'X-Opay-Business-Token': user?.apiToken }
+            });
+            if (res.data.success) {
+                alert(`✅ Test Successful!\n\nHTTP Status: ${res.data.httpStatus}\nYour Server Response: ${JSON.stringify(res.data.responseData)}`);
+            }
+        } catch (err) {
+            alert(`❌ Test Failed!\n\nError: ${err.response?.data?.message || err.message}\nServer Status: ${err.response?.data?.status || 'Unknown'}\nServer Response: ${JSON.stringify(err.response?.data?.response || null)}`);
+        } finally {
+            setWebhookTesting(false);
+        }
+    };
 
     const handleLiveTest = async (e) => {
         e.preventDefault();
@@ -475,6 +505,24 @@ export default function ApiDocs() {
                     <div className="p-4 bg-violet-50 border border-violet-100 rounded-2xl text-[11px] text-violet-700">
                         <strong>💡 ওরালকপে টিপস:</strong> Webhook সব সময় <code className="font-mono bg-violet-100 px-1 rounded">POST</code> রিকোয়েস্ট হিসেবে পাঠানো হবে এবং এর <code className="font-mono bg-violet-100 px-1 rounded">Content-Type</code> হবে <code className="font-mono bg-violet-100 px-1 rounded">application/json</code>।
                     </div>
+
+                    {/* Developer Note on Manual Payment Flow */}
+                    <div className="mt-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h5 className="text-xs font-black text-amber-900 uppercase tracking-wide">Developer Guide: Manual Payment Workflow (Bank & Crypto)</h5>
+                                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                    বিকাশ/নগদ অটোমেটিক হলেও, <strong>Bank Transfer</strong> বা <strong>Crypto</strong> ম্যানুয়াল পেমেন্ট। এর ফ্লো হবে:
+                                </p>
+                                <ul className="text-xs text-amber-800 leading-relaxed list-disc list-inside mt-2 space-y-1 font-medium">
+                                    <li>প্রথমে কাস্টমার প্রুফ সাবমিট করলে আপনি <code className="bg-amber-200/50 px-1 rounded text-amber-900 font-bold">status: "PENDING"</code> ওয়েবহুক পাবেন। আপনার ডাটাবেজে এই অর্ডারটি Pending রাখুন।</li>
+                                    <li>পরবর্তীতে অ্যাডমিন বা এজেন্ট সেটি Approve বা Reject করলে আপনি পুনরায় একটি ওয়েবহুক পাবেন যার স্ট্যাটাস হবে <code className="bg-emerald-200/50 px-1 rounded text-emerald-900 font-bold">COMPLETED</code> অথবা <code className="bg-rose-200/50 px-1 rounded text-rose-900 font-bold">REJECTED</code>।</li>
+                                    <li><strong>সবচেয়ে গুরুত্বপূর্ণ:</strong> এই পুরো ফ্লো-তে <code className="font-mono font-bold bg-amber-100 px-1 rounded">invoice_number</code> এবং <code className="font-mono font-bold bg-amber-100 px-1 rounded">session_code</code> সবসময় <strong>একই থাকবে (Unchanged)</strong>। আপনি ডাটাবেজ থেকে এই <code className="font-mono font-bold">invoice_number</code> দিয়ে অর্ডারটি খুঁজে বের করে তার ব্যালেন্স প্লাস/মাইনাস বা অর্ডার আপডেট করবেন।</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </Section>
 
@@ -621,25 +669,77 @@ export default function ApiDocs() {
                                             <Terminal className="w-5 h-5 text-white" />
                                         </div>
                                         <div>
-                                            <span className="font-black text-violet-900 tracking-tight block">Expected Webhook Workflow</span>
-                                            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Next Step in Lifecycle</span>
+                                            <span className="font-black text-violet-900 tracking-tight block">Test Your Webhook</span>
+                                            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Simulate Webhook Workflow</span>
                                         </div>
                                     </div>
                                     <p className="text-xs text-violet-700 font-medium leading-relaxed">
-                                        যখন কাস্টমার পেমেন্ট সম্পন্ন করবে, আমাদের সার্ভার নিচের মত একটি <span className="font-black">POST</span> রিকোয়েস্ট তোমার <span className="font-black underline italic">callback_url</span>-এ পাঠাবে:
+                                        তোমার সার্ভারে ওয়েবহুক ঠিকমত কাজ করছে কিনা তা চেক করতে নিচের ফিল্ডে তোমার <span className="font-black underline italic">callback_url</span> দিয়ে টেস্ট করো।
                                     </p>
-                                    <CodeBlock
-                                        lang="Simulated Success Webhook"
-                                        code={JSON.stringify({
-                                            status: "COMPLETED",
-                                            amount: Number(testAmount),
-                                            transaction_id: "T240319" + Math.random().toString(36).substring(7).toUpperCase(),
-                                            invoice_number: `API-TEST-XXX`,
-                                            session_code: "OPX_" + Math.random().toString(36).substring(4).toUpperCase(),
-                                            bank: "bkash",
-                                            footprint: "https://secure.oraclepay.org/proof/test"
-                                        }, null, 2)}
-                                    />
+                                    
+                                    <div className="flex flex-col sm:flex-row items-center gap-3 mt-4">
+                                        <select
+                                            value={webhookTestStatus}
+                                            onChange={(e) => setWebhookTestStatus(e.target.value)}
+                                            className="w-full sm:w-auto px-4 py-3 rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 outline-none font-bold text-xs bg-white text-violet-800 shadow-sm"
+                                        >
+                                            <option value="COMPLETED">✅ COMPLETED</option>
+                                            <option value="PENDING">⏳ PENDING</option>
+                                            <option value="REJECTED">❌ REJECTED</option>
+                                            <option value="CANCELLED">🚫 CANCELLED</option>
+                                        </select>
+
+                                        <select
+                                            value={webhookTestMethod}
+                                            onChange={(e) => setWebhookTestMethod(e.target.value)}
+                                            className="w-full sm:w-auto px-4 py-3 rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 outline-none font-bold text-xs bg-white text-violet-800 shadow-sm"
+                                        >
+                                            <option value="bkash">bKash</option>
+                                            <option value="nagad">Nagad</option>
+                                            <option value="rocket">Rocket</option>
+                                            <option value="upay">Upay</option>
+                                            <option value="bank_transfer">Bank Transfer (Manual)</option>
+                                            <option value="crypto_transfer">Crypto (Manual)</option>
+                                        </select>
+
+                                        <input
+                                            type="url"
+                                            value={webhookTestUrl}
+                                            onChange={(e) => setWebhookTestUrl(e.target.value)}
+                                            placeholder="https://your-server.com/webhook"
+                                            className="w-full sm:flex-1 px-4 py-3 rounded-xl border border-violet-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 outline-none font-mono text-[11px] bg-white shadow-sm"
+                                        />
+                                        <button
+                                            onClick={handleWebhookTest}
+                                            disabled={webhookTesting || !user?.apiToken}
+                                            className="w-full sm:w-auto px-6 py-3 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors whitespace-nowrap shadow-md shadow-violet-200"
+                                        >
+                                            {webhookTesting ? 'Testing...' : 'Test Webhook'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="mt-4">
+                                        <p className="text-[10px] text-violet-500 font-medium leading-relaxed mb-2">
+                                            * টেস্ট বাটনে ক্লিক করলে নিচের JSON payload টি তোমার দেওয়া URL-এ POST করা হবে।
+                                        </p>
+
+                                        <CodeBlock
+                                            lang="Test Webhook Payload Preview"
+                                            code={JSON.stringify({
+                                                status: webhookTestStatus,
+                                                amount: Number(testAmount || 500),
+                                                transaction_id: "TEST-TRX-" + Math.floor(Math.random() * 100000),
+                                                invoice_number: "API-TEST-XXX",
+                                                session_code: "test_session_code",
+                                                user_identity: "test_user@example.com",
+                                                bank: webhookTestMethod,
+                                                footprint: "https://secure.oraclepay.org/proof/test",
+                                                message: "This is a test webhook from OraclePay Business",
+                                                ...( ['bank_transfer', 'crypto_transfer'].includes(webhookTestMethod) ? { proof_images: ["https://api.oraclepay.org/test-proof.png"] } : {} ),
+                                                ...( ['REJECTED', 'CANCELLED'].includes(webhookTestStatus) ? { reason: "Test Rejection / Cancellation Reason" } : {} )
+                                            }, null, 2)}
+                                        />
+                                    </div>
                                     <div className="flex items-start gap-2 text-[10px] text-violet-400 font-bold uppercase tracking-wider bg-white/50 p-3 rounded-xl">
                                         <span className="flex-shrink-0 mt-0.5">⚠️</span>
                                         <span>এই ডাটাটি তোমার ডাটাবেজে রেকর্ড আপডেট করতে এবং কাস্টমারকে সার্ভিস প্রদান করতে ব্যবহার করো।</span>

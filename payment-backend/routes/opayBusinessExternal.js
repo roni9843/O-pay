@@ -46,7 +46,7 @@ async function getWithdrawalConfig() {
 async function getEligibleAgentIds(req) {
   const UserSubscription = require('../models/UserSubscription');
   const Device = require('../models/Device');
-  
+
   let requiredAmount = 0;
   if (req.query.code) {
     const session = await OpayBusinessPaymentSession.findOne({ code: req.query.code });
@@ -57,42 +57,42 @@ async function getEligibleAgentIds(req) {
 
   const now = new Date();
   const activeSubs = await UserSubscription.find({ active: true, endDate: { $gt: now } }).populate('user').lean();
-  
+
   const eligibleIds = new Set();
   const presenceMap = req.app.get('onlineDevices') || new Map();
   const isProd = req.query.env === 'production';
-  
+
   for (const sub of activeSubs) {
     if (!sub.user || sub.user.role !== 'wallet_agent') continue;
-    
+
     // Check credit
     const availCredit = (sub.user.credit || 0) - (sub.user.minimumCredit || 0);
     if (availCredit < requiredAmount) continue;
-    
+
     const ownerIdStr = sub.user._id.toString();
-    
+
     if (!isProd) {
       eligibleIds.add(ownerIdStr);
       continue;
     }
-    
+
     // Production: Check device online
     const devices = await Device.find({ owner: sub.user._id, state: true }).lean();
     let isOnline = false;
     for (const d of devices) {
-       const isOnlineByCode = d.deviceCode && presenceMap.has(String(d.deviceCode)) && presenceMap.get(String(d.deviceCode))?.active;
-       const isOnlineById = presenceMap.has(d._id.toString()) && presenceMap.get(d._id.toString())?.active;
-       if (isOnlineByCode || isOnlineById) {
-         isOnline = true;
-         break;
-       }
+      const isOnlineByCode = d.deviceCode && presenceMap.has(String(d.deviceCode)) && presenceMap.get(String(d.deviceCode))?.active;
+      const isOnlineById = presenceMap.has(d._id.toString()) && presenceMap.get(d._id.toString())?.active;
+      if (isOnlineByCode || isOnlineById) {
+        isOnline = true;
+        break;
+      }
     }
-    
+
     if (isOnline) {
       eligibleIds.add(ownerIdStr);
     }
   }
-  
+
   return eligibleIds;
 }
 
@@ -187,7 +187,7 @@ router.post('/auto-withdraw', async (req, res) => {
 
     // Check Merchant Balance
     const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
-    
+
     // Calculate total paid success amount
     const sessions = await OpayBusinessPaymentSession.find({ business: business._id, status: 'paid' }).select('amount').lean();
     const totalSuccessAmount = sessions.reduce((sum, s) => sum + (s.amount || 0), 0);
@@ -195,7 +195,7 @@ router.post('/auto-withdraw', async (req, res) => {
     // Calculate regular merchant withdrawals
     const withdrawals = await MerchantWithdrawal.find({ merchantId: business._id, status: { $in: ['approved', 'pending'] } }).select('amount').lean();
     const totalWithdrawalAmount = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-    
+
     // Calculate previous auto-withdrawals that are pending/booked/completed
     const autoWithdrawals = await AutoWithdrawalRequest.find({ merchant: business._id, status: { $in: ['pending', 'booked', 'completed'] } }).select('amount deductedAmount').lean();
     const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.deductedAmount ?? w.amount ?? 0), 0);
@@ -215,7 +215,7 @@ router.post('/auto-withdraw', async (req, res) => {
     if (deductedAmount > availableBalance) {
       return res.status(400).json({ success: false, message: 'Insufficient balance for auto withdrawal (including fee)' });
     }
-    
+
     if (availableBalance - deductedAmount < minAutoWithdrawBalance) {
       return res.status(400).json({ success: false, message: `Insufficient balance. You must maintain a minimum balance of ৳${minAutoWithdrawBalance}.` });
     }
@@ -297,24 +297,24 @@ router.post('/auto-withdraw/cancel', async (req, res) => {
 
     const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
     const request = await AutoWithdrawalRequest.findOne({ _id: withdrawal_id, merchant: business._id });
-    
+
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found' });
     }
-    
+
     if (request.status !== 'pending') {
       return res.status(400).json({ success: false, message: 'Only pending requests can be cancelled' });
     }
-    
+
     request.status = 'cancelled';
     await request.save();
-    
+
     // Broadcast to agents so it's removed from their UI
     const io = req.app.get('socketio');
     if (io) {
       io.emit('auto_withdrawal_cancelled', request._id);
     }
-    
+
     return res.json({
       success: true,
       message: 'Auto withdrawal cancelled successfully',
@@ -335,7 +335,7 @@ router.get('/auto-withdraw/history', opayBusinessAuth, async (req, res) => {
     const { status, page = 1, limit = 50 } = req.query;
     const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
     const query = { merchant: req.user._id };
-    
+
     if (status && status !== 'all') {
       if (status === 'pending_all' || status === 'pending') {
         query.status = { $in: ['pending', 'booked'] };
@@ -366,7 +366,7 @@ router.post('/auto-withdraw/:id/cancel', opayBusinessAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const AutoWithdrawalRequest = require('../models/AutoWithdrawalRequest');
-    
+
     const request = await AutoWithdrawalRequest.findOne({ _id: id, merchant: req.user._id });
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found' });
@@ -374,16 +374,16 @@ router.post('/auto-withdraw/:id/cancel', opayBusinessAuth, async (req, res) => {
     if (request.status !== 'pending') {
       return res.status(400).json({ success: false, message: 'Only pending requests can be cancelled' });
     }
-    
+
     request.status = 'cancelled';
     await request.save();
-    
+
     // Broadcast to agents so it's removed from their UI
     const io = req.app.get('socketio');
     if (io) {
       io.emit('auto_withdrawal_cancelled', request._id);
     }
-    
+
     // Send Webhook to Merchant
     if (request.callbackUrl) {
       const axios = require('axios');
@@ -396,7 +396,7 @@ router.post('/auto-withdraw/:id/cancel', opayBusinessAuth, async (req, res) => {
         checkout_items: request.checkoutItems
       }).catch(err => console.error('Cancel webhook failed:', err.message));
     }
-    
+
     return res.json({ success: true, message: 'Withdrawal cancelled successfully' });
   } catch (err) {
     console.error('Cancel auto withdraw error:', err);
@@ -678,27 +678,36 @@ router.get('/supported-banks', async (req, res) => {
   try {
     const BankList = require('../models/BankList');
     const AgentBankAccount = require('../models/AgentBankAccount');
-    
+    const Setting = require('../models/Setting');
+
+    const globalMinBankSetting = await Setting.findOne({ key: 'global_min_bank_tnx' });
+    const globalMinBank = Number(globalMinBankSetting?.value || 0);
+
     const banks = await BankList.find({ status: 'active' }).lean();
-    
+
     const eligibleAgentIds = await getEligibleAgentIds(req);
-    const activeAccounts = await AgentBankAccount.find({ 
+    const activeAccounts = await AgentBankAccount.find({
       status: 'active',
       owner: { $in: Array.from(eligibleAgentIds) }
     }).distinct('bankName');
-    
+
     const activeBankNamesLower = activeAccounts.map(n => n.toLowerCase());
-    
-    let filteredBanks = banks.filter(b => activeBankNamesLower.includes(b.name.toLowerCase()));
-    
-    const allAgentAccounts = await AgentBankAccount.find({ status: 'active' }).distinct('bankName');
-    const allAgentBankNamesLower = allAgentAccounts.map(n => n.toLowerCase());
-    const finalAllBanks = await BankList.find().lean();
-    
+
+    let filteredBanks = banks.map(b => ({
+      ...b,
+      minAmount: Math.max(globalMinBank, Number(b.minAmount || 0))
+    })).filter(b => activeBankNamesLower.includes(b.name.toLowerCase()));
+
+    const rawAllBanks = await BankList.find().lean();
+    const finalAllBanks = rawAllBanks.map(b => ({
+      ...b,
+      minAmount: Math.max(globalMinBank, Number(b.minAmount || 0))
+    }));
+
     // Shuffle the banks randomly
     filteredBanks = filteredBanks.sort(() => Math.random() - 0.5);
-    
-    return res.json({ success: true, data: filteredBanks, allBanks: finalAllBanks });
+
+    return res.json({ success: true, data: filteredBanks, allBanks: finalAllBanks, globalMinBank });
   } catch (err) {
     console.error('opay-business supported-banks error:', err);
     return res.status(500).json({ success: false, message: 'Server error while loading supported banks' });
@@ -748,17 +757,48 @@ router.get('/random-payment-method', async (req, res) => {
 
     if (providerRaw === 'bank') {
       const AgentBankAccount = require('../models/AgentBankAccount');
-      
+      const BankList = require('../models/BankList');
+      const Setting = require('../models/Setting');
+
+      const globalMinBankSetting = await Setting.findOne({ key: 'global_min_bank_tnx' });
+      const globalMinBank = Number(globalMinBankSetting?.value || 0);
+
       const eligibleAgentIds = await getEligibleAgentIds(req);
 
       const bankNameQuery = req.query.bankName;
+      let bankListMin = 0;
+      if (bankNameQuery) {
+        const bankObj = await BankList.findOne({ name: { $regex: new RegExp(`^${bankNameQuery.trim()}$`, 'i') } }).lean();
+        if (bankObj) {
+          bankListMin = Number(bankObj.minAmount || 0);
+        }
+      }
+
+      const effectiveBankMin = Math.max(globalMinBank, bankListMin);
+      if (requiredAmount > 0 && requiredAmount < effectiveBankMin) {
+        return res.status(400).json({
+          success: false,
+          message: `এই ব্যাংকে পেমেন্টের জন্য সর্বনিম্ন পরিমাণ ৳${effectiveBankMin}`
+        });
+      }
+
       const query = { status: 'active', owner: { $in: Array.from(eligibleAgentIds) } };
       if (bankNameQuery) query.bankName = bankNameQuery;
 
       const bankAccounts = await AgentBankAccount.find(query).populate('owner').lean();
-      const eligibleBanks = bankAccounts;
+
+      const eligibleBanks = bankAccounts.filter(acc => {
+        const accMin = Math.max(effectiveBankMin, Number(acc.minAmount || 0));
+        return requiredAmount <= 0 || requiredAmount >= accMin;
+      });
 
       if (!eligibleBanks.length) {
+        if (bankAccounts.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `এই ব্যাংকের অ্যাকাউন্টে সর্বনিম্ন পেমেন্টের শর্ত পূরণ হয়নি`
+          });
+        }
         return res.status(404).json({ success: false, message: 'No active wallet agent bank account available' });
       }
 
@@ -1756,8 +1796,8 @@ router.post('/verify-payment', async (req, res) => {
 
     // Determine actual provider safely
     const actualProvider = provider || (method && method.provider);
-    const isNagad = (actualProvider && actualProvider.toLowerCase() === 'nagad') || 
-                    (matchedMessage && matchedMessage.title && matchedMessage.title.toLowerCase().includes('nagad'));
+    const isNagad = (actualProvider && actualProvider.toLowerCase() === 'nagad') ||
+      (matchedMessage && matchedMessage.title && matchedMessage.title.toLowerCase().includes('nagad'));
 
     // IF NAGAD, DO NOT COMPLETE PAYMENT YET. SET TO PENDING_NAGAD
     if (isNagad) {
@@ -1767,8 +1807,8 @@ router.post('/verify-payment', async (req, res) => {
         const Device = require('../models/Device');
 
         // Find all devices owned by this wallet agent (method.owner)
-        const agentDevices = method?.owner 
-          ? await Device.find({ owner: method.owner, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+        const agentDevices = method?.owner
+          ? await Device.find({ owner: method.owner, fcmToken: { $ne: null } }).select('_id fcmToken').lean()
           : [];
         const targetTokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
@@ -1793,7 +1833,7 @@ router.post('/verify-payment', async (req, res) => {
             pushNotificationStatus = 'Success';
             const PushLog = require('../models/PushLog');
             const logsToInsert = [];
-            
+
             response.responses.forEach((resp, index) => {
               if (resp.success) {
                 logsToInsert.push({
@@ -1839,8 +1879,6 @@ router.post('/verify-payment', async (req, res) => {
         code: session.code
       });
     }
-
-    return res.status(400).json({ success: false, message: 'Invalid or unsupported payment transaction' });
 
     // Mark verified
     matchedMessage.verify = true;
@@ -2056,8 +2094,8 @@ router.post('/verify-bank-payment', async (req, res) => {
       const bankName = session.bankDetails?.bankName || 'Bank';
       const amountFormatted = Number(session.amount || 0).toLocaleString();
 
-      const agentDevices = session.bankDetails?.agentAccount?.agentId 
-        ? await Device.find({ owner: session.bankDetails.agentAccount.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+      const agentDevices = session.bankDetails?.agentAccount?.agentId
+        ? await Device.find({ owner: session.bankDetails.agentAccount.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean()
         : [];
       const tokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
@@ -2100,6 +2138,23 @@ router.post('/verify-bank-payment', async (req, res) => {
       }
     } catch (pushErr) {
       console.error('[BANK PROOF PUSH ERROR]', pushErr.message);
+    }
+
+    // Trigger PENDING Webhook
+    if (session.callbackUrl) {
+      const axios = require('axios');
+      const payload = {
+        status: 'PENDING',
+        amount: session.amount,
+        transaction_id: bankDetails?.trxId || bankDetails?.transactionId || '',
+        invoice_number: session.invoiceNumber || '',
+        session_code: session.code,
+        user_identity: session.userIdentityAddress || '',
+        bank: normalizedBankName,
+        footprint: finalProofUrl || '',
+        message: 'Bank payment proof submitted and is awaiting approval'
+      };
+      axios.post(session.callbackUrl, payload, { timeout: 5000 }).catch(e => console.warn('Pending bank webhook error:', e.message));
     }
 
     return res.json({
@@ -2300,7 +2355,7 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
         dailyMap[key].successAmount += s.amount || 0;
       }
     }
-    
+
     // Include AutoWithdrawal daily breakdown for graphs
     const recentAutoWithdrawals = await AutoWithdrawalRequest.find({
       merchant: businessId,
@@ -2336,7 +2391,7 @@ router.get('/dashboard-overview', opayBusinessAuth, async (req, res) => {
       merchant: businessId,
       status: { $in: ['pending', 'booked', 'completed'] }
     }).lean();
-    
+
     const totalAutoWithdrawalAmount = autoWithdrawals.reduce((sum, w) => sum + (w.deductedAmount ?? w.amount ?? 0), 0);
 
     const business = await OpayBusiness.findById(businessId).select('balanceAdjustment').lean();
@@ -2650,20 +2705,20 @@ router.post('/topup-init', opayBusinessAuth, async (req, res) => {
 
     const businessId = req.user._id;
     const adminToken = '4e6e3b608649c71c262472c51050e55113c58973b9b110b1';
-    
+
     const userIdentifyAddress = `TOPUP_${businessId.toString()}`;
 
     // Host of the external API is the same as the current host
     const host = req.get('host') || 'localhost:5000';
     const protocol = req.protocol || 'http';
-    
+
     // Fetch fee settings
     const topupFeeTypeSetting = await Setting.findOne({ key: 'merchant_topup_fee_type' }).lean();
     const topupFeeValueSetting = await Setting.findOne({ key: 'merchant_topup_fee_value' }).lean();
-    
+
     const feeType = topupFeeTypeSetting?.value || 'percentage';
     const feeValue = Number(topupFeeValueSetting?.value || 0);
-    
+
     const baseAmount = Number(amount);
     let fee = 0;
     if (feeType === 'percentage') {
@@ -2674,7 +2729,7 @@ router.post('/topup-init', opayBusinessAuth, async (req, res) => {
     const totalAmount = baseAmount + fee;
 
     const generateUrl = `${protocol}://${host}/api/opay-business/generate-payment-page`;
-    
+
     const axios = require('axios');
     const response = await axios.post(generateUrl, {
       payment_amount: totalAmount,
@@ -2704,11 +2759,11 @@ router.post('/topup-init', opayBusinessAuth, async (req, res) => {
 router.post('/topup-callback', async (req, res) => {
   try {
     const { status, user_identity, amount, transaction_id, bank, session_code, checkout_items } = req.body;
-    
+
     // We only process successful top-ups meant for merchants
     if (status === 'COMPLETED' && user_identity && user_identity.startsWith('TOPUP_')) {
       const merchantId = user_identity.replace('TOPUP_', '');
-      
+
       // Check for duplicate trxid to prevent double-crediting
       const existing = await MerchantTopupRecord.findOne({ trxId: transaction_id });
       if (existing) {
@@ -2921,26 +2976,35 @@ router.get('/supported-cryptos', async (req, res) => {
   try {
     const CryptoList = require('../models/CryptoList');
     const AgentCryptoAccount = require('../models/AgentCryptoAccount');
-    
+    const Setting = require('../models/Setting');
+
+    const globalMinCryptoSetting = await Setting.findOne({ key: 'global_min_crypto_tnx' });
+    const globalMinCrypto = Number(globalMinCryptoSetting?.value || 0);
+
     const cryptos = await CryptoList.find({ status: 'active' }).sort({ sortOrder: 1, name: 1 }).lean();
-    
+
     const eligibleAgentIds = await getEligibleAgentIds(req);
-    const activeAccounts = await AgentCryptoAccount.find({ 
+    const activeAccounts = await AgentCryptoAccount.find({
       status: 'active',
       owner: { $in: Array.from(eligibleAgentIds) }
     }).distinct('cryptoName');
-    
-    const activeCryptoNamesLower = activeAccounts.map(n => n.toLowerCase());
-    
-    let filteredCryptos = cryptos.filter(c => activeCryptoNamesLower.includes(c.name.toLowerCase()));
 
-    const allAgentAccounts = await AgentCryptoAccount.find({ status: 'active' }).distinct('cryptoName');
-    const allAgentCryptoNamesLower = allAgentAccounts.map(n => n.toLowerCase());
-    const finalAllCryptos = await CryptoList.find().sort({ sortOrder: 1, name: 1 }).lean();
+    const activeCryptoNamesLower = activeAccounts.map(n => n.toLowerCase());
+
+    let filteredCryptos = cryptos.map(c => ({
+      ...c,
+      minAmount: Math.max(globalMinCrypto, Number(c.minAmount || 0))
+    })).filter(c => activeCryptoNamesLower.includes(c.name.toLowerCase()));
+
+    const rawAllCryptos = await CryptoList.find().sort({ sortOrder: 1, name: 1 }).lean();
+    const finalAllCryptos = rawAllCryptos.map(c => ({
+      ...c,
+      minAmount: Math.max(globalMinCrypto, Number(c.minAmount || 0))
+    }));
 
     filteredCryptos = filteredCryptos.sort(() => Math.random() - 0.5);
-    
-    return res.json({ success: true, data: filteredCryptos, allCryptos: finalAllCryptos });
+
+    return res.json({ success: true, data: filteredCryptos, allCryptos: finalAllCryptos, globalMinCrypto });
   } catch (err) {
     console.error('opay-business supported-cryptos error:', err);
     return res.status(500).json({ success: false, message: 'Server error loading supported cryptos' });
@@ -2951,32 +3015,70 @@ router.get('/supported-cryptos', async (req, res) => {
 // Returns an active wallet agent crypto account for the chosen crypto name
 router.get('/random-crypto-account', async (req, res) => {
   try {
-    const { cryptoName, amount } = req.query;
+    const { cryptoName, amount, code } = req.query;
     if (!cryptoName) {
       return res.status(400).json({ success: false, message: 'cryptoName parameter is required' });
     }
 
+    let reqAmount = Number(amount || 0);
+    if (code) {
+      const session = await OpayBusinessPaymentSession.findOne({ code });
+      if (session && session.amount) {
+        reqAmount = session.amount;
+      }
+    }
+
     const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const CryptoList = require('../models/CryptoList');
+    const Setting = require('../models/Setting');
+
+    const globalMinCryptoSetting = await Setting.findOne({ key: 'global_min_crypto_tnx' });
+    const globalMinCrypto = Number(globalMinCryptoSetting?.value || 0);
+
+    const cryptoObj = await CryptoList.findOne({ name: { $regex: new RegExp(`^${cryptoName.trim()}$`, 'i') } }).lean();
+    const cryptoListMin = Number(cryptoObj?.minAmount || 0);
+    const effectiveCryptoMin = Math.max(globalMinCrypto, cryptoListMin);
+
+    if (reqAmount > 0 && reqAmount < effectiveCryptoMin) {
+      return res.status(400).json({
+        success: false,
+        message: `এই ক্রিপ্টো মেথডে সর্বনিম্ন পরিমাণ ৳${effectiveCryptoMin}`
+      });
+    }
+
     const eligibleAgentIds = await getEligibleAgentIds(req);
-    
-    const accounts = await AgentCryptoAccount.find({ 
+
+    const accounts = await AgentCryptoAccount.find({
       status: 'active',
       cryptoName: { $regex: new RegExp(`^${cryptoName.trim()}$`, 'i') },
       owner: { $in: Array.from(eligibleAgentIds) }
     }).populate('owner').lean();
 
-    let eligibleAccounts = accounts;
+    let eligibleAccounts = accounts.filter(acc => {
+      const accMin = Math.max(effectiveCryptoMin, Number(acc.minAmount || 0));
+      return reqAmount <= 0 || reqAmount >= accMin;
+    });
 
     if (!eligibleAccounts.length && process.env.NODE_ENV === 'development') {
       // In dev mode, relax constraints: ignore active subscription and credit limits
-      const allAccounts = await AgentCryptoAccount.find({ 
+      const allAccounts = await AgentCryptoAccount.find({
         status: 'active',
         cryptoName: { $regex: new RegExp(`^${cryptoName.trim()}$`, 'i') }
       }).populate('owner').lean();
-      eligibleAccounts = allAccounts.filter(b => b.owner && b.owner.role === 'wallet_agent');
+      eligibleAccounts = allAccounts.filter(b => {
+        if (!b.owner || b.owner.role !== 'wallet_agent') return false;
+        const accMin = Math.max(effectiveCryptoMin, Number(b.minAmount || 0));
+        return reqAmount <= 0 || reqAmount >= accMin;
+      });
     }
 
     if (!eligibleAccounts.length) {
+      if (accounts.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `এই ক্রিপ্টো অ্যাকাউন্টের জন্য সর্বনিম্ন পেমেন্ট সীমা প্রযোজ্য`
+        });
+      }
       return res.status(404).json({ success: false, message: 'No active agent crypto account available with sufficient credit.' });
     }
 
@@ -3068,8 +3170,8 @@ router.post('/submit-crypto-proof', async (req, res) => {
 
       const amountFormatted = Number(session.amount || 0).toLocaleString();
 
-      const agentDevices = session.cryptoDetails?.agentId 
-        ? await Device.find({ owner: session.cryptoDetails.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean() 
+      const agentDevices = session.cryptoDetails?.agentId
+        ? await Device.find({ owner: session.cryptoDetails.agentId, fcmToken: { $ne: null } }).select('_id fcmToken').lean()
         : [];
       const tokens = agentDevices.map(d => d.fcmToken).filter(Boolean);
 
@@ -3105,6 +3207,23 @@ router.post('/submit-crypto-proof', async (req, res) => {
       }
     } catch (pushErr) {
       console.error('FCM Push failed for crypto payment:', pushErr);
+    }
+
+    // Trigger PENDING Webhook
+    if (session.callbackUrl) {
+      const axios = require('axios');
+      const payload = {
+        status: 'PENDING',
+        amount: session.amount,
+        transaction_id: trxid || '',
+        invoice_number: session.invoiceNumber || '',
+        session_code: session.code,
+        user_identity: session.userIdentityAddress || '',
+        bank: cryptoName || 'Crypto',
+        footprint: finalProofUrls[0] || '',
+        message: 'Crypto payment proof submitted and is awaiting approval'
+      };
+      axios.post(session.callbackUrl, payload, { timeout: 5000 }).catch(e => console.warn('Pending crypto webhook error:', e.message));
     }
 
     return res.json({ success: true, message: 'Crypto payment proof submitted successfully', session });
@@ -3153,14 +3272,14 @@ router.post('/test-webhook', async (req, res) => {
     const axios = require('axios');
     let responseStatus;
     let responseData;
-    
+
     try {
       const cbRes = await axios.post(callback_url, payload, { timeout: 10000 });
       responseStatus = cbRes.status;
       responseData = cbRes.data;
     } catch (cbErr) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         message: 'Webhook test failed!',
         error: cbErr.message,
         response: cbErr.response?.data || null,
@@ -3168,11 +3287,11 @@ router.post('/test-webhook', async (req, res) => {
       });
     }
 
-    return res.json({ 
-      success: true, 
-      message: 'Webhook test successful!', 
+    return res.json({
+      success: true,
+      message: 'Webhook test successful!',
       httpStatus: responseStatus,
-      responseData 
+      responseData
     });
   } catch (err) {
     console.error('test-webhook error:', err);
@@ -3220,14 +3339,14 @@ router.post('/test-withdrawal-webhook', async (req, res) => {
     const axios = require('axios');
     let responseStatus;
     let responseData;
-    
+
     try {
       const cbRes = await axios.post(callback_url, payload, { timeout: 10000 });
       responseStatus = cbRes.status;
       responseData = cbRes.data;
     } catch (cbErr) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         message: 'Withdrawal webhook test failed!',
         error: cbErr.message,
         response: cbErr.response?.data || null,
@@ -3235,11 +3354,11 @@ router.post('/test-withdrawal-webhook', async (req, res) => {
       });
     }
 
-    return res.json({ 
-      success: true, 
-      message: 'Withdrawal webhook test successful!', 
+    return res.json({
+      success: true,
+      message: 'Withdrawal webhook test successful!',
       httpStatus: responseStatus,
-      responseData 
+      responseData
     });
   } catch (err) {
     console.error('test-withdrawal-webhook error:', err);

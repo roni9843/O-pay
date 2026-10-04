@@ -63,6 +63,20 @@ export default function PaymentFootprint() {
   const [verificationFailed, setVerificationFailed] = useState(false);
   const [failMessage, setFailMessage] = useState('');
   const [pendingCountdown, setPendingCountdown] = useState(20);
+  const [supportedCryptos, setSupportedCryptos] = useState([]);
+
+  useEffect(() => {
+    async function loadSupportedCryptos() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/opay-business/supported-cryptos`);
+        const data = await res.json();
+        if (res.ok && data.success && Array.isArray(data.data)) {
+          setSupportedCryptos(data.data);
+        }
+      } catch (_) {}
+    }
+    loadSupportedCryptos();
+  }, []);
 
   useEffect(() => {
     let interval;
@@ -528,36 +542,57 @@ export default function PaymentFootprint() {
           {activeTab === 2 && (
             <>
               <div className="grid grid-cols-3 gap-6">
-                {cryptoWallets.map((wallet) => (
-                  <button
-                    key={wallet.name}
-                    className="flex flex-col items-center gap-2 group relative cursor-default"
-                  >
-                    <div
-                      className="
-                        relative w-20 h-20 sm:w-24 sm:h-24
-                        rounded-2xl bg-white shadow-md flex items-center justify-center p-4
-                        transition-all duration-300
-                        group-hover:shadow-xl group-hover:-translate-y-2
-                      "
-                    >
-                      <img
-                        src={wallet.logo}
-                        alt={wallet.name}
-                        className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
-                      />
-                    </div>
+                {(supportedCryptos.length > 0 ? supportedCryptos : cryptoWallets).map((wallet) => {
+                  const formatImgUrl = (url) => {
+                    if (!url) return '';
+                    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+                    return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${url.startsWith('/') ? '' : '/'}${url}`;
+                  };
+                  const logoSrc = wallet.logo ? formatImgUrl(wallet.logo) : '';
 
-                    <span
-                      className="
-                        text-sm font-medium transition-colors
-                        text-gray-600 group-hover:text-gray-800
-                      "
+                  return (
+                    <button
+                      key={wallet._id || wallet.name}
+                      className="flex flex-col items-center gap-2 group relative cursor-default"
                     >
-                      {wallet.name}
-                    </span>
-                  </button>
-                ))}
+                      <div
+                        className="
+                          relative w-20 h-20 sm:w-24 sm:h-24
+                          rounded-2xl bg-white shadow-md flex items-center justify-center p-4
+                          transition-all duration-300
+                          group-hover:shadow-xl group-hover:-translate-y-2
+                        "
+                      >
+                        <img
+                          src={logoSrc}
+                          alt={wallet.name}
+                          className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
+                        />
+                        {(wallet.hasAgentAccounts || wallet.status === 'active' || (!wallet._id)) && (
+                          <div
+                            className="
+                              absolute -top-1 -right-1
+                              px-2 py-0.5 text-[9px] font-bold
+                              bg-emerald-100 text-emerald-800
+                              rounded-full shadow-md border border-emerald-300
+                            "
+                          >
+                            Active
+                          </div>
+                        )}
+                      </div>
+
+                      <span
+                        className="
+                          text-sm font-bold transition-colors text-center line-clamp-1
+                          text-gray-600 group-hover:text-gray-800
+                        "
+                      >
+                        {wallet.name}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}

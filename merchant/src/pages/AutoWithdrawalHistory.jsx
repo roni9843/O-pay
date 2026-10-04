@@ -227,13 +227,22 @@ export default function AutoWithdrawalHistory() {
                           Note: {item.rejectReason}
                         </div>
                       )}
-                      {item.status === 'completed' && item.proofImages && item.proofImages.length > 0 && (
-                        <div className="flex gap-2 flex-wrap mt-1">
-                          {item.proofImages.map((img, i) => (
-                            <a key={i} href={getProofImageUrl(img)} target="_blank" rel="noreferrer" className="block w-10 h-10 rounded border border-slate-200 overflow-hidden hover:border-emerald-500 transition-colors">
-                              <img src={getProofImageUrl(img)} alt="Proof" className="w-full h-full object-cover" />
-                            </a>
-                          ))}
+                      {item.status === 'completed' && (
+                        <div className="space-y-1">
+                          {(item.proofText || item.transactionId) && (
+                            <div className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 inline-block break-all">
+                              Trx ID: {item.proofText || item.transactionId}
+                            </div>
+                          )}
+                          {item.proofImages && item.proofImages.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mt-1">
+                              {item.proofImages.map((img, i) => (
+                                <a key={i} href={getProofImageUrl(img)} target="_blank" rel="noreferrer" className="block w-10 h-10 rounded border border-slate-200 overflow-hidden hover:border-emerald-500 transition-colors">
+                                  <img src={getProofImageUrl(img)} alt="Proof" className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                       {item.status === 'pending' && <span className="text-xs text-slate-400 italic">No details yet</span>}

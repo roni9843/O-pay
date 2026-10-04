@@ -17,10 +17,10 @@ export default function BankAdd() {
     code: '',
     logo: '',
     status: 'active',
-    sortOrder: 0,
     bgColor: '#ffffff',
     textColor: '#1e293b',
     labelColor: '#94a3b8',
+    minAmount: 0,
   });
 
   const handleFileUpload = async (e) => {
@@ -198,6 +198,19 @@ export default function BankAdd() {
                     className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl focus:border-indigo-500 focus:outline-none text-sm font-medium text-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Minimum Transaction Amount (৳)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 50"
+                  value={formData.minAmount || ''}
+                  onChange={(e) => setFormData({ ...formData, minAmount: Number(e.target.value) || 0 })}
+                  className="w-full px-5 py-3 bg-black/40 border border-white/10 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all"
+                />
               </div>
 
               <button

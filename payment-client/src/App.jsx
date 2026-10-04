@@ -32,6 +32,8 @@ import AutoWithdrawalHistory from "./pages/dashboard/AutoWithdrawalHistory";
 
 import AgentBankAccounts from "./pages/dashboard/AgentBankAccounts";
 import AgentPendingBank from "./pages/dashboard/AgentPendingBank";
+import AgentCryptoAccounts from "./pages/dashboard/AgentCryptoAccounts";
+import AgentPendingCrypto from "./pages/dashboard/AgentPendingCrypto";
 
 export default function App() {
   const token = useAuthStore((state) => state.token);
@@ -92,6 +94,8 @@ export default function App() {
             <Route path="pending-nagad" element={<PendingNagad />} />
             <Route path="pending-bank" element={<AgentPendingBank />} />
             <Route path="bank-accounts" element={<AgentBankAccounts />} />
+            <Route path="pending-crypto" element={<AgentPendingCrypto />} />
+            <Route path="crypto-accounts" element={<AgentCryptoAccounts />} />
             <Route path="credit-topup" element={<CreditTopup />} />
             <Route path="credit-history" element={<CreditHistory />} />
             <Route path="auto-withdrawal-history" element={<AutoWithdrawalHistory />} />

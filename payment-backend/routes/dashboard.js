@@ -745,7 +745,7 @@ router.post('/bank-accounts', auth, async (req, res) => {
       status,
     } = req.body;
 
-    if (!bankName || !accountHolderName || !accountNumber || !branchName || !division || !district || !upazilaThana || !routingNumber) {
+    if (!bankName || !accountHolderName || !accountNumber || !branchName || !district || !routingNumber) {
       return res.status(400).json({ success: false, message: 'All bank details fields are required' });
     }
 
@@ -755,9 +755,9 @@ router.post('/bank-accounts', auth, async (req, res) => {
       accountHolderName: accountHolderName.trim(),
       accountNumber: accountNumber.trim(),
       branchName: branchName.trim(),
-      division: division.trim(),
+      division: division ? division.trim() : '',
       district: district.trim(),
-      upazilaThana: upazilaThana.trim(),
+      upazilaThana: upazilaThana ? upazilaThana.trim() : '',
       routingNumber: routingNumber.trim(),
       status: status === 'inactive' ? 'inactive' : 'active',
     });
@@ -765,6 +765,52 @@ router.post('/bank-accounts', auth, async (req, res) => {
     return res.json({ success: true, data: newAcc });
   } catch (err) {
     console.error('Error adding agent bank account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.patch('/bank-accounts/:id', auth, async (req, res) => {
+  try {
+    const AgentBankAccount = require('../models/AgentBankAccount');
+    const {
+      bankName,
+      accountHolderName,
+      accountNumber,
+      branchName,
+      division,
+      district,
+      upazilaThana,
+      routingNumber,
+      status,
+    } = req.body;
+
+    if (!bankName || !accountHolderName || !accountNumber || !branchName || !district || !routingNumber) {
+      return res.status(400).json({ success: false, message: 'All bank details fields are required' });
+    }
+
+    const updatedAcc = await AgentBankAccount.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id },
+      {
+        bankName: bankName.trim(),
+        accountHolderName: accountHolderName.trim(),
+        accountNumber: accountNumber.trim(),
+        branchName: branchName.trim(),
+        division: division ? division.trim() : '',
+        district: district.trim(),
+        upazilaThana: upazilaThana ? upazilaThana.trim() : '',
+        routingNumber: routingNumber.trim(),
+        status: status === 'inactive' ? 'inactive' : 'active',
+      },
+      { new: true }
+    );
+
+    if (!updatedAcc) {
+      return res.status(404).json({ success: false, message: 'Bank account not found' });
+    }
+
+    return res.json({ success: true, data: updatedAcc });
+  } catch (err) {
+    console.error('Error updating agent bank account:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -779,6 +825,103 @@ router.delete('/bank-accounts/:id', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+// --- WALLET AGENT CRYPTO ACCOUNTS MANAGEMENT ---
+router.get('/crypto-accounts', auth, async (req, res) => {
+  try {
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const accounts = await AgentCryptoAccount.find({ owner: req.user._id }).sort({ createdAt: -1 }).lean();
+    return res.json({ success: true, data: accounts });
+  } catch (err) {
+    console.error('Error fetching agent crypto accounts:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/crypto-accounts', auth, async (req, res) => {
+  try {
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const {
+      cryptoName,
+      currency,
+      accountNumber,
+      accountHolderName,
+      qrCodeLogo,
+      status,
+    } = req.body;
+
+    if (!cryptoName || !accountNumber) {
+      return res.status(400).json({ success: false, message: 'Crypto name and Account number / Address are required' });
+    }
+
+    const newAcc = await AgentCryptoAccount.create({
+      owner: req.user._id,
+      cryptoName: cryptoName.trim(),
+      currency: currency ? currency.trim() : '',
+      accountNumber: accountNumber.trim(),
+      accountHolderName: accountHolderName ? accountHolderName.trim() : '',
+      qrCodeLogo: qrCodeLogo ? qrCodeLogo.trim() : '',
+      status: status === 'inactive' ? 'inactive' : 'active',
+    });
+
+    return res.json({ success: true, data: newAcc });
+  } catch (err) {
+    console.error('Error adding agent crypto account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.patch('/crypto-accounts/:id', auth, async (req, res) => {
+  try {
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const {
+      cryptoName,
+      currency,
+      accountNumber,
+      accountHolderName,
+      qrCodeLogo,
+      status,
+    } = req.body;
+
+    if (!cryptoName || !accountNumber) {
+      return res.status(400).json({ success: false, message: 'Crypto name and Account number / Address are required' });
+    }
+
+    const updatedAcc = await AgentCryptoAccount.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id },
+      {
+        cryptoName: cryptoName.trim(),
+        currency: currency ? currency.trim() : '',
+        accountNumber: accountNumber.trim(),
+        accountHolderName: accountHolderName ? accountHolderName.trim() : '',
+        qrCodeLogo: qrCodeLogo ? qrCodeLogo.trim() : '',
+        status: status === 'inactive' ? 'inactive' : 'active',
+      },
+      { new: true }
+    );
+
+    if (!updatedAcc) {
+      return res.status(404).json({ success: false, message: 'Crypto account not found' });
+    }
+
+    return res.json({ success: true, data: updatedAcc });
+  } catch (err) {
+    console.error('Error updating agent crypto account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.delete('/crypto-accounts/:id', auth, async (req, res) => {
+  try {
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    await AgentCryptoAccount.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+    return res.json({ success: true, message: 'Crypto account deleted' });
+  } catch (err) {
+    console.error('Error deleting agent crypto account:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 
 // --- WALLET AGENT PENDING & COMPLETED BANK PAYMENTS HISTORY ---
 router.get('/pending-bank-payments', auth, async (req, res) => {
@@ -986,6 +1129,212 @@ router.post('/pending-bank-payments/reject', auth, async (req, res) => {
     return res.json({ success: true, message: 'Bank payment rejected' });
   } catch (err) {
     console.error('Error rejecting bank payment (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- WALLET AGENT PENDING & COMPLETED CRYPTO PAYMENTS HISTORY ---
+router.get('/pending-crypto-payments', auth, async (req, res) => {
+  try {
+    const AgentCryptoAccount = require('../models/AgentCryptoAccount');
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const statusQuery = req.query.status;
+
+    // 1. Get crypto account IDs / numbers of this agent
+    const cryptoAccounts = await AgentCryptoAccount.find({ owner: req.user._id }).select('_id accountNumber').lean();
+    const cryptoAccIds = cryptoAccounts.map(c => String(c._id));
+
+    // 2. Determine status filter
+    let matchStatus = { $in: ['pending_crypto'] };
+    if (statusQuery === 'history') {
+      matchStatus = { $in: ['paid', 'cancelled'] };
+    } else if (statusQuery === 'all') {
+      matchStatus = { $in: ['pending_crypto', 'paid', 'cancelled'] };
+    }
+
+    // 3. Fetch sessions with paymentMethod crypto_transfer or status pending_crypto
+    const sessions = await OpayBusinessPaymentSession.find({ 
+      status: matchStatus,
+      $or: [
+        { paymentMethod: 'crypto_transfer' },
+        { cryptoDetails: { $ne: null } }
+      ]
+    })
+      .populate('business')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // 4. Filter sessions matching this agent's crypto accounts
+    const filtered = sessions.filter(session => {
+      const targetAgentId = session.cryptoDetails?.agentAccount?.agentId || session.cryptoDetails?.agentAccount?.cryptoAccountId || session.cryptoDetails?.agentId || session.cryptoDetails?.cryptoAccountId || session.walletAgentSnapshot?.agentId;
+      return targetAgentId && (String(targetAgentId) === String(req.user._id) || cryptoAccIds.includes(String(targetAgentId)));
+    });
+
+    return res.json({ success: true, data: filtered });
+  } catch (err) {
+    console.error('Error fetching agent crypto payments:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-crypto-payments/accept', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const User = require('../models/User');
+    const OpayBusiness = require('../models/OpayBusiness');
+
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_crypto' }).populate('business');
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending crypto session not found' });
+    }
+
+    session.status = 'paid';
+    session.lastVerificationSuccessAt = new Date();
+
+    // Deduct Agent Credit
+    const agentUser = await User.findById(req.user._id).select('name credit minimumCredit');
+    const paymentAmount = Number(session.amount) || 0;
+
+    if (agentUser) {
+      const creditBefore = agentUser.credit || 0;
+      const creditAfter = Math.max(0, creditBefore - paymentAmount);
+      agentUser.credit = creditAfter;
+      await agentUser.save();
+
+      session.walletAgentSnapshot = {
+        agentId: agentUser._id,
+        agentName: agentUser.name || 'Unknown Agent',
+        creditBefore,
+        creditAfter,
+        creditDeducted: paymentAmount,
+      };
+    }
+
+    // Merchant Balance Snapshot
+    try {
+      const business = await OpayBusiness.findById(session.business._id || session.business).select('name balanceAdjustment');
+      if (business) {
+        const previousPaidTotal = await OpayBusinessPaymentSession.aggregate([
+          { $match: { business: business._id, status: 'paid', _id: { $ne: session._id } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const balanceBefore = (previousPaidTotal[0]?.total || 0) + (business.balanceAdjustment || 0);
+        const balanceAfter = balanceBefore + paymentAmount;
+
+        session.merchantSnapshot = {
+          businessId: business._id,
+          businessName: business.name || 'Unknown Merchant',
+          balanceBefore,
+          balanceAfter,
+          balanceAdded: paymentAmount,
+        };
+      }
+    } catch (balErr) {}
+
+    await session.save();
+
+    const proofImages = Array.isArray(session.cryptoDetails?.proofUrls) && session.cryptoDetails.proofUrls.length > 0
+      ? session.cryptoDetails.proofUrls
+      : (session.cryptoDetails?.proofUrl ? [session.cryptoDetails.proofUrl] : []);
+
+    const payload = {
+      status: 'COMPLETED',
+      amount: Number(session.amount),
+      transaction_id: session.cryptoDetails?.trxid || session.code,
+      invoice_number: session.invoiceNumber || null,
+      session_code: session.code,
+      user_identity: session.userIdentityAddress || null,
+      checkout_items: session.checkoutItems || null,
+      bank: 'crypto_transfer',
+      proof_images: proofImages,
+    };
+
+    if (session.callbackUrl) {
+      const axios = require('axios');
+      try {
+        const cbRes = await axios.post(session.callbackUrl, payload, { timeout: 7000 });
+        session.callbackResult = {
+          success: true,
+          sentAt: new Date(),
+          payload,
+          httpStatus: cbRes.status,
+          responseData: cbRes.data
+        };
+      } catch (cbErr) {
+        console.warn('Crypto callback webhook error:', cbErr.message);
+        session.callbackResult = {
+          success: false,
+          sentAt: new Date(),
+          payload,
+          error: cbErr.message,
+          responseData: cbErr.response?.data || null
+        };
+      }
+      await session.save();
+    }
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('opay_payment_success', {
+        code: session.code,
+        status: 'paid',
+        redirectUrl: session.successRedirectUrl || session.success_redirect_url
+      });
+      io.emit('payment_completed', {
+        code: session.code,
+        status: 'paid',
+        redirectUrl: session.successRedirectUrl || session.success_redirect_url
+      });
+    }
+
+    return res.json({ success: true, message: 'Crypto payment approved successfully' });
+  } catch (err) {
+    console.error('Error approving crypto payment (Agent):', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/pending-crypto-payments/reject', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code is required' });
+
+    const OpayBusinessPaymentSession = require('../models/OpayBusinessPaymentSession');
+    const session = await OpayBusinessPaymentSession.findOne({ code, status: 'pending_crypto' });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Pending crypto session not found' });
+    }
+
+    const User = require('../models/User');
+    const agentUser = await User.findById(req.user._id).select('name credit');
+
+    session.status = 'cancelled';
+    if (agentUser) {
+      session.walletAgentSnapshot = {
+        agentId: agentUser._id,
+        agentName: agentUser.name || 'Unknown Agent',
+        creditBefore: agentUser.credit || 0,
+        creditAfter: agentUser.credit || 0,
+        creditDeducted: 0,
+      };
+    }
+    await session.save();
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('opay_payment_failed', {
+        code: session.code,
+        status: 'cancelled',
+        message: 'Your crypto payment proof has been rejected.'
+      });
+    }
+
+    return res.json({ success: true, message: 'Crypto payment rejected' });
+  } catch (err) {
+    console.error('Error rejecting crypto payment (Agent):', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });

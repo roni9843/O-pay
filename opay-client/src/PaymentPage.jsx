@@ -12,6 +12,16 @@ import binanceLogo from "./assets/binance.png";
 import BankTransferModal from "./BankTransferModal";
 import CryptoPayModal from "./CryptoPayModal";
 
+function getMainDomainUrl(url) {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch (e) {
+    return url;
+  }
+}
+
 const mobileWallets = [
   { name: "bKash", providerKey: "bkash" },
   { name: "Nagad", providerKey: "nagad" },
@@ -128,8 +138,9 @@ export default function SimplePaymentPage() {
   useEffect(() => {
     if (paymentSuccess && redirectTarget) {
       const delay = paymentSuccessType === 'manual' ? 8000 : 3500;
+      const targetUrl = getMainDomainUrl(redirectTarget);
       const timer = setTimeout(() => {
-        window.location.href = redirectTarget;
+        window.location.href = targetUrl;
       }, delay);
       return () => clearTimeout(timer);
     }
@@ -239,6 +250,9 @@ export default function SimplePaymentPage() {
         }
         if (data.checkout_items) {
           setCheckoutItems(data.checkout_items);
+        }
+        if (data.success_redirect_url || data.successRedirectUrl) {
+          setRedirectTarget(data.success_redirect_url || data.successRedirectUrl);
         }
         setLoadingAmount(false);
       } catch (err) {
@@ -440,7 +454,10 @@ export default function SimplePaymentPage() {
         sessionCode={sessionCode}
         initialCryptoName={selectedCryptoName}
         onBack={() => setShowCryptoModal(false)}
-        onSubmitSuccess={() => {
+        onSubmitSuccess={(redirectUrl) => {
+          if (redirectUrl) {
+            setRedirectTarget(redirectUrl);
+          }
           setShowCryptoModal(false);
           setPaymentSuccessType('manual');
           setPaymentSuccess(true);
@@ -471,6 +488,9 @@ export default function SimplePaymentPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
+              if (data.redirect_url || data.success_redirect_url || data.successRedirectUrl) {
+                setRedirectTarget(data.redirect_url || data.success_redirect_url || data.successRedirectUrl);
+              }
               setShowBankModal(false);
               setPaymentSuccessType('manual');
               setPaymentSuccess(true);
@@ -773,16 +793,22 @@ export default function SimplePaymentPage() {
               ) : (
               <div className="grid grid-cols-3 gap-6">
                 {(supportedBanks || []).slice(0, visibleBankCount).map((wallet) => {
-                  const isActive = true;
                   const bankName = wallet.name;
-                    const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
-  
-                    const handleBankClick = async () => {
+                  const bankMin = Number(wallet.minAmount || 0);
+                  const isBelowMin = bankMin > 0 && payableAmount < bankMin;
+                  const isActive = !isBelowMin;
+                  const logoSrc = wallet.logo || "https://paystation.com.bd/paystation/payment_partner/Asset_12city@2x.png";
+
+                  const handleBankClick = async () => {
+                    if (isBelowMin) {
+                      handleUnavailableClick(`এই ব্যাংকে পেমেন্টের জন্য সর্বনিম্ন পরিমাণ ৳${bankMin} (আপনার পরিমাণ ৳${payableAmount.toFixed(2)})`);
+                      return;
+                    }
                     if (loadingBankName) return;
                     setLoadingBankName(bankName);
                     try {
                       const env = import.meta.env.VITE_APP_ENV || 'local';
-                      const res = await fetch(`${API_URL}/api/opay-business/random-payment-method?provider=bank&code=${sessionCode || ''}&env=${env}`);
+                      const res = await fetch(`${API_URL}/api/opay-business/random-payment-method?provider=bank&code=${sessionCode || ''}&bankName=${encodeURIComponent(bankName)}&env=${env}`);
                       const data = await res.json();
                       if (res.ok && data.success && data.method) {
                         setSelectedAccount({
@@ -809,7 +835,7 @@ export default function SimplePaymentPage() {
                   return (
                     <button
                       key={wallet._id || bankName}
-                      onClick={isActive ? handleBankClick : () => handleUnavailableClick(bankName)}
+                      onClick={handleBankClick}
                       className={`flex flex-col items-center gap-2 group relative ${loadingBankName === bankName ? 'cursor-not-allowed' : ''}`}
                       disabled={loadingBankName === bankName}
                     >
@@ -827,7 +853,11 @@ export default function SimplePaymentPage() {
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
 
-                        {isActive && (
+                        {isBelowMin ? (
+                          <div className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-800 rounded-full shadow-md border border-amber-300">
+                            Min ৳{bankMin}
+                          </div>
+                        ) : isActive && (
                           <div
                             className="
                               absolute -top-1 -right-1
@@ -880,11 +910,27 @@ export default function SimplePaymentPage() {
               ) : (
               <div className="grid grid-cols-3 gap-6">
                 {allCryptos.map((wallet) => {
-                  const isActive = supportedCryptos !== null && supportedCryptos.some(c => c.name === wallet.name);
+                  const cryptoMin = Number(wallet.minAmount || 0);
+                  const isBelowMin = cryptoMin > 0 && payableAmount < cryptoMin;
+                  const isActive = supportedCryptos !== null && supportedCryptos.some(c => c.name === wallet.name) && !isBelowMin;
+
+                  const handleCryptoClick = () => {
+                    if (isBelowMin) {
+                      handleUnavailableClick(`এই ক্রিপ্টো মেথডে পেমেন্টের জন্য সর্বনিম্ন পরিমাণ ৳${cryptoMin} (আপনার পরিমাণ ৳${payableAmount.toFixed(2)})`);
+                      return;
+                    }
+                    if (isActive) {
+                      setSelectedCryptoName(wallet.name);
+                      setShowCryptoModal(true);
+                    } else {
+                      handleUnavailableClick(wallet.name);
+                    }
+                  };
+
                   return (
                     <button
                       key={wallet.name}
-                      onClick={isActive ? () => { setSelectedCryptoName(wallet.name); setShowCryptoModal(true); } : () => handleUnavailableClick(wallet.name)}
+                      onClick={handleCryptoClick}
                       className="flex flex-col items-center gap-2 group relative"
                     >
                       <div
@@ -900,7 +946,11 @@ export default function SimplePaymentPage() {
                           alt={wallet.name}
                           className="w-full h-full object-contain transition-all duration-300 group-hover:scale-110"
                         />
-                        {isActive && (
+                        {isBelowMin ? (
+                          <div className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 text-amber-800 rounded-full shadow-md border border-amber-300">
+                            Min ৳{cryptoMin}
+                          </div>
+                        ) : isActive && (
                           <div className="absolute -top-1 -right-1 px-2 py-0.5 text-[9px] font-bold bg-green-100 text-green-800 rounded-full shadow-md border border-green-300">
                             Active
                           </div>
@@ -1127,7 +1177,7 @@ export default function SimplePaymentPage() {
              
              <div className="mt-8 text-xs opacity-70" style={{ color: checkoutItems?.customSuccess?.textColor || '#94a3b8' }}>
                <p>যদি স্বয়ংক্রিয়ভাবে রিডাইরেক্ট না হয়,</p>
-               <a href={redirectTarget} className="underline font-bold transition-all hover:opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#059669' }}>
+               <a href={getMainDomainUrl(redirectTarget)} className="underline font-bold transition-all hover:opacity-80" style={{ color: checkoutItems?.customSuccess?.textColor || '#059669' }}>
                  {paymentSuccessType === 'manual' ? "মার্চেন্ট ওয়েবসাইটে ফিরে যান" : "এগিয়ে যেতে এখানে ক্লিক করুন"}
                </a>
              </div>

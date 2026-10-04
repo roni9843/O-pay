@@ -645,6 +645,42 @@ export async function setAdminNotificationNumbers(token, numbers) {
   })
 }
 
+export async function updateAdminNotificationNumbers(token, numbers) {
+  return request('/api/settings/notification-numbers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ numbers })
+  })
+}
+
+export async function getGlobalMinBankTnx(token) {
+  return request('/api/settings/global-min-bank-tnx', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function updateGlobalMinBankTnx(token, amount) {
+  return request('/api/settings/global-min-bank-tnx', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount })
+  })
+}
+
+export async function getGlobalMinCryptoTnx(token) {
+  return request('/api/settings/global-min-crypto-tnx', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function updateGlobalMinCryptoTnx(token, amount) {
+  return request('/api/settings/global-min-crypto-tnx', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount })
+  })
+}
+
 // Status Message Management
 export async function getGlobalStatus(token) {
   return request('/api/admin-status/global', {
@@ -871,8 +907,65 @@ export async function updateAgentBankAccount(token, id, payload) {
   })
 }
 
+export async function getAgentBankAccount(token, id) {
+  return request(`/api/admin/agent-bank-accounts/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
 export async function deleteAgentBankAccount(token, id) {
   return request(`/api/admin/agent-bank-accounts/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+// Crypto API Endpoints
+export async function getCryptoList(token) {
+  return request('/api/admin/cryptos', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function createCrypto(token, payload) {
+  return request('/api/admin/cryptos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function updateCrypto(token, id, payload) {
+  return request(`/api/admin/cryptos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteCrypto(token, id) {
+  return request(`/api/admin/cryptos/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function getAgentCryptoAccounts(token) {
+  return request('/api/admin/agent-crypto-accounts', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+export async function updateAgentCryptoAccount(token, id, payload) {
+  return request(`/api/admin/agent-crypto-accounts/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteAgentCryptoAccount(token, id) {
+  return request(`/api/admin/agent-crypto-accounts/${id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` }
   })
@@ -894,7 +987,10 @@ export default {
   getPaymentPartners, createPaymentPartner, deletePaymentPartner,
   getMerchantWithdrawals, updateMerchantWithdrawalStatus, uploadWithdrawalProofs,
   getMerchantWithdrawalConfig, updateMerchantWithdrawalConfig,
-  getAdminNotificationNumbers, setAdminNotificationNumbers, getAdminAutoWithdrawalMinBalance, setAdminAutoWithdrawalMinBalance,
+  getAdminNotificationNumbers, setAdminNotificationNumbers, updateAdminNotificationNumbers,
+  getGlobalMinBankTnx, updateGlobalMinBankTnx,
+  getGlobalMinCryptoTnx, updateGlobalMinCryptoTnx,
+  getAdminAutoWithdrawalMinBalance, setAdminAutoWithdrawalMinBalance,
   getAdminAutoWithdrawalFee, setAdminAutoWithdrawalFee,
   getAdminMerchantTopupFee, setAdminMerchantTopupFee,
   getGlobalStatus, setGlobalStatus, setUserStatus, listUsersWithStatus,
@@ -903,7 +999,9 @@ export default {
   getMerchantTopupHistory,
   listAutoWithdrawals, rejectAutoWithdrawal,
   getBankList, createBank, updateBank, deleteBank, getPendingBankPayments, acceptPendingBankPayment, rejectPendingBankPayment,
-  getAgentBankAccounts, updateAgentBankAccount, deleteAgentBankAccount
+  getAgentBankAccounts, updateAgentBankAccount, deleteAgentBankAccount,
+  getCryptoList, createCrypto, updateCrypto, deleteCrypto, getAgentCryptoAccounts, updateAgentCryptoAccount, deleteAgentCryptoAccount
 }
+
 
 

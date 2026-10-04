@@ -150,10 +150,6 @@ export default function CreditTopup() {
                                 <span className="px-3 py-1 bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider rounded-full">
                                    অফারটি ব্যবহৃত হয়েছে
                                 </span>
-                              ) : plan.isOneTime ? (
-                                <span className="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold uppercase tracking-wider rounded-full animate-pulse">
-                                   একবারই কেনার সুযোগ (One-Time)
-                                </span>
                               ) : i === 1 ? ( 
                                 <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-full">
                                    জনপ্রিয় প্যাকেজ

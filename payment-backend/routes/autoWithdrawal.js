@@ -200,11 +200,12 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
       return res.status(400).json({ success: false, message: 'Request is not currently booked by you or already completed.' });
     }
 
-    const proofImages = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
-    
-    if (proofImages.length === 0) {
-      return res.status(400).json({ success: false, message: 'At least one proof screenshot is required' });
+    const proofText = String(req.body.proofText || req.body.transactionId || req.body.trxId || '').trim();
+    if (!proofText) {
+      return res.status(400).json({ success: false, message: 'Transaction ID or Proof text is required' });
     }
+
+    const proofImages = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
 
     // Calculate Agent Auto Withdrawal Commission (agent.credit does NOT increase)
     const agent = await User.findById(userId);
@@ -243,6 +244,8 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
     
     request.status = 'completed';
     request.proofImages = proofImages;
+    request.proofText = proofText;
+    request.transactionId = proofText;
     request.agentCreditBefore = agentCreditBefore;
     request.agentCreditAfter = agentCreditAfter;
     request.agentCommissionRate = agentCommissionRate;
@@ -269,6 +272,8 @@ router.post('/:id/complete', auth, upload.array('proofs', 5), async (req, res) =
         user_identity_address: request.userIdentityAddress,
         account_number: request.accountNumber,
         checkout_items: request.checkoutItems,
+        proof_text: proofText,
+        transaction_id: proofText,
         proof_images: fullProofImages
       };
       

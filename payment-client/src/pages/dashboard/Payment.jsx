@@ -317,23 +317,23 @@ export default function Payment() {
                       </div>
 
                       <div className="space-y-4 pt-4 border-t border-white/10">
-                         <div className="flex items-center justify-between">
+                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
                                   <Hash className="w-4 h-4 text-slate-500" />
                                 </div>
                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Trx ID</p>
                             </div>
-                            <p className="text-xs font-mono font-bold text-slate-300">{it.trxID || "-"}</p>
+                            <p className="text-xs font-mono font-bold text-slate-300 truncate min-w-0 flex-1 text-right">{it.trxID || "-"}</p>
                          </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
                                   <Smartphone className="w-4 h-4 text-slate-500" />
                                 </div>
                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Terminal</p>
                             </div>
-                            <p className="text-xs font-black text-slate-300">{it.deviceName || "-"}</p>
+                            <p className="text-xs font-black text-slate-300 truncate min-w-0 flex-1 text-right">{it.deviceName || "-"}</p>
                          </div>
                          <div className="bg-black/30 p-4 rounded-2xl">
                             <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-2">Message Payload</p>
@@ -408,4 +408,5 @@ const Loader2 = ({ className }) => (
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
   </svg>
 );
+
 

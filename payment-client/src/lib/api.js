@@ -136,6 +136,13 @@ export async function updateSubscriptionCallbackUrl(token, subId, callbackUrl) {
   });
 }
 
+export async function testSubscriptionApiKeyCallback(token, subId) {
+  return request(`/api/subscriptions/${subId}/api-key/test-callback`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 // Profile APIs
 export async function updateProfile(token, payload) {
   return request('/api/users/profile', {
@@ -336,12 +343,16 @@ export async function getAutoWithdrawalStats(token) {
   });
 }
 
-export async function completeAutoWithdrawal(token, id, proofImages) {
+export async function completeAutoWithdrawal(token, id, proofImages, proofText) {
   const formData = new FormData();
   if (proofImages && proofImages.length > 0) {
     proofImages.forEach(file => {
       formData.append("proofs", file);
     });
+  }
+  if (proofText) {
+    formData.append("proofText", proofText);
+    formData.append("transactionId", proofText);
   }
   return request(`/api/auto-withdrawal/${id}/complete`, {
     method: "POST",
@@ -392,6 +403,14 @@ export async function addAgentBankAccount(token, payload) {
   });
 }
 
+export async function updateAgentBankAccount(token, id, payload) {
+  return request(`/api/dashboard/bank-accounts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function deleteAgentBankAccount(token, id) {
   return request(`/api/dashboard/bank-accounts/${id}`, {
     method: 'DELETE',
@@ -422,6 +441,62 @@ export async function rejectPendingBankPayment(token, code) {
   });
 }
 
+export async function getSupportedCryptos() {
+  return request('/api/opay-business/supported-cryptos');
+}
+
+export async function getAgentCryptoAccounts(token) {
+  return request('/api/dashboard/crypto-accounts', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function addAgentCryptoAccount(token, payload) {
+  return request('/api/dashboard/crypto-accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateAgentCryptoAccount(token, id, payload) {
+  return request(`/api/dashboard/crypto-accounts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAgentCryptoAccount(token, id) {
+  return request(`/api/dashboard/crypto-accounts/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function getAgentPendingCryptoPayments(token, status) {
+  const query = status ? `?status=${status}` : '';
+  return request(`/api/dashboard/pending-crypto-payments${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export async function acceptPendingCryptoPayment(token, code) {
+  return request('/api/dashboard/pending-crypto-payments/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
+export async function rejectPendingCryptoPayment(token, code) {
+  return request('/api/dashboard/pending-crypto-payments/reject', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code })
+  });
+}
+
 export default {
   login,
   me,
@@ -432,6 +507,7 @@ export default {
   toggleSubscriptionApiKey,
   revokeSubscriptionApiKey,
   updateSubscriptionCallbackUrl,
+  testSubscriptionApiKeyCallback,
   updateProfile,
   updateSupportNumber,
   changePassword,
@@ -449,6 +525,7 @@ export default {
   deletePaymentMethodPage,
   togglePaymentMethodStatus,
   uploadPaymentPageImage,
+  getCreditPlans,
   getCreditTopupMethods,
   submitCreditTopupRequest,
   getMyCreditTopupRequests,
@@ -464,8 +541,18 @@ export default {
   getAgentBankAccounts,
   getSupportedBanks,
   addAgentBankAccount,
+  updateAgentBankAccount,
   deleteAgentBankAccount,
   getAgentPendingBankPayments,
   acceptPendingBankPayment,
-  rejectPendingBankPayment
+  rejectPendingBankPayment,
+  getSupportedCryptos,
+  getAgentCryptoAccounts,
+  addAgentCryptoAccount,
+  updateAgentCryptoAccount,
+  deleteAgentCryptoAccount,
+  getAgentPendingCryptoPayments,
+  acceptPendingCryptoPayment,
+  rejectPendingCryptoPayment,
+  getSubscriptionPlans
 };

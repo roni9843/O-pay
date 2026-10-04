@@ -181,7 +181,7 @@ export default function PendingBankPayments() {
                                 <div className="flex-1 flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/10">
                                   {rawLogo ? (
                                     <div className="w-8 h-8 rounded-lg bg-black p-1 flex shrink-0 items-center justify-center">
-                                      <img src={rawLogo} alt={bd.bankName} className="w-full h-full object-contain" />
+                                      <img src={rawLogo} alt={bd.selectedBank || bd.bankName} className="w-full h-full object-contain" />
                                     </div>
                                   ) : (
                                     <div className="w-8 h-8 rounded-lg bg-white/10 flex shrink-0 items-center justify-center">
@@ -189,10 +189,11 @@ export default function PendingBankPayments() {
                                     </div>
                                   )}
                                   <div className="truncate">
-                                    <div className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">From User</div>
-                                    <div className="font-bold text-white text-xs truncate" title={bd.bankName}>{bd.bankName || 'Bank Transfer'}</div>
+                                    <div className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">From (Customer)</div>
+                                    <div className="font-bold text-white text-xs truncate" title={bd.selectedBank || bd.bankName}>{bd.selectedBank || bd.bankName || 'Bank Transfer'}</div>
                                     <div className="text-[10px] text-indigo-300 font-mono mt-0.5 truncate">Acc: {bd.accountNumber || 'N/A'}</div>
                                     {bd.accountHolderName && <div className="text-[9px] text-slate-400 truncate">Holder: {bd.accountHolderName}</div>}
+                                    {bd.mobileNumber && <div className="text-[9px] text-amber-300 font-mono truncate">Phone: {bd.mobileNumber}</div>}
                                   </div>
                                 </div>
 

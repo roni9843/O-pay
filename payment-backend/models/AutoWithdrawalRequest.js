@@ -59,6 +59,14 @@ const autoWithdrawalRequestSchema = new mongoose.Schema({
   proofImages: [{
     type: String
   }],
+  proofText: {
+    type: String,
+    default: ''
+  },
+  transactionId: {
+    type: String,
+    default: ''
+  },
   rejectedBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

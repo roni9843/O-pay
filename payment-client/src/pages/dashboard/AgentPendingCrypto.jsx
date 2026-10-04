@@ -1,0 +1,266 @@
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '../../store/authStore';
+import api from '../../lib/api';
+
+export default function AgentPendingCrypto() {
+  const { token } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProof, setSelectedProof] = useState(null);
+  const [actionId, setActionId] = useState(null);
+
+  const [supportedCryptos, setSupportedCryptos] = useState([]);
+
+  const getFullUrl = (path) => {
+    if (!path) return '';
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    
+    if (path.startsWith('http')) {
+      if (path.includes('localhost') || path.startsWith('http://api.oraclepay.org')) {
+        const filename = path.split('/').pop();
+        return `${base}/uploads/${filename}`;
+      }
+      return path.replace('http://', 'https://');
+    }
+    return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const [res, cryptosRes] = await Promise.all([
+        api.getAgentPendingCryptoPayments(token, activeTab),
+        api.getSupportedCryptos().catch(() => ({ data: [] }))
+      ]);
+      if (res.success) {
+        setSessions(res.data || []);
+      }
+      if (cryptosRes && Array.isArray(cryptosRes.data)) {
+        setSupportedCryptos(cryptosRes.data);
+      } else if (cryptosRes && Array.isArray(cryptosRes.allCryptos)) {
+        setSupportedCryptos(cryptosRes.allCryptos);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) fetchPayments();
+  }, [token, activeTab]);
+
+  const handleAccept = async (code) => {
+    if (!window.confirm('Confirm that you have received this crypto payment?')) return;
+    setActionId(code);
+    try {
+      const res = await api.acceptPendingCryptoPayment(token, code);
+      if (res.success) {
+        alert('Payment approved successfully!');
+        fetchPayments();
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to approve');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleReject = async (code) => {
+    if (!window.confirm('Are you sure you want to REJECT this crypto payment proof?')) return;
+    setActionId(code);
+    try {
+      const res = await api.rejectPendingCryptoPayment(token, code);
+      if (res.success) {
+        alert('Payment rejected!');
+        fetchPayments();
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to reject');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Crypto Payments Terminal</h1>
+          <p className="text-sm text-gray-400 mt-1">Review crypto transfer screenshot proofs, approve payments, and track history.</p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center bg-gray-900 p-1.5 rounded-2xl border border-gray-800 self-start md:self-auto">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'pending'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Pending Approvals
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'history'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Crypto Payments History
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden shadow-2xl">
+        {loading ? (
+          <div className="py-16 text-center text-gray-400 font-medium">Loading crypto payments...</div>
+        ) : sessions.length === 0 ? (
+          <div className="py-16 text-center text-gray-400 font-medium">
+            {activeTab === 'pending' ? 'No pending crypto payments for your accounts.' : 'No crypto payment history recorded yet.'}
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-black/40 text-xs uppercase font-bold text-gray-400">
+                    <th className="p-4">Session Code & Date</th>
+                    <th className="p-4">Amount</th>
+                    <th className="p-4">Crypto & Wallet Details</th>
+                    <th className="p-4">Proof Screenshots</th>
+                    <th className="p-4 text-right">Status / Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {sessions.map((s) => {
+                    const cd = s.cryptoDetails || {};
+                    const proofUrls = (Array.isArray(cd.proofUrls) && cd.proofUrls.length > 0 ? cd.proofUrls : (cd.proofUrl ? [cd.proofUrl] : [])).map(getFullUrl);
+
+                    const matchedCrypto = supportedCryptos.find(
+                      c => c.name?.toLowerCase().trim() === cd.cryptoName?.toLowerCase().trim()
+                    );
+                    let rawLogo = matchedCrypto?.logo || cd.cryptoLogo;
+                    if (rawLogo && !rawLogo.startsWith('http')) {
+                      const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+                      rawLogo = `${base}${rawLogo.startsWith('/') ? '' : '/'}${rawLogo}`;
+                    }
+
+                    return (
+                      <tr key={s._id} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="p-4 font-mono">
+                          <div className="font-bold text-white text-base">{s.code}</div>
+                          <div className="text-xs text-gray-400 mt-1">{new Date(s.createdAt).toLocaleString()}</div>
+                        </td>
+                        <td className="p-4 font-black text-emerald-400 text-lg">
+                          ৳{s.amount?.toLocaleString()} {cd.currency || ''}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] uppercase font-bold text-gray-500 mb-1">From (Customer)</span>
+                                {rawLogo ? (
+                                  <div className="w-8 h-8 rounded-xl bg-white border border-gray-700 p-1 flex items-center justify-center shadow-sm">
+                                    <img src={rawLogo} alt={cd.selectedCrypto || cd.cryptoName} className="w-full h-full object-contain" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-base">🔗</div>
+                                )}
+                              </div>
+                              <div className="pt-4">
+                                <div className="font-bold text-white text-sm">{cd.selectedCrypto || cd.cryptoName || 'Crypto Transfer'}</div>
+                                {cd.accountHolderName && <div className="text-[11px] text-gray-400 mt-0.5">{cd.accountHolderName}</div>}
+                                {cd.trxid && <div className="text-[11px] text-gray-400 mt-0.5">Tx: {cd.trxid}</div>}
+                                <div className="text-xs text-indigo-300 font-mono break-all">Acc: {cd.accountNumber || 'N/A'}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2.5 opacity-80 pl-2 border-l-2 border-gray-700 ml-4">
+                              <div className="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center text-xs">🔗</div>
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">To (Agent Crypto)</span>
+                                <div className="font-bold text-gray-300 text-xs">{cd.agentAccount?.cryptoName || 'Your Wallet'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          {proofUrls.length > 0 ? (
+                            <div className="flex gap-2">
+                              {proofUrls.map((url, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setSelectedProof(url)}
+                                  className="w-12 h-12 rounded-xl border border-gray-700 bg-black overflow-hidden hover:scale-105 transition-transform relative group"
+                                >
+                                  <img src={url} alt={`Proof ${idx + 1}`} className="w-full h-full object-cover" />
+                                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold">🔍</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500 italic">No Screenshot</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right">
+                          {activeTab === 'pending' ? (
+                            <div className="space-x-2">
+                              <button
+                                disabled={actionId === s.code}
+                                onClick={() => handleAccept(s.code)}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                disabled={actionId === s.code}
+                                onClick={() => handleReject(s.code)}
+                                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border ${
+                              s.status === 'paid'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                            }`}>
+                              {s.status === 'paid' ? 'Approved & Credited' : 'Rejected & Cancelled'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Screenshot Zoom Modal */}
+      {selectedProof && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedProof(null)}>
+          <div className="bg-gray-900 rounded-3xl max-w-2xl w-full p-5 relative border border-gray-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
+              <h3 className="font-bold text-white text-base">Payment Screenshot Proof</h3>
+              <button onClick={() => setSelectedProof(null)} className="text-gray-400 hover:text-white font-bold text-xl px-2">✕</button>
+            </div>
+            <div className="max-h-[75vh] overflow-y-auto flex justify-center bg-black rounded-2xl p-2 border border-gray-800">
+              <img src={selectedProof} alt="Proof" className="max-w-full h-auto object-contain rounded-xl" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

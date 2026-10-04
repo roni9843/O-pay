@@ -11,14 +11,17 @@ export default function BankManagement() {
   const navigate = useNavigate();
   const [banks, setBanks] = useState([]);
   const [agentAccounts, setAgentAccounts] = useState([]);
+  const [globalMinTnx, setGlobalMinTnx] = useState(0);
+  const [savingMinTnx, setSavingMinTnx] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [banksRes, agentsRes] = await Promise.all([
+      const [banksRes, agentsRes, minTnxRes] = await Promise.all([
         api.getBankList(token),
-        api.getAgentBankAccounts(token)
+        api.getAgentBankAccounts(token),
+        api.getGlobalMinBankTnx(token)
       ]);
       
       if (banksRes.success) {
@@ -26,6 +29,9 @@ export default function BankManagement() {
       }
       if (agentsRes.success) {
         setAgentAccounts(agentsRes.data || []);
+      }
+      if (minTnxRes && minTnxRes.success) {
+        setGlobalMinTnx(minTnxRes.amount || 0);
       }
     } catch (err) {
       toast.error('Failed to load data');
@@ -68,6 +74,22 @@ export default function BankManagement() {
 
   const activeCount = banks.filter(b => b.status === 'active').length;
 
+  const handleUpdateGlobalMinTnx = async () => {
+    try {
+      setSavingMinTnx(true);
+      const res = await api.updateGlobalMinBankTnx(token, globalMinTnx);
+      if (res.success) {
+        toast.success('Global Minimum Transaction Amount updated successfully');
+      } else {
+        toast.error(res.message || 'Failed to update minimum transaction amount');
+      }
+    } catch (err) {
+      toast.error('Failed to update minimum transaction amount');
+    } finally {
+      setSavingMinTnx(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       
@@ -94,18 +116,40 @@ export default function BankManagement() {
             </p>
           </div>
           
-          <div className="flex gap-4 items-center">
-             <div className="bg-white/5 border border-white/5 p-4 rounded-2xl backdrop-blur-md text-center min-w-[120px]">
+          <div className="flex flex-wrap gap-4 items-center">
+             <div className="bg-white/5 border border-white/5 p-4 rounded-2xl backdrop-blur-md flex items-center gap-3 min-w-[200px]">
+                <div>
+                   <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-1">Global Min Tnx</p>
+                   <div className="flex items-center gap-2">
+                     <span className="text-lg font-bold text-slate-300">৳</span>
+                     <input 
+                       type="number" 
+                       min="0"
+                       value={globalMinTnx}
+                       onChange={(e) => setGlobalMinTnx(Number(e.target.value) || 0)}
+                       className="w-20 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-sm font-bold focus:border-indigo-500 focus:outline-none"
+                     />
+                   </div>
+                </div>
+                <button 
+                  onClick={handleUpdateGlobalMinTnx}
+                  disabled={savingMinTnx}
+                  className="px-3 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 rounded-lg text-xs font-bold transition-colors ml-auto"
+                >
+                  {savingMinTnx ? 'Saving...' : 'Save'}
+                </button>
+             </div>
+             <div className="bg-white/5 border border-white/5 p-4 rounded-2xl backdrop-blur-md text-center min-w-[100px]">
                 <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-1">Total</p>
                 <p className="text-2xl font-bold text-white">{banks.length}</p>
              </div>
-             <div className="bg-white/5 border border-emerald-500/20 p-4 rounded-2xl backdrop-blur-md text-center min-w-[120px]">
+             <div className="bg-white/5 border border-emerald-500/20 p-4 rounded-2xl backdrop-blur-md text-center min-w-[100px]">
                 <p className="text-xs text-emerald-400/80 uppercase tracking-widest font-semibold mb-1">Active</p>
                 <p className="text-2xl font-bold text-emerald-400">{activeCount}</p>
              </div>
              <button
                onClick={() => navigate('/bank-management/add')}
-               className="ml-4 px-6 py-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white rounded-2xl font-bold text-sm shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all flex items-center justify-center gap-2"
+               className="ml-0 md:ml-4 px-6 py-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white rounded-2xl font-bold text-sm shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all flex items-center justify-center gap-2 h-full"
              >
                <Plus className="w-5 h-5" /> Add New Bank
              </button>

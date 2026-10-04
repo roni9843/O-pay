@@ -59,6 +59,7 @@ export default function AutoWithdrawalHistory() {
   
   const [uploading, setUploading] = useState(false);
   const [proofFiles, setProofFiles] = useState([]);
+  const [proofText, setProofText] = useState('');
   const fileInputRef = useRef(null);
 
   const commRate = user?.autoWithdrawalCommissionRate || 0;
@@ -79,6 +80,7 @@ export default function AutoWithdrawalHistory() {
       setActiveBooking(activeData);
       setPendingItems(pendingData);
       setProofFiles([]);
+      setProofText('');
     } catch (e) {
       console.error(e);
     } finally {
@@ -126,14 +128,16 @@ export default function AutoWithdrawalHistory() {
 
   const handleComplete = async () => {
     if (!activeBooking) return;
-    if (proofFiles.length === 0) {
-      alert("Please upload at least one proof screenshot.");
+    if (!proofText || !proofText.trim()) {
+      alert("ট্রানজেকশন আইডি / প্রুফ টেক্সট দেওয়া বাধ্যতামূলক। (Transaction ID / Proof text is required)");
       return;
     }
     setUploading(true);
     try {
-      await api.completeAutoWithdrawal(token, activeBooking._id, proofFiles);
+      await api.completeAutoWithdrawal(token, activeBooking._id, proofFiles, proofText.trim());
       alert("Transfer completed and proof submitted!");
+      setProofText('');
+      setProofFiles([]);
       api.me(token).then(updatedUser => {
         if (updatedUser) useAuthStore.getState().setUser(updatedUser);
       }).catch(console.warn);
@@ -383,44 +387,61 @@ export default function AutoWithdrawalHistory() {
                 </div>
               </div>
               
-              {/* File Upload Section */}
+              {/* File Upload & Trx ID Section */}
               <div className="bg-white/10 border border-white/15 p-5 rounded-2xl backdrop-blur-md flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-blue-200 font-bold uppercase tracking-wider mb-3">পেমেন্টের প্রমাণ (Proof Screenshot)</p>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
-                    className="hidden" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                  />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2.5 py-4 border-2 border-dashed border-blue-300/40 rounded-xl text-white font-bold hover:bg-white/10 transition-all text-xs sm:text-sm bg-black/20"
-                  >
-                    <UploadCloud className="w-5 h-5 text-blue-400" /> স্ক্রিনশট ছবি সিলেক্ট করুন
-                  </button>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">
+                      ট্রানজেকশন আইডি / প্রুফ টেক্সট (বাধ্যতামূলক / Required) <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter Trx ID or Payment Reference..."
+                      value={proofText}
+                      onChange={(e) => setProofText(e.target.value)}
+                      className="w-full px-3.5 py-3 rounded-xl bg-black/40 border border-white/30 text-white placeholder-white/40 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
 
-                  {proofFiles.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2.5">
-                      {proofFiles.map((file, index) => (
-                        <div key={index} className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md">
-                          <img 
-                            src={URL.createObjectURL(file)} 
-                            alt="proof" 
-                            className="w-16 h-16 object-cover"
-                          />
-                          <button
-                            onClick={() => removeProofFile(index)}
-                            className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-0.5 shadow hover:scale-110 transition-transform"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xs text-blue-200 font-bold uppercase tracking-wider mb-2">
+                      পেমেন্টের প্রমাণ (Proof Screenshot - ঐচ্ছিক / Optional)
+                    </p>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*" 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2.5 py-3.5 border-2 border-dashed border-blue-300/40 rounded-xl text-white font-bold hover:bg-white/10 transition-all text-xs bg-black/20"
+                    >
+                      <UploadCloud className="w-4 h-4 text-blue-400" /> স্ক্রিনশট ছবি সিলেক্ট করুন (ঐচ্ছিক / Optional)
+                    </button>
+
+                    {proofFiles.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2.5">
+                        {proofFiles.map((file, index) => (
+                          <div key={index} className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md">
+                            <img 
+                              src={URL.createObjectURL(file)} 
+                              alt="proof" 
+                              className="w-14 h-14 object-cover"
+                            />
+                            <button
+                              onClick={() => removeProofFile(index)}
+                              className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-0.5 shadow hover:scale-110 transition-transform"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-3 mt-6">
@@ -549,20 +570,32 @@ export default function AutoWithdrawalHistory() {
 
                         {/* Proof / Details */}
                         <div className="bg-black/30 rounded-xl p-3 border border-white/5 mb-3">
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">প্রমাণ / ছবি</p>
-                          {item.status === 'completed' && item.proofImages && item.proofImages.length > 0 ? (
-                            <div className="flex gap-2 flex-wrap">
-                              {item.proofImages.map((img, i) => (
-                                <a 
-                                  key={i} 
-                                  href={getProofImageUrl(img)} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="block w-12 h-12 rounded-lg border border-slate-700 overflow-hidden hover:border-indigo-400 hover:scale-105 transition-all shadow-md"
-                                >
-                                  <img src={getProofImageUrl(img)} alt="Proof" className="w-full h-full object-cover" />
-                                </a>
-                              ))}
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">প্রমাণ / ট্রানজেকশন তথ্য</p>
+                          {item.status === 'completed' ? (
+                            <div className="space-y-2">
+                              {(item.proofText || item.transactionId) && (
+                                <div className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 break-all">
+                                  Trx ID: {item.proofText || item.transactionId}
+                                </div>
+                              )}
+                              {item.proofImages && item.proofImages.length > 0 && (
+                                <div className="flex gap-2 flex-wrap pt-1">
+                                  {item.proofImages.map((img, i) => (
+                                    <a 
+                                      key={i} 
+                                      href={getProofImageUrl(img)} 
+                                      target="_blank" 
+                                      rel="noreferrer" 
+                                      className="block w-12 h-12 rounded-lg border border-slate-700 overflow-hidden hover:border-indigo-400 hover:scale-105 transition-all shadow-md"
+                                    >
+                                      <img src={getProofImageUrl(img)} alt="Proof" className="w-full h-full object-cover" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                              {!item.proofText && !item.transactionId && (!item.proofImages || item.proofImages.length === 0) && (
+                                <span className="text-xs text-slate-500 italic">কোনো অতিরিক্ত প্রুফ নেই</span>
+                              )}
                             </div>
                           ) : item.status === 'rejected' && item.rejectReason ? (
                             <div className="text-xs text-rose-300 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 font-medium">

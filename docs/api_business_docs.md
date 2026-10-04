@@ -59,7 +59,12 @@ async function createPayment() {
 ---
 
 ## 🚀 Step 2: Receive Payment Notification (Webhook)
-When the payment is successfully processed, our server will instantly send an HTTP `POST` request to the `callback_url` you provided.
+When a payment is successfully processed, our server will send an HTTP `POST` request to the `callback_url` you provided.
+
+> [!IMPORTANT]
+> **Automated vs Manual Methods:**
+> - **Mobile Banking (bKash, Nagad, etc):** Webhook is sent **instantly** as soon as the user completes the payment.
+> - **Bank Transfer & Crypto:** These are **manual** methods. The user uploads screenshot proofs, and the payment stays in a "Pending" state. You do not need to do anything during this time. Once our Wallet Agents manually verify and approve the proof, the webhook is fired to your server exactly the same way. **Because of this, your system must rely entirely on the webhook to mark the order as paid.**
 
 **We will send you this exact JSON format in the body:**
 ```json
@@ -76,7 +81,10 @@ When the payment is successfully processed, our server will instantly send an HT
     "address": "Dhaka, Bangladesh"
   },
   "footprint": "https://secure.oraclepay.org/payment/60df****f6/mask/footprint",
-  "bank": "bkash"
+  "bank": "crypto_transfer",
+  "proof_images": [
+    "https://api.oraclepay.org/uploads/proofs/1690001234-proof1.png"
+  ]
 }
 ```
 
@@ -87,7 +95,8 @@ When the payment is successfully processed, our server will instantly send an HT
 | `transaction_id` | `string` | The unique Transaction ID (TrxID) provided by the wallet (e.g., bKash/Nagad TrxID). |
 | `session_code` | `string` | The unique OraclePay session code generated for this payment. |
 | `amount` | `number` | The actual amount received. |
-| `bank` | `string` | The payment method used by the user (`bkash`, `nagad`, `rocket`, `upay`). |
+| `bank` | `string` | The payment method used (`bkash`, `nagad`, `rocket`, `upay`, `bank_transfer`, `crypto_transfer`). |
+| `proof_images` | `array` | *(Only for bank_transfer and crypto_transfer)* Array of screenshot URLs uploaded by the user and verified by our agents. |
 | `footprint` | `string` | A detailed video-like security record of the user's interactions on the payment page. |
 | `user_identity` | `string` | The exact `user_identity_address` you passed in step 1. |
 | `checkout_items` | `object` | The exact `checkout_items` JSON object you passed in step 1. |
@@ -240,27 +249,30 @@ There are **three** events that trigger a webhook to your `callback_url`:
     { "userId": "9992" },
     { "withdrawal_type": "affiliate" }
   ],
+  "transaction_id": "8K2H3AB99",
+  "proof_text": "8K2H3AB99",
   "proof_images": [
-    "https://api.oraclepay.org/uploads/proofs/1690001234-proof1.png",
-    "https://api.oraclepay.org/uploads/proofs/1690001234-proof2.png"
+    "https://api.oraclepay.org/uploads/proofs/1690001234-proof1.png"
   ],
   "date_and_time": "2026-08-28T12:00:00Z"
 }
 ```
 
 ### 2.4 Webhook Payload Fields Explained
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `status` | `string` | Status of the payout: **"PROCESSING"**, **"COMPLETED"**, or **"REJECTED"**. |
-| `withdrawal_id` | `string` | Our internal database ID for this specific withdrawal request. |
-| `amount` | `number` | The requested payout amount. |
-| `payment_method` | `string` | The receiving wallet method used (e.g., `bkash`, `nagad`). |
-| `user_identity_address` | `string` | The exact `user_identity_address` you passed in step 1. |
-| `account_number` | `string` | The exact `account_number` target passed in step 1. |
-| `checkout_items` | `array` | The exact array of custom objects passed in step 1. |
-| `proof_images` | `array` | *(Only on COMPLETED)* URLs to screenshot proofs uploaded by the Wallet Agent. |
-| `reason` | `string` | *(Only on REJECTED)* Reason for rejection or cancellation. |
-| `date_and_time` | `string` | *(Only on COMPLETED)* ISO timestamp of completion. |
+| Field | Type | Requirement | Description |
+| :--- | :--- | :--- | :--- |
+| `status` | `string` | **Required** | Payout status: **"PROCESSING"**, **"COMPLETED"**, or **"REJECTED"**. |
+| `withdrawal_id` | `string` | **Required** | Database ID for this withdrawal request. |
+| `amount` | `number` | **Required** | Payout amount sent to user (BDT). |
+| `payment_method` | `string` | **Required** | Wallet method used (e.g. `bkash`, `nagad`, `rocket`, `upay`). |
+| `user_identity_address` | `string` | **Required** | User identifier address passed in request. |
+| `account_number` | `string` | **Required** | Target mobile banking account number. |
+| `transaction_id` | `string` | **Required** *(on COMPLETED)* | Unique Transaction ID (TrxID) / reference entered by the Wallet Agent upon completion. |
+| `proof_text` | `string` | **Required** *(on COMPLETED)* | Same string value as `transaction_id`. |
+| `date_and_time` | `string` | **Required** *(on COMPLETED)* | ISO timestamp of completion date & time. |
+| `checkout_items` | `array` | Optional | Custom JSON items/objects passed in request (returns `[]` if empty). |
+| `proof_images` | `array` | Optional | Array of screenshot proof URLs uploaded by Wallet Agent (returns `[]` if agent uploaded no images). |
+| `reason` | `string` | Optional *(on REJECTED)* | Reason for rejection or cancellation (only present on `REJECTED` status). |
 
 **How you should handle all statuses (Node.js / Express Example):**
 ```javascript

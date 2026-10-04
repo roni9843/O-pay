@@ -511,6 +511,38 @@ router.post('/send-payment-message', async (req, res, next) => {
 
 
 
+// Test Push Notification directly to a token
+router.post('/test-push', async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) return res.status(400).json({ success: false, message: 'fcmToken is required' });
+    
+    const { admin: firebaseAdmin, isFirebaseInitialized } = require('../firebase');
+    if (!isFirebaseInitialized) {
+      return res.status(500).json({ success: false, message: 'Firebase Admin not initialized on server' });
+    }
+
+    const response = await firebaseAdmin.messaging().send({
+      token: fcmToken,
+      notification: {
+        title: "OPay Test",
+        body: "This is a test push notification from OPay server."
+      },
+      data: {
+        type: "notification",
+        title: "OPay Test",
+        message: "This is a test push notification from OPay server."
+      }
+    });
+
+    console.log('[TestPush] Sent successfully:', response);
+    res.json({ success: true, message: 'Test notification sent successfully' });
+  } catch (err) {
+    console.error('[TestPush] Error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // protect all device routes
 router.use(auth);
 

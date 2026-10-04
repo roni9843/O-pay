@@ -108,6 +108,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/admin-status', require('./routes/adminStatus'));
 app.use('/api/payment-partners', require('./routes/paymentPartners'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

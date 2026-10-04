@@ -30,8 +30,8 @@ const AgentBankAccountSchema = new mongoose.Schema(
     },
     division: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
     },
     district: {
       type: String,
@@ -40,8 +40,8 @@ const AgentBankAccountSchema = new mongoose.Schema(
     },
     upazilaThana: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
     },
     routingNumber: {
       type: String,
@@ -52,6 +52,10 @@ const AgentBankAccountSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
+    },
+    minAmount: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

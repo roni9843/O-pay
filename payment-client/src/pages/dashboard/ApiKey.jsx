@@ -180,8 +180,23 @@ export default function ApiKeyPage() {
       // lazy import to avoid circular
       const { updateSubscriptionCallbackUrl } = await import('../../lib/api');
       await updateSubscriptionCallbackUrl(token, selected, callbackUrl);
+      alert('Callback URL saved successfully!');
     } catch (e) {
       setError(e.message || 'Failed to save callback URL');
+    } finally { setBusy(false); }
+  };
+
+  const handleTestCallback = async () => {
+    if (!selected) return;
+    try {
+      setBusy(true);
+      const { testSubscriptionApiKeyCallback } = await import('../../lib/api');
+      const res = await testSubscriptionApiKeyCallback(token, selected);
+      if (res.success) {
+        alert(`Test Successful!\n\nHTTP Status: ${res.httpStatus}\nResponse: ${JSON.stringify(res.responseData)}`);
+      }
+    } catch (e) {
+      alert(`Test Failed!\n\nError: ${e.message}\nStatus: ${e.status || e.data?.status || 'Unknown'}\nServer Response: ${JSON.stringify(e.data?.response || null)}`);
     } finally { setBusy(false); }
   };
 
@@ -264,7 +279,10 @@ export default function ApiKeyPage() {
               />
               ); })()}
               {status.hasKey && (
-                <button onClick={handleSaveCallback} disabled={busy} className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm">Save</button>
+                <>
+                  <button onClick={handleSaveCallback} disabled={busy} className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm whitespace-nowrap">Save</button>
+                  <button onClick={handleTestCallback} disabled={busy || !isValidUrl(callbackUrl)} className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm whitespace-nowrap">Test Webhook</button>
+                </>
               )}
             </div>
             {!status.hasKey && cbTouched && !isValidUrl(callbackUrl) && (

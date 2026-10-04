@@ -526,7 +526,18 @@ export default function AutoWithdrawals() {
                             </div>
                             
                               <div>
-                                <h4 className="text-slate-400 font-medium mb-1 text-xs uppercase">Proof Images</h4>
+                                <h4 className="text-slate-400 font-medium mb-1 text-xs uppercase">Transaction ID / Proof Text</h4>
+                                {item.proofText || item.transactionId ? (
+                                  <div className="text-emerald-400 font-mono font-bold text-sm bg-black/40 px-3 py-1.5 rounded-lg border border-emerald-500/30 inline-block">
+                                    {item.proofText || item.transactionId}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-500 italic">No Trx ID provided</span>
+                                )}
+                              </div>
+
+                              <div>
+                                <h4 className="text-slate-400 font-medium mb-1 text-xs uppercase">Proof Screenshots (Optional)</h4>
                                 {item.proofImages && item.proofImages.length > 0 ? (
                                   <div className="flex gap-2 flex-wrap mt-2">
                                     {item.proofImages.map((img, i) => (
@@ -536,7 +547,7 @@ export default function AutoWithdrawals() {
                                     ))}
                                   </div>
                                 ) : (
-                                  <span className="text-slate-500 italic">No proofs uploaded</span>
+                                  <span className="text-slate-500 italic">No proof screenshots uploaded</span>
                                 )}
                               </div>
                           </div>

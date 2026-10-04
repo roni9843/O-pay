@@ -34,7 +34,7 @@ export default function PendingBalance() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4 sm:p-6 relative overflow-x-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
 
         {/* Header */}
@@ -44,7 +44,7 @@ export default function PendingBalance() {
               <Clock className="w-16 h-16 text-amber-400" />
             </div>
           </div>
-          <h1 className="text-6xl font-black bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-black bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
             Pending Balance
           </h1>
           <p className="text-amber-300 text-xl mt-3">Your top-up requests awaiting approval</p>
